@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability report
+    url: https://github.com/VenuRathi/energy-monitoring-system/blob/main/SECURITY.md
+    about: Please do not report security vulnerabilities in public issues.
+  - name: Project discussions
+    url: https://github.com/VenuRathi/energy-monitoring-system/discussions
+    about: Ask open-ended questions and share suggestions with the community.

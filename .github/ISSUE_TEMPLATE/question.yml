@@ -1,0 +1,26 @@
+name: Question
+description: Ask a usage, architecture, or implementation question
+title: "[Question]: "
+labels: [question, feedback]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to achieve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Ask your question clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempts
+    attributes:
+      label: What you tried
+      description: Steps attempted, docs read, commands run.

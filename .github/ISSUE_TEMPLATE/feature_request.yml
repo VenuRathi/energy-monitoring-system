@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest an idea to improve the project
+title: "[Feature]: "
+labels: [enhancement, feedback]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing a suggestion. Structured proposals are easier to review and prioritize.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user problem does this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe your idea.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternate approaches?
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected impact
+      description: Performance, UX, reliability, maintainability, etc.

@@ -3,6 +3,7 @@
 Production-style full-stack energy monitoring platform for Schneider PM5000 / EM6400 class meters.
 
 [![CI](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml/badge.svg)](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## Why this project stands out
 
@@ -11,6 +12,13 @@ Production-style full-stack energy monitoring platform for Schneider PM5000 / EM
 - Report generation (Excel and Word exports)
 - Email settings and scheduled report delivery
 - Full frontend experience with React + TypeScript
+
+## Use Cases
+
+- Industrial panel-level energy visibility
+- Campus and facility energy monitoring
+- Preventive alerting for abnormal load patterns
+- Scheduled operational reporting for teams
 
 ## Architecture
 
@@ -22,6 +30,16 @@ Meters (PM5000/EM6400)
 	-> Flask API layer
 	-> React dashboard and reporting UI
 ```
+
+## Demo and Screenshots
+
+- Add screenshots to `docs/screenshots/` and reference them here.
+- Add a short walkthrough video (2-4 minutes) showing:
+  - meter discovery and setup
+  - dashboard and trends
+  - alerts and report scheduling
+
+This section is intentionally prepared so your project looks strong for portfolio and review panels.
 
 ## Tech Stack
 
@@ -111,6 +129,29 @@ Important values:
 - Treat database and SMTP credentials as secrets and rotate them if leaked.
 - Keep this project private until you complete your public-release checklist.
 - Review [SECURITY.md](SECURITY.md) before production deployment.
+
+## Feedback and Suggestions
+
+I welcome feedback from visitors, reviewers, and collaborators.
+
+- Feature ideas and improvements: open a Feature Request issue.
+- Bugs and reliability concerns: open a Bug Report issue.
+- Questions and guidance requests: open a Question issue.
+- General discussion and project conversation: use GitHub Discussions (recommended).
+
+If discussions are not enabled yet, open a Question issue and it will be redirected.
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned milestones and next improvements.
+
+## Contributing
+
+Please review [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before opening a pull request.
+
+## Changelog
+
+Release history and notable updates are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Testing
 
