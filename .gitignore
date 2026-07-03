@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+
+.env
+
+.idea/
+.vscode/
+
+logs/*.log
+logs/*.xlsx
+
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+*.egg-info/

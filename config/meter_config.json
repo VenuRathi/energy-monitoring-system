@@ -1,0 +1,136 @@
+{
+  "meter_defaults": {
+    "manufacturer": "Schneider",
+    "model": "PM5000-EM6400",
+    "protocol": "modbus_rtu",
+    "enabled": true,
+    "driver": "schneider.pm5000",
+    "meter_timestamp_parameter": "Present Date & Time"
+  },
+  "connection_defaults": {
+    "baud_rate": 9600,
+    "parity": "N",
+    "stop_bits": 1,
+    "byte_size": 8,
+    "timeout": 2.0,
+    "one_based_map": true
+  },
+  "parameter_sets": {
+    "schneider_pm5000_core": [
+        {"name": "Current A", "register": 3000, "type": "float32", "unit": "A", "scale": 1.0},
+        {"name": "Current B", "register": 3002, "type": "float32", "unit": "A", "scale": 1.0},
+        {"name": "Current C", "register": 3004, "type": "float32", "unit": "A", "scale": 1.0},
+        {"name": "Current N", "register": 3006, "type": "float32", "unit": "A", "scale": 1.0},
+        {"name": "Current G", "register": 3008, "type": "float32", "unit": "A", "scale": 1.0},
+        {"name": "Current Avg", "register": 3010, "type": "float32", "unit": "A", "scale": 1.0},
+        {"name": "Current Unbalance A", "register": 3012, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Current Unbalance B", "register": 3014, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Current Unbalance C", "register": 3016, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Current Unbalance Worst", "register": 3018, "type": "float32", "unit": "%", "scale": 1.0},
+
+        {"name": "Voltage A-B", "register": 3020, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage B-C", "register": 3022, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage C-A", "register": 3024, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage L-L Avg", "register": 3026, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage A-N", "register": 3028, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage B-N", "register": 3030, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage C-N", "register": 3032, "type": "float32", "unit": "V", "scale": 1.0},
+        {"name": "Voltage L-N Avg", "register": 3036, "type": "float32", "unit": "V", "scale": 1.0},
+
+        {"name": "Voltage Unbalance A-B", "register": 3038, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance B-C", "register": 3040, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance C-A", "register": 3042, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance L-L Worst", "register": 3044, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance A-N", "register": 3046, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance B-N", "register": 3048, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance C-N", "register": 3050, "type": "float32", "unit": "%", "scale": 1.0},
+        {"name": "Voltage Unbalance L-N Worst", "register": 3052, "type": "float32", "unit": "%", "scale": 1.0},
+
+        {"name": "Active Power A", "register": 3054, "type": "float32", "unit": "kW", "scale": 1.0},
+        {"name": "Active Power B", "register": 3056, "type": "float32", "unit": "kW", "scale": 1.0},
+        {"name": "Active Power C", "register": 3058, "type": "float32", "unit": "kW", "scale": 1.0},
+        {"name": "Active Power Total", "register": 3060, "type": "float32", "unit": "kW", "scale": 1.0},
+
+        {"name": "Reactive Power A", "register": 3062, "type": "float32", "unit": "kVAR", "scale": 1.0},
+        {"name": "Reactive Power B", "register": 3064, "type": "float32", "unit": "kVAR", "scale": 1.0},
+        {"name": "Reactive Power C", "register": 3066, "type": "float32", "unit": "kVAR", "scale": 1.0},
+        {"name": "Reactive Power Total", "register": 3068, "type": "float32", "unit": "kVAR", "scale": 1.0},
+
+        {"name": "Apparent Power A", "register": 3070, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Apparent Power B", "register": 3072, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Apparent Power C", "register": 3074, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Apparent Power Total", "register": 3076, "type": "float32", "unit": "kVA", "scale": 1.0},
+
+        {"name": "Power Factor A", "register": 3078, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Power Factor B", "register": 3080, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Power Factor C", "register": 3082, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Power Factor Total", "register": 3084, "type": "float32", "unit": "PF", "scale": 1.0},
+
+        {"name": "Displacement Power Factor A", "register": 3086, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Displacement Power Factor B", "register": 3088, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Displacement Power Factor C", "register": 3090, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Displacement Power Factor Total", "register": 3092, "type": "float32", "unit": "PF", "scale": 1.0},
+
+        {"name": "Frequency", "register": 3110, "type": "float32", "unit": "Hz", "scale": 1.0},
+
+        {"name": "Power Factor Total IEC", "register": 3192, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Power Factor Total Lead Lag", "register": 3194, "type": "float32", "unit": "PF", "scale": 1.0},
+        {"name": "Power Factor Total IEC Code", "register": 3196, "type": "uint16", "unit": "code", "scale": 1.0},
+        {"name": "Power Factor Total Lead Lag Code", "register": 3197, "type": "uint16", "unit": "code", "scale": 1.0},
+
+        {"name": "Accumulated Energy Reset Date/Time", "register": 3200, "type": "datetime4", "unit": "raw", "scale": 1.0},
+        {"name": "Present Date & Time", "register": 1845, "type": "datetime4", "unit": "raw", "scale": 1.0},
+
+        {"name": "Active Energy Received (Out of Load)", "register": 3207, "type": "uint32", "unit": "kWh", "scale": 0.001},
+
+        {"name": "Reactive Energy Received", "register": 3223, "type": "uint32", "unit": "kVARh", "scale": 0.001},
+
+        {"name": "Apparent Energy Received", "register": 3239, "type": "uint32", "unit": "kVAh", "scale": 0.001},
+
+        {"name": "Demand System Assignment", "register": 3793, "type": "uint16", "unit": "code", "scale": 1.0},
+        {"name": "Register Number of Metered Quantity", "register": 3794, "type": "uint16", "unit": "count", "scale": 1.0},
+        {"name": "Units Code", "register": 3795, "type": "uint16", "unit": "code", "scale": 1.0},
+
+        {"name": "Last Demand", "register": 3796, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Present Demand", "register": 3798, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Predicted Demand", "register": 3800, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Peak Demand", "register": 3802, "type": "float32", "unit": "kVA", "scale": 1.0},
+        {"name": "Peak Demand DateTime", "register": 3804, "type": "datetime4", "unit": "raw", "scale": 1.0}
+      ]
+  },
+  "meters": [
+    {
+      "meter_id": "MTR-001",
+      "meter_name": "Main Schneider Meter",
+      "location": "Panel-1",
+      "enabled": true,
+      "parameter_set": "schneider_pm5000_core",
+      "connection": {
+        "port": "COM6",
+        "slave_id": 1
+      }
+    },
+    {
+      "meter_id": "MTR-002",
+      "meter_name": "Second Meter Template",
+      "location": "Panel-2",
+      "enabled": true,
+      "parameter_set": "schneider_pm5000_core",
+      "connection": {
+        "port": "COM6",
+        "slave_id": 2
+      }
+    },
+    {
+      "meter_id": "MTR-003",
+      "meter_name": "Meter 3",
+      "location": "Panel-3",
+      "enabled": true,
+      "parameter_set": "schneider_pm5000_core",
+      "connection": {
+        "port": "COM6",
+        "slave_id": 3
+      }
+    }
+  ]
+}
