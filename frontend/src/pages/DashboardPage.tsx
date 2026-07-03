@@ -31,6 +31,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
     const message = error instanceof Error ? error.message : "Unable to load dashboard data.";
     return (
       <div className="page-state page-state--error">
+        <h3>Dashboard unavailable</h3>
         <p>{message}</p>
         <button type="button" className="ghost-button" onClick={() => refetch()}>
           Retry
@@ -40,6 +41,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
   }
 
   const selectedMeter = data.selectedMeter ?? data.meters[0];
+  const noReadingsYet = !selectedMeter?.has_readings || (data.latestReadings?.length ?? 0) === 0;
   const statusTone =
     selectedMeter?.data_quality === "live"
       ? "online"
@@ -90,6 +92,11 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         {selectedMeter?.status_detail ? (
           <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>
             {selectedMeter.status_detail}
+          </div>
+        ) : null}
+        {noReadingsYet ? (
+          <div className="dashboard__status-note dashboard__status-note--no_readings">
+            No readings available yet for this meter.
           </div>
         ) : null}
         <MetricStrip metrics={data.metrics} />

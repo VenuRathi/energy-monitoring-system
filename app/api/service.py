@@ -24,7 +24,7 @@ from app.database.connection import get_connection
 from app.database.models import parameter_name_to_column_name
 from app.database.repositories import AlertRuleRepository, EmailSettingsRepository, MeterRepository, ReportScheduleRepository
 from app.collectors.modbus_client import ModbusRTUClient
-from app.runtime_state import get_shared_modbus_client
+from app.runtime_state import get_all_meter_runtime_statuses, get_polling_loop_state, get_shared_modbus_client
 from config.meter_loader import load_meter_config
 from config.settings import Settings, load_settings
 from utils.coercion import coerce_bool
@@ -34,6 +34,8 @@ VALID_PARITY = {"N", "E", "O"}
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TIME_TEXT_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 SCHEDULE_EMAIL_DELAY_MINUTES = 5
+MAX_EXPORT_RANGE_DAYS = 31
+MAX_EXPORT_ROWS = 50000
 
 
 COMMON_PARAMETER_KEYS = {
@@ -102,6 +104,180 @@ AGGREGATE_AVERAGE_KEYS = {
 }
 
 logger = logging.getLogger("energy_monitoring.api.service")
+
+
+def _runtime_meter_statuses() -> dict[str, dict[str, Any]]:
+    return get_all_meter_runtime_statuses()
+
+
+def _serialize_runtime_meter_status(runtime_state: dict[str, Any] | None) -> dict[str, Any]:
+    if not runtime_state:
+        return {
+            "lastPollAttemptTime": "",
+            "lastSuccessfulReadingTime": "",
+            "lastErrorTime": "",
+            "lastErrorMessage": "",
+            "consecutiveFailureCount": 0,
+            "communicationStatus": "unknown",
+            "comPort": "",
+            "slaveId": None,
+        }
+
+    return {
+        "lastPollAttemptTime": _serialize_timestamp(runtime_state.get("lastPollAttemptTime")),
+        "lastSuccessfulReadingTime": _serialize_timestamp(runtime_state.get("lastSuccessfulReadingTime")),
+        "lastErrorTime": _serialize_timestamp(runtime_state.get("lastErrorTime")),
+        "lastErrorMessage": str(runtime_state.get("lastErrorMessage") or ""),
+        "consecutiveFailureCount": int(runtime_state.get("consecutiveFailureCount") or 0),
+        "communicationStatus": str(runtime_state.get("communicationStatus") or "unknown"),
+        "comPort": str(runtime_state.get("comPort") or ""),
+        "slaveId": runtime_state.get("slaveId"),
+    }
+
+
+def _serialize_polling_loop_state() -> dict[str, Any]:
+    state = get_polling_loop_state()
+    return {
+        "running": bool(state.get("running", False)),
+        "cycleInProgress": bool(state.get("cycleInProgress", False)),
+        "lastCycleStartTime": _serialize_timestamp(state.get("lastCycleStartTime")),
+        "lastCycleEndTime": _serialize_timestamp(state.get("lastCycleEndTime")),
+        "lastCycleDurationSeconds": state.get("lastCycleDurationSeconds"),
+        "totalCyclesCompleted": int(state.get("totalCyclesCompleted") or 0),
+        "lastGlobalPollingError": str(state.get("lastGlobalPollingError") or ""),
+        "lastGlobalPollingErrorTime": _serialize_timestamp(state.get("lastGlobalPollingErrorTime")),
+    }
+
+
+def _coerce_aware_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    return None
+
+
+def _stale_threshold_seconds() -> int:
+    poll_interval_seconds = max(get_runtime_settings().poll_interval_seconds, 1)
+    return max(poll_interval_seconds * 2, 300)
+
+
+def _meter_freshness_reference_time(meter: dict[str, Any], runtime_state: dict[str, Any] | None = None) -> datetime | None:
+    if runtime_state:
+        runtime_success_time = _coerce_aware_datetime(runtime_state.get("lastSuccessfulReadingTime"))
+        if runtime_success_time is not None:
+            return runtime_success_time
+
+    return _coerce_aware_datetime(meter.get("last_update"))
+
+
+def _effective_meter_communication_status(
+    meter: dict[str, Any],
+    runtime_state: dict[str, Any] | None = None,
+) -> str:
+    enabled = coerce_bool(meter.get("enabled", True), True)
+    if not enabled:
+        return "offline"
+
+    success_time = _coerce_aware_datetime((runtime_state or {}).get("lastSuccessfulReadingTime"))
+    error_time = _coerce_aware_datetime((runtime_state or {}).get("lastErrorTime"))
+    consecutive_failures = int((runtime_state or {}).get("consecutiveFailureCount") or 0)
+    threshold_seconds = _stale_threshold_seconds()
+
+    if success_time is not None:
+        success_age_seconds = (datetime.now(timezone.utc) - success_time).total_seconds()
+        success_is_fresh = success_age_seconds <= threshold_seconds
+        success_is_newer_than_error = error_time is None or success_time >= error_time
+
+        if success_is_fresh and consecutive_failures == 0 and success_is_newer_than_error:
+            return "online"
+
+        if success_is_fresh and success_is_newer_than_error and consecutive_failures < 3:
+            return "online"
+
+    if consecutive_failures >= 3:
+        return "offline"
+
+    if consecutive_failures > 0:
+        return "warning"
+
+    reference_time = _meter_freshness_reference_time(meter, runtime_state)
+    if reference_time is None:
+        return "offline"
+
+    age_seconds = (datetime.now(timezone.utc) - reference_time).total_seconds()
+    if age_seconds <= threshold_seconds:
+        return "online"
+    return "offline"
+
+
+def _meter_stale_warning(meter: dict[str, Any], runtime_state: dict[str, Any] | None = None) -> bool:
+    enabled = coerce_bool(meter.get("enabled", True), True)
+    if not enabled:
+        return False
+
+    communication_status = _effective_meter_communication_status(meter, runtime_state)
+    reference_time = _meter_freshness_reference_time(meter, runtime_state)
+
+    if reference_time is None:
+        return True
+
+    age_seconds = (datetime.now(timezone.utc) - reference_time).total_seconds()
+    if age_seconds <= _stale_threshold_seconds() and communication_status == "online":
+        return False
+
+    return age_seconds > _stale_threshold_seconds() or communication_status in {"warning", "offline"}
+
+
+def _build_status_meter_summary_row(
+    meter: dict[str, Any],
+    runtime_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    enabled = coerce_bool(meter.get("enabled", True), True)
+    effective_communication_status = _effective_meter_communication_status(meter, runtime_state)
+    effective_status = effective_communication_status
+    effective_stale_warning = _meter_stale_warning(meter, runtime_state)
+    runtime_payload = _serialize_runtime_meter_status(runtime_state)
+
+    row = {
+        "meterId": meter["meter_id"],
+        "meterName": meter["meter_name"],
+        "enabled": enabled,
+        "status": effective_status,
+        "communicationStatus": effective_communication_status,
+        "latestReadingTimestamp": meter.get("last_update") or None,
+        "staleWarning": effective_stale_warning,
+        **runtime_payload,
+    }
+
+    row["status"] = effective_status
+    row["communicationStatus"] = effective_communication_status
+    row["staleWarning"] = effective_stale_warning
+
+    if (
+        enabled
+        and int(runtime_payload.get("consecutiveFailureCount") or 0) == 0
+        and runtime_payload.get("lastSuccessfulReadingTime")
+    ):
+        freshness_reference = _coerce_aware_datetime(runtime_payload["lastSuccessfulReadingTime"])
+        if freshness_reference is not None:
+            age_seconds = (datetime.now(timezone.utc) - freshness_reference).total_seconds()
+            if age_seconds <= _stale_threshold_seconds():
+                row["status"] = "online"
+                row["communicationStatus"] = "online"
+                row["staleWarning"] = False
+
+    return row
 
 
 def _parameter_type_to_data_type(parameter_type: str, unit: str) -> str:
@@ -506,6 +682,8 @@ def ensure_schema() -> None:
 def get_system_health() -> dict[str, Any]:
     settings = get_runtime_settings()
     demo_mode = _demo_mode_enabled()
+    runtime_statuses = _runtime_meter_statuses()
+    polling_state = _serialize_polling_loop_state()
 
     checks: dict[str, dict[str, Any]] = {
         "api": {"status": "ok", "message": "API is reachable."},
@@ -531,20 +709,81 @@ def get_system_health() -> dict[str, Any]:
             "message": "Database check skipped because database is disabled or demo mode is enabled.",
         }
 
+    meter_summary = {
+        "meterCount": 0,
+        "enabledMeterCount": 0,
+        "staleMeterCount": 0,
+        "staleMeters": [],
+        "meters": [],
+    }
+
     try:
-        meter_count = len(_demo_meters() if demo_mode else list_meters())
-        checks["meters"] = {"status": "ok", "message": f"Meter inventory available ({meter_count} meter(s))."}
+        meters = _demo_meters() if demo_mode else list_meters()
+        meter_status_rows = []
+        stale_meters: list[str] = []
+        for meter in meters:
+            runtime_state = runtime_statuses.get(meter["meter_id"])
+            meter_status_row = _build_status_meter_summary_row(meter, runtime_state)
+            if meter_status_row["staleWarning"]:
+                stale_meters.append(meter["meter_id"])
+            meter_status_rows.append(meter_status_row)
+        meter_summary = {
+            "meterCount": len(meters),
+            "enabledMeterCount": sum(1 for meter in meters if coerce_bool(meter.get("enabled", True), True)),
+            "staleMeterCount": len(stale_meters),
+            "staleMeters": stale_meters,
+            "meters": meter_status_rows,
+        }
+        checks["meters"] = {"status": "ok", "message": f"Meter inventory available ({len(meters)} meter(s))."}
+        if stale_meters:
+            checks["meters"] = {
+                "status": "degraded",
+                "message": f"{len(stale_meters)} meter(s) are warning/offline or stale.",
+            }
+            overall_status = "degraded"
     except Exception as exc:
         checks["meters"] = {"status": "degraded", "message": f"Meter inventory check failed: {exc}"}
         overall_status = "degraded"
+        meter_summary = {
+            "meterCount": len(runtime_statuses),
+            "enabledMeterCount": len(runtime_statuses),
+            "staleMeterCount": 0,
+            "staleMeters": [],
+            "meters": [],
+        }
+        for meter_id, runtime_state in sorted(runtime_statuses.items()):
+            fallback_meter = {
+                "meter_id": meter_id,
+                "meter_name": meter_id,
+                "enabled": True,
+                "status": str(runtime_state.get("communicationStatus") or "unknown"),
+                "last_update": _serialize_timestamp(runtime_state.get("lastSuccessfulReadingTime")),
+            }
+            meter_status_row = _build_status_meter_summary_row(fallback_meter, runtime_state)
+            if meter_status_row["staleWarning"]:
+                meter_summary["staleMeterCount"] += 1
+                meter_summary["staleMeters"].append(meter_id)
+            meter_summary["meters"].append(meter_status_row)
+    if polling_state["lastGlobalPollingError"]:
+        checks["polling"] = {
+            "status": "degraded",
+            "message": polling_state["lastGlobalPollingError"],
+        }
+        overall_status = "degraded"
+    else:
+        checks["polling"] = {"status": "ok", "message": "Polling loop heartbeat available."}
 
     return {
         "status": overall_status,
+        "apiStatus": checks["api"]["status"],
+        "databaseStatus": checks["database"]["status"],
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "mode": {
             "demoMode": demo_mode,
             "databaseEnabled": settings.enable_database,
         },
+        "summary": meter_summary,
+        "polling": polling_state,
         "checks": checks,
     }
 
@@ -864,6 +1103,7 @@ def _row_to_meter(record: dict[str, Any], latest_row: dict[str, Any] | None = No
     snapshot = _snapshot_from_latest_row(latest_row)
     enabled = coerce_bool(record.get("enabled", True), True)
     health = _assess_meter_health(enabled, last_update, latest_row)
+    runtime_state = _runtime_meter_statuses().get(record["meter_id"])
     meter = {
         "meter_id": record["meter_id"],
         "meter_name": record["meter_name"],
@@ -893,6 +1133,7 @@ def _row_to_meter(record: dict[str, Any], latest_row: dict[str, Any] | None = No
         "base_power": snapshot["activePower"],
         "base_energy": snapshot["activeEnergy"],
         "snapshot": snapshot,
+        **_serialize_runtime_meter_status(runtime_state),
     }
     return meter
 
@@ -1191,11 +1432,7 @@ def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_t
 
     catalog = get_parameter_catalog()
     catalog_map = get_parameter_map()
-
-    try:
-        all_meters = list_meters()
-    except Exception:
-        all_meters = []
+    all_meters = list_meters()
 
     meters = [meter for meter in all_meters if meter["enabled"]]
     if not meters:
@@ -1229,35 +1466,22 @@ def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_t
         }
 
     selected_meter = next((meter for meter in meters if meter["meter_id"] == meter_id), meters[0])
-    latest_rows_by_meter: dict[str, dict[str, Any]] = {}
-    try:
-        with _open_connection() as connection:
-            latest_rows_by_meter = _fetch_latest_rows_by_meter(connection)
-    except Exception:
-        latest_rows_by_meter = {}
+    with _open_connection() as connection:
+        latest_rows_by_meter = _fetch_latest_rows_by_meter(connection)
 
     if meter_id == "ALL":
         aggregate_row = _aggregate_latest_row(latest_rows_by_meter, [meter["meter_id"] for meter in meters])
         selected_meter = _build_all_selected_meter(meters, aggregate_row)
         metrics = _metrics_from_latest_row(aggregate_row, catalog)
         latest_readings = _latest_readings_from_row(aggregate_row, catalog)
-        try:
-            trend_series = _aggregate_trend_series([meter["meter_id"] for meter in meters], trend_parameter["key"])
-        except Exception:
-            trend_series = []
+        trend_series = _aggregate_trend_series([meter["meter_id"] for meter in meters], trend_parameter["key"])
     else:
         selected_latest_row = latest_rows_by_meter.get(selected_meter["meter_id"])
         metrics = _metrics_from_latest_row(selected_latest_row, catalog)
         latest_readings = _latest_readings_from_row(selected_latest_row, catalog)
-        try:
-            trend_series = get_trend_series(selected_meter["meter_id"], trend_parameter["key"])
-        except Exception:
-            trend_series = []
+        trend_series = get_trend_series(selected_meter["meter_id"], trend_parameter["key"])
 
-    try:
-        active_alerts = list_active_alerts(None if meter_id == "ALL" else selected_meter["meter_id"])
-    except Exception:
-        active_alerts = []
+    active_alerts = list_active_alerts(None if meter_id == "ALL" else selected_meter["meter_id"])
 
     return {
         "meters": meters,
@@ -2090,12 +2314,23 @@ def _normalize_filters(filters: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(parameter_keys, list):
         raise ValueError("parameterKeys must be a list.")
 
+    start = _parse_timestamp(start_value)
+    end = _parse_timestamp(end_value)
+    now = datetime.now(timezone.utc)
+
+    if start >= end:
+        raise ValueError("Start date/time must be before end date/time.")
+    if start >= now and end > now:
+        raise ValueError("Future-only report ranges are not allowed.")
+    if end - start > timedelta(days=MAX_EXPORT_RANGE_DAYS):
+        raise ValueError(f"Report range cannot exceed {MAX_EXPORT_RANGE_DAYS} days.")
+
     return {
         "meter_id": meter_ids[0],
         "meter_ids": meter_ids,
         "parameter_keys": [str(key) for key in parameter_keys],
-        "start": _parse_timestamp(start_value),
-        "end": _parse_timestamp(end_value),
+        "start": start,
+        "end": end,
         "interval_hours": None if interval_value in (None, "", 0, "0") else float(interval_value),
     }
 
@@ -2943,6 +3178,11 @@ def build_export_payload(filters: dict[str, Any], format_name: str) -> dict[str,
     meter_summary = meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)} meters"
     file_stem = _report_file_stem("energy_report", meter_summary, timestamp)
     total_rows = sum(len(rows) for _, rows in meter_rows)
+    if total_rows > MAX_EXPORT_ROWS:
+        raise ValueError(
+            f"Selected report contains {total_rows} rows, which exceeds the export limit of {MAX_EXPORT_ROWS} rows. "
+            "Reduce the time range or choose fewer meters."
+        )
 
     if format_name == "xlsx":
         if len(meters) == 1:

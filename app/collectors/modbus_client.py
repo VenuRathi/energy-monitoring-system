@@ -34,16 +34,98 @@ class ModbusRTUClient:
         self._client: Optional[ModbusSerialClient] = None
         self._last_connect_attempt_monotonic = 0.0
         self._lock = threading.RLock()
+        self._failure_suppression_window_seconds = 30.0
+        self._last_failure_signature: tuple[str, str, int, int, int, str] | None = None
+        self._last_failure_logged_at = 0.0
+        self._suppressed_failure_count = 0
+
+    def _reset_client(self) -> None:
+        if self._client is None:
+            return
+        try:
+            self._client.close()
+        except Exception:
+            pass
+        finally:
+            self._client = None
+
+    def _flush_suppressed_failures(self) -> None:
+        if self._suppressed_failure_count <= 0 or self._last_failure_signature is None:
+            return
+
+        meter_id, port, slave_id, register, count, error_text = self._last_failure_signature
+        logger.warning(
+            "Suppressed %s repeated Modbus read failures for meter %s on %s slave %s register %s count %s: %s",
+            self._suppressed_failure_count,
+            meter_id or "unknown-meter",
+            port,
+            slave_id,
+            register,
+            count,
+            error_text,
+        )
+        self._suppressed_failure_count = 0
+
+    def _log_read_failure(
+        self,
+        *,
+        meter_id: str | None,
+        slave_id: int,
+        register: int,
+        count: int,
+        error: str,
+    ) -> None:
+        now = time.monotonic()
+        signature = (
+            meter_id or "",
+            self.port,
+            slave_id,
+            register,
+            count,
+            error,
+        )
+
+        if (
+            signature == self._last_failure_signature
+            and now - self._last_failure_logged_at < self._failure_suppression_window_seconds
+        ):
+            self._suppressed_failure_count += 1
+            return
+
+        self._flush_suppressed_failures()
+        self._last_failure_signature = signature
+        self._last_failure_logged_at = now
+        logger.warning(
+            "Modbus read failed for meter %s on %s slave %s register %s count %s: %s",
+            meter_id or "unknown-meter",
+            self.port,
+            slave_id,
+            register,
+            count,
+            error,
+        )
 
     def connect(self) -> bool:
         with self._lock:
             if self._client and self._client.connected:
                 return True
+            if self._client and not self._client.connected:
+                self._reset_client()
 
             now = time.monotonic()
             if now - self._last_connect_attempt_monotonic < self.reconnect_interval_seconds:
                 return False
             self._last_connect_attempt_monotonic = now
+
+            logger.info(
+                "Attempting Modbus connection on %s with %s baud, parity %s, stop bits %s, byte size %s, timeout %.2fs.",
+                self.port,
+                self.baud_rate,
+                self.parity,
+                self.stop_bits,
+                self.byte_size,
+                self.timeout,
+            )
 
             self._client = ModbusSerialClient(
                 port=self.port,
@@ -56,6 +138,7 @@ class ModbusRTUClient:
             try:
                 connected = bool(self._client.connect())
             except Exception as exc:
+                self._reset_client()
                 logger.error(
                     "Unable to open Modbus port %s for slave %s: %s",
                     self.port,
@@ -65,6 +148,7 @@ class ModbusRTUClient:
                 return False
 
             if not connected:
+                self._reset_client()
                 logger.error(
                     "Unable to open Modbus port %s for slave %s.",
                     self.port,
@@ -74,8 +158,7 @@ class ModbusRTUClient:
 
     def close(self) -> None:
         with self._lock:
-            if self._client:
-                self._client.close()
+            self._reset_client()
             self._last_connect_attempt_monotonic = 0.0
 
     def read_holding_registers(
@@ -84,14 +167,22 @@ class ModbusRTUClient:
         count: int,
         one_based: bool = True,
         slave_id: Optional[int] = None,
+        meter_id: str | None = None,
     ) -> Optional[list]:
         """
         Read holding registers.
         register: meter map register number (usually 1-based in datasheets).
         """
         with self._lock:
+            resolved_slave_id = self.slave_id if slave_id is None else slave_id
             if not self.connect() or self._client is None:
-                logger.debug("Modbus connection unavailable for port %s.", self.port)
+                self._log_read_failure(
+                    meter_id=meter_id,
+                    slave_id=resolved_slave_id,
+                    register=register,
+                    count=count,
+                    error="connection unavailable",
+                )
                 return None
 
             address = register - 1 if one_based else register
@@ -99,23 +190,54 @@ class ModbusRTUClient:
                 response = self._client.read_holding_registers(
                     address=address,
                     count=count,
-                    slave=self.slave_id if slave_id is None else slave_id,
+                    slave=resolved_slave_id,
                 )
             except Exception as exc:
-                logger.warning(
-                    "Modbus read failed on port %s (slave %s, register %s, count %s): %s",
-                    self.port,
-                    self.slave_id if slave_id is None else slave_id,
-                    register,
-                    count,
-                    exc,
+                self._reset_client()
+                self._log_read_failure(
+                    meter_id=meter_id,
+                    slave_id=resolved_slave_id,
+                    register=register,
+                    count=count,
+                    error=str(exc),
                 )
                 return None
 
-            if response is None or (hasattr(response, "isError") and response.isError()):
+            if response is None:
+                self._reset_client()
+                self._log_read_failure(
+                    meter_id=meter_id,
+                    slave_id=resolved_slave_id,
+                    register=register,
+                    count=count,
+                    error="empty response",
+                )
                 return None
+
+            if hasattr(response, "isError") and response.isError():
+                self._reset_client()
+                self._log_read_failure(
+                    meter_id=meter_id,
+                    slave_id=resolved_slave_id,
+                    register=register,
+                    count=count,
+                    error=str(response),
+                )
+                return None
+
             if not hasattr(response, "registers") or len(response.registers) != count:
+                actual_count = len(response.registers) if hasattr(response, "registers") else 0
+                self._reset_client()
+                self._log_read_failure(
+                    meter_id=meter_id,
+                    slave_id=resolved_slave_id,
+                    register=register,
+                    count=count,
+                    error=f"incomplete register response ({actual_count}/{count})",
+                )
                 return None
+
+            self._flush_suppressed_failures()
             return response.registers
 
 

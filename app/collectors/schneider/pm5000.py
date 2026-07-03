@@ -24,41 +24,47 @@ class PM5000Collector(BaseMeter):
         modbus_client: ModbusRTUClient,
         parameters: List[dict],
         slave_id: int,
+        meter_id: str,
         one_based_map: bool = True,
     ) -> None:
         self.modbus_client = modbus_client
         self.parameters = parameters
         self.slave_id = slave_id
+        self.meter_id = meter_id
         self.one_based_map = one_based_map
 
     def read_all(self) -> Dict[str, Optional[object]]:
-        register_blocks = self._prefetch_register_blocks()
+        register_state = self._prefetch_register_blocks()
         readings: Dict[str, Optional[object]] = {}
+        if register_state["communication_failed"]:
+            for parameter in self.parameters:
+                readings[parameter["name"]] = None
+            return readings
         for parameter in self.parameters:
             name = parameter["name"]
-            readings[name] = self._read_parameter(parameter, register_blocks)
+            readings[name] = self._read_parameter(parameter, register_state)
         return readings
 
     def _read_parameter(
         self,
         parameter: dict,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[object]:
         register = int(parameter["register"])
         data_type = str(parameter["type"]).lower()
         scale = float(parameter.get("scale", 1.0))
 
         if data_type == "float32":
-            raw_value = self._read_float32(register, register_blocks)
+            raw_value = self._read_float32(register, register_state)
         elif data_type == "int32":
-            raw_value = self._read_int32_lsw(register, register_blocks)
+            raw_value = self._read_int32_lsw(register, register_state)
         elif data_type == "uint16":
-            raw_value = self._read_uint16(register, register_blocks)
+            raw_value = self._read_uint16(register, register_state)
         elif data_type == "datetime4":
             # Keep vendor datetime as raw register string until exact format is specified.
-            return self._read_datetime4_raw(register, register_blocks)
+            return self._read_datetime4_raw(register, register_state)
         else:
-            raw_value = self._read_uint32_lsw(register, register_blocks)
+            raw_value = self._read_uint32_lsw(register, register_state)
 
         if raw_value is None:
             return None
@@ -133,7 +139,7 @@ class PM5000Collector(BaseMeter):
         plan.append((start, end - start))
         return plan
 
-    def _prefetch_register_blocks(self) -> list[tuple[int, list[int]]]:
+    def _prefetch_register_blocks(self) -> dict[str, object]:
         blocks: list[tuple[int, list[int]]] = []
         for register, count in self._build_read_plan():
             regs = self.modbus_client.read_holding_registers(
@@ -141,18 +147,29 @@ class PM5000Collector(BaseMeter):
                 count=count,
                 one_based=self.one_based_map,
                 slave_id=self.slave_id,
+                meter_id=self.meter_id,
             )
-            if regs is not None:
-                blocks.append((register, regs))
-        return blocks
+            if regs is None:
+                return {
+                    "blocks": blocks,
+                    "communication_failed": True,
+                }
+            blocks.append((register, regs))
+        return {
+            "blocks": blocks,
+            "communication_failed": False,
+        }
 
     def _get_prefetched_registers(
         self,
         register: int,
         count: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[list[int]]:
-        if register_blocks is None:
+        if register_state is None:
+            return None
+        register_blocks = register_state.get("blocks")
+        if not isinstance(register_blocks, list):
             return None
 
         for block_start, regs in register_blocks:
@@ -166,25 +183,28 @@ class PM5000Collector(BaseMeter):
         self,
         register: int,
         count: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[list[int]]:
-        prefetched = self._get_prefetched_registers(register, count, register_blocks)
+        prefetched = self._get_prefetched_registers(register, count, register_state)
         if prefetched is not None:
             return prefetched
+        if register_state and register_state.get("communication_failed"):
+            return None
 
         return self.modbus_client.read_holding_registers(
             register,
             count=count,
             one_based=self.one_based_map,
             slave_id=self.slave_id,
+            meter_id=self.meter_id,
         )
 
     def _read_uint16(
         self,
         register: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[int]:
-        regs = self._read_registers(register, 1, register_blocks)
+        regs = self._read_registers(register, 1, register_state)
         if regs is None:
             return None
         if regs[0] == 0xFFFF:
@@ -194,9 +214,9 @@ class PM5000Collector(BaseMeter):
     def _read_datetime4_raw(
         self,
         register: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[str]:
-        regs = self._read_registers(register, 4, register_blocks)
+        regs = self._read_registers(register, 4, register_state)
         if regs is None:
             return None
         return "-".join(f"{word:04X}" for word in regs)
@@ -204,9 +224,9 @@ class PM5000Collector(BaseMeter):
     def _read_float32(
         self,
         register: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[float]:
-        regs = self._read_registers(register, 2, register_blocks)
+        regs = self._read_registers(register, 2, register_state)
         if regs is None:
             return None
 
@@ -219,9 +239,9 @@ class PM5000Collector(BaseMeter):
     def _read_uint32_lsw(
         self,
         register: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[int]:
-        regs = self._read_registers(register, 2, register_blocks)
+        regs = self._read_registers(register, 2, register_state)
         if regs is None:
             return None
 
@@ -235,9 +255,9 @@ class PM5000Collector(BaseMeter):
     def _read_int32_lsw(
         self,
         register: int,
-        register_blocks: Optional[list[tuple[int, list[int]]]] = None,
+        register_state: Optional[dict[str, object]] = None,
     ) -> Optional[int]:
-        unsigned_value = self._read_uint32_lsw(register, register_blocks)
+        unsigned_value = self._read_uint32_lsw(register, register_state)
         if unsigned_value is None:
             return None
         if unsigned_value & 0x80000000:

@@ -13,6 +13,13 @@ from zoneinfo import ZoneInfo
 from app.collectors.base.base_meter import BaseMeter
 from app.database.models import parameter_name_to_column_name
 from app.database.repositories import AlertRuleRepository, MeterRepository, ReadingRepository
+from app.runtime_state import (
+    ensure_meter_runtime_status,
+    record_meter_poll_attempt,
+    record_meter_poll_failure,
+    record_meter_poll_success,
+    record_meter_runtime_error,
+)
 
 
 logger = logging.getLogger("energy_monitoring.polling_service")
@@ -40,6 +47,31 @@ class PollingService:
         self.parameter_lookup = {
             parameter_name_to_column_name(parameter["name"]): parameter for parameter in meter_config["parameters"]
         }
+        ensure_meter_runtime_status(
+            self.meter_config["meter_id"],
+            com_port=self._com_port(),
+            slave_id=self._slave_id(),
+        )
+
+    def _com_port(self) -> str:
+        connection = self.meter_config.get("connection", {})
+        return str(connection.get("com_port") or connection.get("port", "unknown-port"))
+
+    def _slave_id(self) -> int | None:
+        connection = self.meter_config.get("connection", {})
+        slave_id = connection.get("slave_id")
+        return int(slave_id) if slave_id is not None else None
+
+    def _log_status_transition(self, previous_status: str, next_status: str, context: str) -> None:
+        if previous_status == next_status:
+            return
+        logger.info(
+            "Meter %s status changed from %s to %s (%s).",
+            self.meter_config["meter_id"],
+            previous_status,
+            next_status,
+            context,
+        )
 
     def _meter_repository_payload(self) -> dict:
         connection = self.meter_config.get("connection", {})
@@ -69,14 +101,41 @@ class PollingService:
 
     def poll_once(self) -> None:
         connection = self.meter_config.get("connection", {})
+        com_port = self._com_port()
+        slave_id = self._slave_id()
+        attempted_at = datetime.now(timezone.utc)
+        record_meter_poll_attempt(
+            self.meter_config["meter_id"],
+            attempted_at=attempted_at,
+            com_port=com_port,
+            slave_id=slave_id,
+        )
         logger.info(
             "Polling meter %s on %s slave %s.",
             self.meter_config["meter_id"],
-            connection.get("com_port") or connection.get("port", "unknown-port"),
-            connection.get("slave_id", "unknown-slave"),
+            com_port,
+            slave_id if slave_id is not None else "unknown-slave",
         )
-        collected_at = datetime.now(timezone.utc)
-        readings = self.collector.read_all()
+        collected_at = attempted_at
+        try:
+            readings = self.collector.read_all()
+        except Exception as exc:
+            previous_status, state = record_meter_poll_failure(
+                self.meter_config["meter_id"],
+                failed_at=attempted_at,
+                error_message=f"Collector read failed: {exc}",
+                com_port=com_port,
+                slave_id=slave_id,
+            )
+            self._log_status_transition(previous_status, state["communicationStatus"], "collector exception")
+            logger.exception(
+                "Collector read failed for meter %s on %s slave %s: %s",
+                self.meter_config["meter_id"],
+                com_port,
+                slave_id if slave_id is not None else "unknown-slave",
+                exc,
+            )
+            return
         meter_timestamp = self._resolve_meter_timestamp(readings, collected_at)
         reading_timestamp = meter_timestamp or collected_at
         reading_date = reading_timestamp.astimezone(self.app_timezone).strftime("%d/%m/%Y")
@@ -85,22 +144,51 @@ class PollingService:
 
         non_null_count = sum(1 for value in readings.values() if value is not None)
         if non_null_count == 0:
+            previous_status, state = record_meter_poll_failure(
+                self.meter_config["meter_id"],
+                failed_at=attempted_at,
+                error_message="No readings received in this cycle.",
+                com_port=com_port,
+                slave_id=slave_id,
+            )
+            self._log_status_transition(previous_status, state["communicationStatus"], "no readings received")
             logger.warning("No readings received in this cycle for meter %s.", self.meter_config["meter_id"])
             return
 
         if not self._has_primary_measurements(readings):
-            connection = self.meter_config.get("connection", {})
+            previous_status, state = record_meter_poll_success(
+                self.meter_config["meter_id"],
+                successful_at=collected_at,
+                communication_status="warning",
+                com_port=com_port,
+                slave_id=slave_id,
+            )
+            self._log_status_transition(previous_status, state["communicationStatus"], "meter responded without primary values")
             logger.warning(
                 "Meter %s on %s slave %s responded, but primary measurements are empty/zero. Persisting available values.",
                 self.meter_config["meter_id"],
-                connection.get("com_port") or connection.get("port", "unknown-port"),
-                connection.get("slave_id", "unknown-slave"),
+                com_port,
+                slave_id if slave_id is not None else "unknown-slave",
             )
+        else:
+            previous_status, state = record_meter_poll_success(
+                self.meter_config["meter_id"],
+                successful_at=collected_at,
+                communication_status="online",
+                com_port=com_port,
+                slave_id=slave_id,
+                clear_error_message=True,
+            )
+            self._log_status_transition(previous_status, state["communicationStatus"], "successful poll")
 
         self._print_readings(reading_timestamp, collected_at, timestamp_source, readings)
         self._save_database(reading_timestamp, collected_at, reading_date, reading_time, timestamp_source, meter_timestamp, readings)
         self._evaluate_alerts(reading_timestamp, reading_date, reading_time, readings)
-        logger.info("Finished polling meter %s.", self.meter_config["meter_id"])
+        logger.info(
+            "Finished polling meter %s with %s populated value(s).",
+            self.meter_config["meter_id"],
+            non_null_count,
+        )
 
     def _has_primary_measurements(self, readings: Dict[str, Optional[object]]) -> bool:
         keys_to_check = [
@@ -126,10 +214,18 @@ class PollingService:
         timestamp_source: str,
         readings: Dict[str, Optional[object]],
     ) -> None:
-        logger.info("%s", "=" * 60)
-        logger.info("Reading timestamp: %s [%s]", reading_timestamp.isoformat(), timestamp_source)
-        logger.info("Collected at: %s", collected_at.isoformat())
-        logger.info("%s", "=" * 60)
+        populated_count = sum(1 for value in readings.values() if value is not None)
+        logger.info(
+            "Reading summary for meter %s: timestamp=%s source=%s collected_at=%s populated_values=%s",
+            self.meter_config["meter_id"],
+            reading_timestamp.isoformat(),
+            timestamp_source,
+            collected_at.isoformat(),
+            populated_count,
+        )
+
+        if not logger.isEnabledFor(logging.DEBUG):
+            return
 
         for parameter in self.meter_config["parameters"]:
             name = parameter["name"]
@@ -144,9 +240,9 @@ class PollingService:
                 shown = str(value)
 
             if unit:
-                logger.info("%-45s %12s %s", name, shown, unit)
+                logger.debug("%-45s %12s %s", name, shown, unit)
             else:
-                logger.info("%-45s %s", name, shown)
+                logger.debug("%-45s %s", name, shown)
 
     def _save_database(
         self,
@@ -161,16 +257,32 @@ class PollingService:
         if self.reading_repository is None:
             return
 
-        self.reading_repository.insert_reading(
-            meter_id=self.meter_config["meter_id"],
-            timestamp=reading_timestamp,
-            readings=readings,
-            meter_timestamp=meter_timestamp,
-            collected_at=collected_at,
-            reading_date=reading_date,
-            reading_time=reading_time,
-            timestamp_source=timestamp_source,
-        )
+        try:
+            self.reading_repository.insert_reading(
+                meter_id=self.meter_config["meter_id"],
+                timestamp=reading_timestamp,
+                readings=readings,
+                meter_timestamp=meter_timestamp,
+                collected_at=collected_at,
+                reading_date=reading_date,
+                reading_time=reading_time,
+                timestamp_source=timestamp_source,
+            )
+        except Exception as exc:
+            record_meter_runtime_error(
+                self.meter_config["meter_id"],
+                error_at=collected_at,
+                error_message=f"Database insert failed: {exc}",
+                com_port=self._com_port(),
+                slave_id=self._slave_id(),
+            )
+            logger.exception(
+                "Database insert failed for meter %s on %s slave %s: %s",
+                self.meter_config["meter_id"],
+                self._com_port(),
+                self._slave_id() if self._slave_id() is not None else "unknown-slave",
+                exc,
+            )
 
     def _resolve_meter_timestamp(self, readings: Dict[str, Optional[object]], collected_at: datetime) -> datetime | None:
         configured_name = str(self.meter_config.get("meter_timestamp_parameter", "")).strip()
@@ -249,7 +361,18 @@ class PollingService:
         if self.alert_rule_repository is None:
             return
 
-        rules = self.alert_rule_repository.list_enabled_rules(self.meter_config["meter_id"])
+        try:
+            rules = self.alert_rule_repository.list_enabled_rules(self.meter_config["meter_id"])
+        except Exception as exc:
+            record_meter_runtime_error(
+                self.meter_config["meter_id"],
+                error_at=reading_timestamp,
+                error_message=f"Alert rule lookup failed: {exc}",
+                com_port=self._com_port(),
+                slave_id=self._slave_id(),
+            )
+            logger.exception("Alert rule lookup failed for meter %s: %s", self.meter_config["meter_id"], exc)
+            return
         if not rules:
             return
 
@@ -274,59 +397,89 @@ class PollingService:
             parameter_label = self.parameter_lookup.get(rule["parameter_key"], {}).get("name", rule["parameter_key"])
 
             if is_breached and not was_active:
-                self.alert_rule_repository.set_rule_state(
-                    rule_id=rule["id"],
-                    is_active=True,
-                    last_value=numeric_value,
-                    triggered_at=reading_timestamp,
-                )
-                self.alert_rule_repository.insert_event(
-                    {
-                        "rule_id": rule["id"],
-                        "meter_id": self.meter_config["meter_id"],
-                        "parameter_key": rule["parameter_key"],
-                        "parameter_label": parameter_label,
-                        "measured_value": numeric_value,
-                        "min_value": rule["min_value"],
-                        "max_value": rule["max_value"],
-                        "event_type": "triggered",
-                        "event_time": reading_timestamp,
-                        "reading_date": reading_date,
-                        "reading_time": reading_time,
-                    }
-                )
+                try:
+                    self.alert_rule_repository.set_rule_state(
+                        rule_id=rule["id"],
+                        is_active=True,
+                        last_value=numeric_value,
+                        triggered_at=reading_timestamp,
+                    )
+                    self.alert_rule_repository.insert_event(
+                        {
+                            "rule_id": rule["id"],
+                            "meter_id": self.meter_config["meter_id"],
+                            "parameter_key": rule["parameter_key"],
+                            "parameter_label": parameter_label,
+                            "measured_value": numeric_value,
+                            "min_value": rule["min_value"],
+                            "max_value": rule["max_value"],
+                            "event_type": "triggered",
+                            "event_time": reading_timestamp,
+                            "reading_date": reading_date,
+                            "reading_time": reading_time,
+                        }
+                    )
+                except Exception as exc:
+                    record_meter_runtime_error(
+                        self.meter_config["meter_id"],
+                        error_at=reading_timestamp,
+                        error_message=f"Alert trigger persistence failed: {exc}",
+                        com_port=self._com_port(),
+                        slave_id=self._slave_id(),
+                    )
+                    logger.exception("Alert trigger persistence failed for meter %s: %s", self.meter_config["meter_id"], exc)
                 continue
 
             if is_breached and was_active:
-                self.alert_rule_repository.set_rule_state(
-                    rule_id=rule["id"],
-                    is_active=True,
-                    last_value=numeric_value,
-                )
+                try:
+                    self.alert_rule_repository.set_rule_state(
+                        rule_id=rule["id"],
+                        is_active=True,
+                        last_value=numeric_value,
+                    )
+                except Exception as exc:
+                    record_meter_runtime_error(
+                        self.meter_config["meter_id"],
+                        error_at=reading_timestamp,
+                        error_message=f"Alert state update failed: {exc}",
+                        com_port=self._com_port(),
+                        slave_id=self._slave_id(),
+                    )
+                    logger.exception("Alert state update failed for meter %s: %s", self.meter_config["meter_id"], exc)
                 continue
 
             if not is_breached and was_active:
-                self.alert_rule_repository.set_rule_state(
-                    rule_id=rule["id"],
-                    is_active=False,
-                    last_value=numeric_value,
-                    cleared_at=reading_timestamp,
-                )
-                self.alert_rule_repository.insert_event(
-                    {
-                        "rule_id": rule["id"],
-                        "meter_id": self.meter_config["meter_id"],
-                        "parameter_key": rule["parameter_key"],
-                        "parameter_label": parameter_label,
-                        "measured_value": numeric_value,
-                        "min_value": rule["min_value"],
-                        "max_value": rule["max_value"],
-                        "event_type": "cleared",
-                        "event_time": reading_timestamp,
-                        "reading_date": reading_date,
-                        "reading_time": reading_time,
-                    }
-                )
+                try:
+                    self.alert_rule_repository.set_rule_state(
+                        rule_id=rule["id"],
+                        is_active=False,
+                        last_value=numeric_value,
+                        cleared_at=reading_timestamp,
+                    )
+                    self.alert_rule_repository.insert_event(
+                        {
+                            "rule_id": rule["id"],
+                            "meter_id": self.meter_config["meter_id"],
+                            "parameter_key": rule["parameter_key"],
+                            "parameter_label": parameter_label,
+                            "measured_value": numeric_value,
+                            "min_value": rule["min_value"],
+                            "max_value": rule["max_value"],
+                            "event_type": "cleared",
+                            "event_time": reading_timestamp,
+                            "reading_date": reading_date,
+                            "reading_time": reading_time,
+                        }
+                    )
+                except Exception as exc:
+                    record_meter_runtime_error(
+                        self.meter_config["meter_id"],
+                        error_at=reading_timestamp,
+                        error_message=f"Alert clear persistence failed: {exc}",
+                        com_port=self._com_port(),
+                        slave_id=self._slave_id(),
+                    )
+                    logger.exception("Alert clear persistence failed for meter %s: %s", self.meter_config["meter_id"], exc)
 
 
 """

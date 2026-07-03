@@ -12,17 +12,22 @@ export function AppShell() {
   const [page, setPage] = useState<PageKey>("dashboard");
   const [selectedMeterId, setSelectedMeterId] = useState("");
   const { data: meters = [] } = useMetersData();
+  const activeMeters = useMemo(() => {
+    const enabledMeters = meters.filter((meter) => meter.enabled);
+    return enabledMeters.length > 0 ? enabledMeters : meters;
+  }, [meters]);
 
   useEffect(() => {
-    if (meters.length === 0) {
+    if (activeMeters.length === 0) {
       return;
     }
 
-    const isCurrentMeterValid = selectedMeterId === "ALL" || meters.some((meter) => meter.meter_id === selectedMeterId);
+    const isCurrentMeterValid =
+      selectedMeterId === "ALL" || activeMeters.some((meter) => meter.meter_id === selectedMeterId);
     if (!selectedMeterId || !isCurrentMeterValid) {
-      setSelectedMeterId(meters[0].meter_id);
+      setSelectedMeterId(activeMeters[0].meter_id);
     }
-  }, [meters, selectedMeterId]);
+  }, [activeMeters, selectedMeterId]);
 
   const pageTitle = useMemo(() => {
     if (page === "dashboard") return "Dashboard";

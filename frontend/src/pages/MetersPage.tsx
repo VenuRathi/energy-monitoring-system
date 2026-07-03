@@ -59,7 +59,7 @@ function validateMeterInput(input: MeterInput): string | null {
 }
 
 export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) {
-  const { data, isLoading } = useMetersData();
+  const { data, isLoading, isError, error } = useMetersData();
   const { data: parameters = [] } = useParameterCatalog();
   const { saveMeter, deleteMeter, discoverMeters, syncDiscoveredMeters } = useMeterMutations();
   const reportMutations = useReportMutations();
@@ -156,11 +156,18 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
     });
   };
 
-  const remove = (meterId: string) => {
-    deleteMeter.mutate(meterId);
-    if (selectedMeterId === meterId && meters.length > 1) {
-      onSelectMeter(meters.find((meter) => meter.meter_id !== meterId)?.meter_id ?? meters[0].meter_id);
-    }
+  const disableMeter = (meterId: string) => {
+    deleteMeter.mutate(meterId, {
+      onSuccess: () => {
+        if (selectedMeterId !== meterId) {
+          return;
+        }
+
+        const remainingMeters = meters.filter((meter) => meter.meter_id !== meterId);
+        const nextActiveMeter = remainingMeters.find((meter) => meter.enabled) ?? remainingMeters[0];
+        onSelectMeter(nextActiveMeter?.meter_id ?? "");
+      },
+    });
   };
 
   const runDiscovery = () => {
@@ -219,7 +226,13 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
     return <div className="page-state">Loading meters...</div>;
   }
 
+  if (isError) {
+    const message = error instanceof Error ? error.message : "Unable to load meters.";
+    return <div className="page-state page-state--error">{message}</div>;
+  }
+
   const onlineCount = meters.filter((meter) => meter.status === "online").length;
+  const disabledCount = meters.filter((meter) => !meter.enabled).length;
   const needsSetup = meters.length === 0 || onlineCount === 0;
 
   return (
@@ -251,6 +264,10 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             <span className="summary-card__label">Need attention</span>
             <strong>{meters.filter((meter) => meter.status === "warning").length}</strong>
           </div>
+          <div className="summary-card">
+            <span className="summary-card__label">Disabled</span>
+            <strong>{disabledCount}</strong>
+          </div>
         </div>
       </section>
 
@@ -279,6 +296,9 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
 
       <section className="dashboard__split">
         <div className="panel">
+          {deleteMeter.error instanceof Error ? (
+            <div className="page-state page-state--error page-state--padded">{deleteMeter.error.message}</div>
+          ) : null}
           <div className="section-heading">
             <div>
               <p className="section-label">Detected and saved meters</p>
@@ -290,7 +310,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             selectedMeterId={selectedMeterId}
             onSelect={onSelectMeter}
             onEdit={startEdit}
-            onDelete={remove}
+            onDisable={disableMeter}
           />
         </div>
 
@@ -331,7 +351,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         <h4 className="page-title">{selectedMeter?.meter_name ?? "No meter selected"}</h4>
         <p className="page-copy">
           {selectedMeter
-            ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${formatNumber(selectedMeter.base_power, 2)} kW base load`
+            ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " - disabled for polling"}`
             : "Choose a meter from the table to review or edit it."}
         </p>
       </section>

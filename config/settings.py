@@ -14,8 +14,10 @@ class Settings:
     api_host: str
     api_port: int
     api_debug: bool
+    api_key_enabled: bool
+    api_key: str
     app_timezone: str
-    cors_allowed_origins: tuple[str, ...]
+    api_allowed_origins: tuple[str, ...]
     db_host: str
     db_port: int
     db_name: str
@@ -34,12 +36,10 @@ def load_settings() -> Settings:
     load_dotenv()
 
     enable_database = coerce_bool(os.getenv("ENABLE_DATABASE", "false"), False)
+    allowed_origins_value = os.getenv("API_ALLOWED_ORIGINS", os.getenv("CORS_ALLOWED_ORIGINS", ""))
     allowed_origins = tuple(
         origin.strip()
-        for origin in os.getenv(
-            "CORS_ALLOWED_ORIGINS",
-            "http://127.0.0.1:5173,http://localhost:5173",
-        ).split(",")
+        for origin in allowed_origins_value.split(",")
         if origin.strip()
     )
 
@@ -50,8 +50,10 @@ def load_settings() -> Settings:
         api_host=os.getenv("API_HOST", "127.0.0.1"),
         api_port=int(os.getenv("API_PORT", "5000")),
         api_debug=coerce_bool(os.getenv("API_DEBUG", "false"), False),
+        api_key_enabled=coerce_bool(os.getenv("API_KEY_ENABLED", "false"), False),
+        api_key=os.getenv("API_KEY", "").strip(),
         app_timezone=os.getenv("APP_TIMEZONE", "Asia/Calcutta"),
-        cors_allowed_origins=allowed_origins or ("http://127.0.0.1:5173", "http://localhost:5173"),
+        api_allowed_origins=allowed_origins or ("http://127.0.0.1:5173", "http://localhost:5173"),
         db_host=os.getenv("DB_HOST", "localhost"),
         db_port=int(os.getenv("DB_PORT", "5432")),
         db_name=os.getenv("DB_NAME", "energy_monitoring"),

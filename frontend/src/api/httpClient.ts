@@ -1,7 +1,25 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
+const API_KEY = import.meta.env.VITE_API_KEY?.trim() ?? "";
 
 function resolveUrl(path: string) {
-  return new URL(path, API_BASE_URL).toString();
+  if (API_BASE_URL) {
+    return new URL(path, API_BASE_URL).toString();
+  }
+
+  if (import.meta.env.DEV) {
+    return new URL(path, "http://127.0.0.1:5000").toString();
+  }
+
+  return path;
+}
+
+function buildHeaders(customHeaders: HeadersInit | undefined, hasBody: boolean) {
+  return {
+    Accept: "application/json",
+    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+    ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+    ...(customHeaders ?? {}),
+  };
 }
 
 async function readError(response: Response) {
@@ -33,11 +51,7 @@ export async function requestJson<T>(path: string, options: RequestInit = {}): P
   const response = await fetch(resolveUrl(path), {
     ...rest,
     cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(customHeaders ?? {}),
-    },
+    headers: buildHeaders(customHeaders, Boolean(options.body)),
   });
 
   if (!response.ok) {
@@ -85,8 +99,8 @@ export async function requestReportDownload<T>(path: string, body: unknown, fall
   const response = await fetch(resolveUrl(path), {
     method: "POST",
     headers: {
+      ...buildHeaders(undefined, true),
       Accept: "*/*",
-      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });

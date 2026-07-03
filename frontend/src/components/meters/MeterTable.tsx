@@ -6,10 +6,10 @@ type MeterTableProps = {
   selectedMeterId: string;
   onSelect: (meterId: string) => void;
   onEdit: (meter: MeterRecord) => void;
-  onDelete: (meterId: string) => void;
+  onDisable: (meterId: string) => void;
 };
 
-export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDelete }: MeterTableProps) {
+export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDisable }: MeterTableProps) {
   return (
     <div className="table-shell">
       <table className="latest-table latest-table--compact meters-table">
@@ -35,6 +35,7 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDelete
               <td className="latest-table__parameter">
                 <strong>{meter.meter_name}</strong>
                 <div className="table-subtle">{meter.meter_id}</div>
+                {!meter.enabled ? <div className="table-subtle table-subtle--danger">Disabled meter</div> : null}
               </td>
               <td>{meter.manufacturer} {meter.model}</td>
               <td>{meter.location}</td>
@@ -42,15 +43,20 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDelete
                 <span className={`status-pill status-pill--${meter.status}`}>{meter.status}</span>
               </td>
               <td>{meter.seu ? "Yes" : "No"}</td>
-              <td>{meter.enabled ? "Yes" : "No"}</td>
+              <td>{meter.enabled ? "Active" : "Disabled"}</td>
               <td>{formatTimestamp(meter.last_update)}</td>
               <td>
                 <div className="row-actions" onClick={(event) => event.stopPropagation()}>
                   <button type="button" className="ghost-button" onClick={() => onEdit(meter)}>
                     Edit
                   </button>
-                  <button type="button" className="ghost-button ghost-button--danger" onClick={() => onDelete(meter.meter_id)}>
-                    Delete
+                  <button
+                    type="button"
+                    className="ghost-button ghost-button--danger"
+                    onClick={() => onDisable(meter.meter_id)}
+                    disabled={!meter.enabled}
+                  >
+                    Disable Meter
                   </button>
                 </div>
               </td>

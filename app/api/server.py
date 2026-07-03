@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import hmac
 from functools import wraps
 from pathlib import Path
 
@@ -48,12 +49,10 @@ def _json_error(message: str, status_code: int = 400):
 
 def _allowed_origin() -> str | None:
     origin = request.headers.get("Origin", "").strip()
-    allowed_origins = SETTINGS.cors_allowed_origins
+    allowed_origins = SETTINGS.api_allowed_origins
 
     if not origin:
-        return allowed_origins[0] if allowed_origins else None
-    if "*" in allowed_origins:
-        return "*"
+        return None
     if origin in allowed_origins:
         return origin
     return None
@@ -63,15 +62,35 @@ def _corsify(response):
     allowed_origin = _allowed_origin()
     if allowed_origin is not None:
         response.headers["Access-Control-Allow-Origin"] = allowed_origin
-        if allowed_origin != "*":
-            response.headers["Vary"] = "Origin"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Vary"] = "Origin"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-API-Key"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Expose-Headers"] = "Content-Disposition, X-Row-Count, X-Filename, X-Generated-At, X-Meter-Name"
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+def _require_api_key(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not SETTINGS.api_key_enabled:
+            return fn(*args, **kwargs)
+
+        configured_key = SETTINGS.api_key.strip()
+        if not configured_key:
+            return _corsify(_json_error("API key protection is enabled but API_KEY is not configured.", 500))
+
+        provided_key = request.headers.get("X-API-Key", "").strip()
+        if not provided_key:
+            return _corsify(_json_error("Missing API key.", 401))
+        if not hmac.compare_digest(provided_key, configured_key):
+            return _corsify(_json_error("Invalid API key.", 403))
+
+        return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def _route_json(fn):
@@ -121,6 +140,10 @@ def create_app() -> Flask:
     def health():
         return _corsify(jsonify(get_system_health()))
 
+    @app.route("/api/status", methods=["GET"])
+    def status():
+        return _corsify(jsonify(get_system_health()))
+
     @app.route("/api/parameters", methods=["GET"])
     @_route_json
     def parameters():
@@ -132,18 +155,21 @@ def create_app() -> Flask:
         return list_meters()
 
     @app.route("/api/meters", methods=["POST"])
+    @_require_api_key
     @_route_json
     def create_meter():
         payload = request.get_json(force=True, silent=False) or {}
         return save_meter(payload)
 
     @app.route("/api/meters/discover", methods=["POST"])
+    @_require_api_key
     @_route_json
     def discover_meter_devices():
         payload = request.get_json(force=True, silent=False) or {}
         return discover_meters(payload)
 
     @app.route("/api/meters/discover/sync", methods=["POST"])
+    @_require_api_key
     @_route_json
     def sync_discovered_meter_devices():
         payload = request.get_json(force=True, silent=False) or {}
@@ -152,6 +178,7 @@ def create_app() -> Flask:
         return sync_discovered_meters(payload)
 
     @app.route("/api/meters/<meter_id>", methods=["PUT"])
+    @_require_api_key
     @_route_json
     def update_meter(meter_id: str):
         payload = request.get_json(force=True, silent=False) or {}
@@ -159,6 +186,7 @@ def create_app() -> Flask:
         return save_meter(payload)
 
     @app.route("/api/meters/<meter_id>", methods=["DELETE"])
+    @_require_api_key
     @_route_no_content
     def remove_meter(meter_id: str):
         delete_meter(meter_id)
@@ -181,6 +209,7 @@ def create_app() -> Flask:
         return list_alert_rules(meter_id)
 
     @app.route("/api/meters/<meter_id>/alert-rules", methods=["POST"])
+    @_require_api_key
     @_route_json
     def meter_alert_rules_save(meter_id: str):
         payload = request.get_json(force=True, silent=False) or {}
@@ -188,6 +217,7 @@ def create_app() -> Flask:
         return save_alert_rule(payload)
 
     @app.route("/api/alert-rules/<int:rule_id>", methods=["DELETE"])
+    @_require_api_key
     @_route_no_content
     def remove_alert_rule(rule_id: int):
         delete_alert_rule(rule_id)
@@ -263,12 +293,14 @@ def create_app() -> Flask:
         return list_report_schedules()
 
     @app.route("/api/report-schedules", methods=["POST"])
+    @_require_api_key
     @_route_json
     def create_report_schedule():
         payload = request.get_json(force=True, silent=False) or {}
         return save_report_schedule(payload)
 
     @app.route("/api/report-schedules/<int:schedule_id>", methods=["PUT"])
+    @_require_api_key
     @_route_json
     def update_report_schedule(schedule_id: int):
         payload = request.get_json(force=True, silent=False) or {}
@@ -276,6 +308,7 @@ def create_app() -> Flask:
         return save_report_schedule(payload)
 
     @app.route("/api/report-schedules/<int:schedule_id>", methods=["DELETE"])
+    @_require_api_key
     @_route_no_content
     def remove_report_schedule(schedule_id: int):
         delete_report_schedule(schedule_id)
@@ -286,6 +319,7 @@ def create_app() -> Flask:
         return get_email_settings()
 
     @app.route("/api/email/settings", methods=["POST"])
+    @_require_api_key
     @_route_json
     def update_email_settings():
         payload = request.get_json(force=True, silent=False) or {}
@@ -297,12 +331,14 @@ def create_app() -> Flask:
         return get_email_health()
 
     @app.route("/api/email/test", methods=["POST"])
+    @_require_api_key
     @_route_json
     def email_test():
         payload = request.get_json(force=True, silent=False) or {}
         return send_test_email(payload)
 
     @app.route("/api/reports/email", methods=["POST"])
+    @_require_api_key
     @_route_json
     def reports_email():
         payload = request.get_json(force=True, silent=False) or {}

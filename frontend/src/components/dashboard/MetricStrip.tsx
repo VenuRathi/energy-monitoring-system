@@ -7,7 +7,7 @@ type MetricStripProps = {
 
 export function MetricStrip({ metrics }: MetricStripProps) {
   if (metrics.length === 0) {
-    return <div className="page-state page-state--padded">No meter readings available yet for this meter.</div>;
+    return <div className="page-state page-state--padded">No readings available yet for this meter.</div>;
   }
 
   return (

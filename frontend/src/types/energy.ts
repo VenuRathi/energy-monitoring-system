@@ -78,7 +78,7 @@ export type TrendPoint = {
 
 export type DashboardData = {
   meters: MeterRecord[];
-  selectedMeter: MeterRecord;
+  selectedMeter: MeterRecord | null;
   summary: {
     totalMeters: number;
     onlineMeters: number;

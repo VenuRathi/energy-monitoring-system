@@ -30,6 +30,12 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
   const { data: emailSettings } = useEmailSettingsData();
   const { data: emailHealth } = useEmailHealthData();
   const reportMutations = useReportMutations();
+  const exportError =
+    reportMutations.excelExport.error instanceof Error
+      ? reportMutations.excelExport.error.message
+      : reportMutations.wordReport.error instanceof Error
+        ? reportMutations.wordReport.error.message
+        : null;
   const fallbackMeterId = selectedMeterId === "ALL" ? meters[0]?.meter_id ?? "" : selectedMeterId;
   const [filters, setFilters] = useState<ReportFilters>({
     meterId: fallbackMeterId,
@@ -95,13 +101,25 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
           </div>
 
           <div className="report-actions report-actions--wide">
-            <button type="button" className="primary-button" onClick={() => submitExport("excel")}>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => submitExport("excel")}
+              disabled={reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
+            >
               {reportMutations.excelExport.isPending ? "Generating..." : "Export Excel"}
             </button>
-            <button type="button" className="ghost-button" onClick={() => submitExport("word")}>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => submitExport("word")}
+              disabled={reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
+            >
               {reportMutations.wordReport.isPending ? "Generating..." : "Generate Word"}
             </button>
           </div>
+
+          {exportError ? <div className="page-state page-state--error page-state--padded">{exportError}</div> : null}
 
           <div className="report-status report-status--card">
             <p className="section-label">Status</p>

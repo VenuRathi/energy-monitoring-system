@@ -125,7 +125,7 @@
       "meter_id": "MTR-003",
       "meter_name": "Meter 3",
       "location": "Panel-3",
-      "enabled": true,
+      "enabled": false,
       "parameter_set": "schneider_pm5000_core",
       "connection": {
         "port": "COM6",

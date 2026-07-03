@@ -2,6 +2,7 @@ import logging
 import os
 import tempfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Thread
 from typing import Iterable
@@ -17,7 +18,16 @@ from app.database.connection import get_connection
 from app.database.models import create_tables
 from app.database.repositories import AlertRuleRepository, MeterRepository, ReadingRepository
 from app.runtime_state import get_shared_modbus_client as get_registered_modbus_client
-from app.runtime_state import pop_all_shared_modbus_clients, set_shared_modbus_client
+from app.runtime_state import (
+    pop_all_shared_modbus_clients,
+    prune_meter_runtime_statuses,
+    record_meter_runtime_error,
+    record_polling_cycle_end,
+    record_polling_cycle_start,
+    record_polling_loop_error,
+    set_polling_loop_running,
+    set_shared_modbus_client,
+)
 from app.services.polling_service import PollingService
 from utils.coercion import coerce_bool
 from utils.logger import setup_logger
@@ -166,6 +176,7 @@ def build_collector(meter_definition: dict, modbus_client: ModbusRTUClient):
             modbus_client=modbus_client,
             parameters=meter_definition["parameters"],
             slave_id=int(connection_config.get("slave_id", 1)),
+            meter_id=meter_definition["meter_id"],
             one_based_map=connection_config.get("one_based_map", True),
         )
 
@@ -284,6 +295,45 @@ def _close_modbus_clients(shared_modbus_clients: dict[tuple, ModbusRTUClient]) -
             pass
 
 
+def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging.Logger) -> list[dict]:
+    valid_meter_definitions: list[dict] = []
+    serial_settings_by_port: dict[str, tuple[int, str, int, int, float]] = {}
+
+    for meter_definition in meter_definitions:
+        connection = meter_definition.get("connection", {})
+        meter_id = meter_definition.get("meter_id", "unknown-meter")
+        com_port = str(connection.get("com_port") or connection.get("port", "unknown-port")).upper()
+        slave_id = connection.get("slave_id", "unknown-slave")
+        serial_settings = (
+            int(connection.get("baud_rate", 9600)),
+            str(connection.get("parity", "N")),
+            int(connection.get("stop_bits", 1)),
+            int(connection.get("byte_size", 8)),
+            float(connection.get("timeout", 2.0)),
+        )
+        existing_settings = serial_settings_by_port.get(com_port)
+        if existing_settings is not None and existing_settings != serial_settings:
+            message = (
+                f"Skipping meter {meter_id} on {com_port} slave {slave_id}: "
+                f"serial settings {serial_settings} conflict with existing bus settings {existing_settings}."
+            )
+            logger.warning(message)
+            record_meter_runtime_error(
+                meter_id,
+                error_at=datetime.now(timezone.utc),
+                error_message=message,
+                com_port=com_port,
+                slave_id=int(slave_id) if isinstance(slave_id, int) else None,
+                communication_status="warning",
+            )
+            continue
+
+        serial_settings_by_port[com_port] = serial_settings
+        valid_meter_definitions.append(meter_definition)
+
+    return valid_meter_definitions
+
+
 def build_polling_service(
     meter_definition: dict,
     settings,
@@ -351,49 +401,118 @@ def main() -> None:
     def rebuild_polling_services(next_meter_definitions: list[dict]) -> None:
         nonlocal polling_services, active_signature
         _close_modbus_clients(shared_modbus_clients)
-        polling_services = [
-            build_polling_service(
-                meter_definition=meter_definition,
-                settings=settings,
-                meter_repository=meter_repository,
-                modbus_client=get_shared_modbus_client(meter_definition),
-            )
+        next_polling_services: list[PollingService] = []
+        for meter_definition in next_meter_definitions:
+            connection = meter_definition.get("connection", {})
+            meter_id = meter_definition.get("meter_id", "unknown-meter")
+            com_port = connection.get("com_port") or connection.get("port", "unknown-port")
+            slave_id = connection.get("slave_id", "unknown-slave")
+            try:
+                polling_service = build_polling_service(
+                    meter_definition=meter_definition,
+                    settings=settings,
+                    meter_repository=meter_repository,
+                    modbus_client=get_shared_modbus_client(meter_definition),
+                )
+                polling_service.prepare()
+                next_polling_services.append(polling_service)
+            except Exception as exc:
+                logger.exception(
+                    "Skipping meter %s on %s slave %s during polling service rebuild: %s",
+                    meter_id,
+                    com_port,
+                    slave_id,
+                    exc,
+                )
+                record_meter_runtime_error(
+                    meter_id,
+                    error_at=datetime.now(timezone.utc),
+                    error_message=f"Polling service rebuild failed: {exc}",
+                    com_port=str(com_port),
+                    slave_id=int(slave_id) if isinstance(slave_id, int) else None,
+                    communication_status="warning",
+                )
+        polling_services = next_polling_services
+        prune_meter_runtime_statuses(
+            meter_definition.get("meter_id", "")
             for meter_definition in next_meter_definitions
-        ]
-        for polling_service in polling_services:
-            polling_service.prepare()
+            if meter_definition.get("meter_id")
+        )
         active_signature = _meter_set_signature(next_meter_definitions)
-        logger.info("Active polling meters refreshed: %s meter(s).", len(next_meter_definitions))
+        logger.info("Active polling meters refreshed: %s meter(s).", len(polling_services))
 
     def sync_polling_services() -> None:
         nonlocal meter_definitions
         try:
             next_meter_definitions = load_runtime_meters(settings, meter_config)
         except Exception as exc:
+            record_polling_loop_error(f"Failed to refresh runtime meter definitions: {exc}", datetime.now(timezone.utc))
             logger.exception("Failed to refresh runtime meter definitions: %s", exc)
             return
 
-        next_signature = _meter_set_signature(next_meter_definitions)
+        validated_meter_definitions = _validate_shared_bus_settings(next_meter_definitions, logger)
+        next_signature = _meter_set_signature(validated_meter_definitions)
         if next_signature == active_signature:
             return
 
-        meter_definitions = next_meter_definitions
-        rebuild_polling_services(next_meter_definitions)
+        meter_definitions = validated_meter_definitions
+        rebuild_polling_services(validated_meter_definitions)
 
     try:
         sync_polling_services()
+        set_polling_loop_running(True)
 
         while True:
+            cycle_started_at = datetime.now(timezone.utc)
+            cycle_started_monotonic = time.monotonic()
+            record_polling_cycle_start(cycle_started_at)
+            logger.info("Polling cycle started at %s.", cycle_started_at.isoformat())
             sync_polling_services()
             if not polling_services:
                 logger.warning("No enabled meters are active for polling.")
+                cycle_ended_at = datetime.now(timezone.utc)
+                cycle_duration_seconds = time.monotonic() - cycle_started_monotonic
+                record_polling_cycle_end(cycle_ended_at, cycle_duration_seconds)
+                logger.info(
+                    "Polling cycle ended at %s after %.3fs with no active meters.",
+                    cycle_ended_at.isoformat(),
+                    cycle_duration_seconds,
+                )
                 time.sleep(settings.poll_interval_seconds)
                 continue
             for polling_service in polling_services:
-                polling_service.poll_once()
-            process_due_report_schedules()
+                connection = polling_service.meter_config.get("connection", {})
+                meter_id = polling_service.meter_config.get("meter_id", "unknown-meter")
+                com_port = connection.get("com_port") or connection.get("port", "unknown-port")
+                slave_id = connection.get("slave_id", "unknown-slave")
+                try:
+                    polling_service.poll_once()
+                except Exception as exc:
+                    record_polling_loop_error(f"Meter polling failure for {meter_id}: {exc}", datetime.now(timezone.utc))
+                    logger.exception(
+                        "Polling failed for meter %s on %s slave %s: %s",
+                        meter_id,
+                        com_port,
+                        slave_id,
+                        exc,
+                    )
+            try:
+                process_due_report_schedules()
+            except Exception as exc:
+                record_polling_loop_error(f"Scheduled report processing failed: {exc}", datetime.now(timezone.utc))
+                logger.exception("Scheduled report processing failed: %s", exc)
+            cycle_ended_at = datetime.now(timezone.utc)
+            cycle_duration_seconds = time.monotonic() - cycle_started_monotonic
+            record_polling_cycle_end(cycle_ended_at, cycle_duration_seconds)
+            logger.info(
+                "Polling cycle ended at %s after %.3fs across %s meter(s).",
+                cycle_ended_at.isoformat(),
+                cycle_duration_seconds,
+                len(polling_services),
+            )
             time.sleep(settings.poll_interval_seconds)
     finally:
+        set_polling_loop_running(False)
         api_server.stop()
         _close_modbus_clients(shared_modbus_clients)
         release_instance_lock()
