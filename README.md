@@ -31,6 +31,8 @@ Meters (PM5000/EM6400)
 	-> React dashboard and reporting UI
 ```
 
+Mermaid diagram version: [docs/architecture.md](docs/architecture.md)
+
 ## Demo and Screenshots
 
 - Add screenshots to `docs/screenshots/` and reference them here.
@@ -70,6 +72,8 @@ This section is intentionally prepared so your project looks strong for portfoli
 3. Copy `.env.example` to `.env` and fill your local values.
 4. Start backend and frontend.
 
+For demo/presentation without physical meters, set `DEMO_MODE=true` in `.env`.
+
 ### Backend Setup (Windows PowerShell)
 
 ```powershell
@@ -101,6 +105,7 @@ Use `.env.example` as the source of truth for required keys.
 Important values:
 
 - `ENABLE_DATABASE`, `POLL_INTERVAL_SECONDS`, `APP_TIMEZONE`
+- `DEMO_MODE` (set `true` to run without hardware and serve synthetic data)
 - `API_HOST`, `API_PORT`, `CORS_ALLOWED_ORIGINS`
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`
@@ -122,6 +127,16 @@ Important values:
 - `POST /api/email/settings`
 - `GET /api/email/health`
 - `POST /api/email/test`
+
+OpenAPI contract (starter): [docs/openapi.yaml](docs/openapi.yaml)
+
+## Data Model
+
+Database model overview: [docs/data-model.md](docs/data-model.md)
+
+## Deployment Checklist
+
+Fresh machine bootstrap and deployment notes: [docs/deployment-checklist.md](docs/deployment-checklist.md)
 
 ## Security and Responsible Use
 

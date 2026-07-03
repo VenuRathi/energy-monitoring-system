@@ -15,6 +15,7 @@ from app.api.service import (
     ensure_schema,
     get_email_health,
     get_email_settings,
+    get_system_health,
     get_dashboard_data,
     get_latest_readings,
     get_parameter_catalog,
@@ -39,7 +40,8 @@ FRONTEND_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 def _json_error(message: str, status_code: int = 400):
-    response = jsonify({"error": message})
+    status_text = "error" if status_code >= 500 else "fail"
+    response = jsonify({"status": status_text, "error": message})
     response.status_code = status_code
     return response
 
@@ -117,7 +119,7 @@ def create_app() -> Flask:
 
     @app.route("/api/health", methods=["GET"])
     def health():
-        return _corsify(jsonify({"status": "ok"}))
+        return _corsify(jsonify(get_system_health()))
 
     @app.route("/api/parameters", methods=["GET"])
     @_route_json

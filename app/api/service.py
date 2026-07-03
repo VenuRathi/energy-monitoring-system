@@ -191,6 +191,302 @@ def get_parameter_map() -> dict[str, dict[str, Any]]:
     return {item["key"]: item for item in get_parameter_catalog()}
 
 
+def _demo_mode_enabled() -> bool:
+    return coerce_bool(get_runtime_settings().demo_mode, False)
+
+
+def _demo_meters() -> list[dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    meters = [
+        {
+            "meter_id": "MTR-DEMO-001",
+            "meter_name": "Demo Main Incomer",
+            "location": "Panel A",
+            "manufacturer": "Schneider",
+            "model": "PM5000-EM6400",
+            "protocol": "modbus_rtu",
+            "enabled": True,
+            "seu": True,
+            "driver": "schneider.pm5000",
+            "com_port": "COM6",
+            "slave_id": 1,
+            "baud_rate": 9600,
+            "parity": "N",
+            "stop_bits": 1,
+            "byte_size": 8,
+            "timeout": 2.0,
+            "one_based_map": True,
+            "last_update": _serialize_timestamp(now - timedelta(seconds=5)),
+            "status": "online",
+            "data_quality": "live",
+            "status_detail": "Demo mode active. Synthetic live data stream enabled.",
+            "has_readings": True,
+            "live_measurements": True,
+            "base_voltage": 231.4,
+            "base_current": 87.2,
+            "base_power": 38.4,
+            "base_energy": 12458.3,
+            "snapshot": {
+                "voltage": 231.4,
+                "current": 87.2,
+                "activePower": 38.4,
+                "activeEnergy": 12458.3,
+            },
+        },
+        {
+            "meter_id": "MTR-DEMO-002",
+            "meter_name": "Demo Shop Floor",
+            "location": "Panel B",
+            "manufacturer": "Schneider",
+            "model": "PM5000-EM6400",
+            "protocol": "modbus_rtu",
+            "enabled": True,
+            "seu": False,
+            "driver": "schneider.pm5000",
+            "com_port": "COM6",
+            "slave_id": 2,
+            "baud_rate": 9600,
+            "parity": "N",
+            "stop_bits": 1,
+            "byte_size": 8,
+            "timeout": 2.0,
+            "one_based_map": True,
+            "last_update": _serialize_timestamp(now - timedelta(seconds=26)),
+            "status": "warning",
+            "data_quality": "stale",
+            "status_detail": "Demo warning state for alerting and status UX verification.",
+            "has_readings": True,
+            "live_measurements": True,
+            "base_voltage": 228.9,
+            "base_current": 74.1,
+            "base_power": 31.2,
+            "base_energy": 9612.8,
+            "snapshot": {
+                "voltage": 228.9,
+                "current": 74.1,
+                "activePower": 31.2,
+                "activeEnergy": 9612.8,
+            },
+        },
+        {
+            "meter_id": "MTR-DEMO-003",
+            "meter_name": "Demo Utilities",
+            "location": "Panel C",
+            "manufacturer": "Schneider",
+            "model": "PM5000-EM6400",
+            "protocol": "modbus_rtu",
+            "enabled": True,
+            "seu": False,
+            "driver": "schneider.pm5000",
+            "com_port": "COM6",
+            "slave_id": 3,
+            "baud_rate": 9600,
+            "parity": "N",
+            "stop_bits": 1,
+            "byte_size": 8,
+            "timeout": 2.0,
+            "one_based_map": True,
+            "last_update": _serialize_timestamp(now - timedelta(minutes=4)),
+            "status": "offline",
+            "data_quality": "stale",
+            "status_detail": "Demo offline state for communication-loss simulation.",
+            "has_readings": True,
+            "live_measurements": False,
+            "base_voltage": 0.0,
+            "base_current": 0.0,
+            "base_power": 0.0,
+            "base_energy": 7811.2,
+            "snapshot": {
+                "voltage": 0.0,
+                "current": 0.0,
+                "activePower": 0.0,
+                "activeEnergy": 7811.2,
+            },
+        },
+    ]
+    return sorted(meters, key=_meter_sort_key)
+
+
+def _demo_latest_row_for_meter(meter_id: str) -> dict[str, Any] | None:
+    now = datetime.now(timezone.utc)
+    templates = {
+        "MTR-DEMO-001": {
+            "voltage_l_minus_n_avg": 231.4,
+            "voltage_l_minus_l_avg": 401.0,
+            "current_avg": 87.2,
+            "active_power_total": 38.4,
+            "reactive_power_total": 11.3,
+            "apparent_power_total": 40.0,
+            "frequency": 49.98,
+            "power_factor_total": 0.96,
+            "active_energy_received_out_of_load": 12458.3,
+            "reactive_energy_received": 5087.6,
+            "apparent_energy_received": 13602.4,
+            "peak_demand": 54.2,
+            "offset_seconds": 5,
+        },
+        "MTR-DEMO-002": {
+            "voltage_l_minus_n_avg": 228.9,
+            "voltage_l_minus_l_avg": 396.4,
+            "current_avg": 74.1,
+            "active_power_total": 31.2,
+            "reactive_power_total": 10.2,
+            "apparent_power_total": 33.4,
+            "frequency": 50.04,
+            "power_factor_total": 0.93,
+            "active_energy_received_out_of_load": 9612.8,
+            "reactive_energy_received": 4018.9,
+            "apparent_energy_received": 10445.1,
+            "peak_demand": 46.7,
+            "offset_seconds": 26,
+        },
+        "MTR-DEMO-003": {
+            "voltage_l_minus_n_avg": 0.0,
+            "voltage_l_minus_l_avg": 0.0,
+            "current_avg": 0.0,
+            "active_power_total": 0.0,
+            "reactive_power_total": 0.0,
+            "apparent_power_total": 0.0,
+            "frequency": 0.0,
+            "power_factor_total": 0.0,
+            "active_energy_received_out_of_load": 7811.2,
+            "reactive_energy_received": 3121.0,
+            "apparent_energy_received": 8421.7,
+            "peak_demand": 41.2,
+            "offset_seconds": 240,
+        },
+    }
+    template = templates.get(meter_id)
+    if template is None:
+        return None
+
+    timestamp = now - timedelta(seconds=int(template["offset_seconds"]))
+    return {
+        "meter_id": meter_id,
+        "timestamp": timestamp,
+        "meter_timestamp": timestamp,
+        "collected_at": timestamp,
+        "reading_date": timestamp.astimezone(_app_timezone()).strftime("%d/%m/%Y"),
+        "reading_time": timestamp.astimezone(_app_timezone()).strftime("%H:%M:%S"),
+        "timestamp_source": "demo_mode",
+        **{key: value for key, value in template.items() if key != "offset_seconds"},
+    }
+
+
+def _demo_trend_series_for_meter(meter_id: str, parameter_key: str, limit: int = 12) -> list[dict[str, Any]]:
+    meter_factor = {
+        "MTR-DEMO-001": 1.0,
+        "MTR-DEMO-002": 0.82,
+        "MTR-DEMO-003": 0.0,
+    }.get(meter_id, 1.0)
+
+    base = {
+        "active_power_total": 36.0,
+        "reactive_power_total": 10.0,
+        "apparent_power_total": 38.0,
+        "current_avg": 82.0,
+        "voltage_l_minus_n_avg": 230.0,
+        "voltage_l_minus_l_avg": 398.0,
+        "frequency": 50.0,
+        "power_factor_total": 0.94,
+        "active_energy_received_out_of_load": 12000.0,
+        "reactive_energy_received": 5000.0,
+        "apparent_energy_received": 13000.0,
+        "peak_demand": 52.0,
+    }.get(parameter_key, 10.0)
+
+    if meter_factor == 0.0:
+        return []
+
+    now = datetime.now(timezone.utc)
+    step_seconds = 300
+    series: list[dict[str, Any]] = []
+    for index in range(max(1, limit)):
+        point_time = now - timedelta(seconds=step_seconds * (max(1, limit) - index - 1))
+        wave = math.sin(index / 2.0) * 0.08
+        value = base * meter_factor * (1.0 + wave)
+        series.append(
+            {
+                "timestamp": _serialize_timestamp(point_time),
+                "value": round(value, 3),
+            }
+        )
+    return series
+
+
+def _demo_active_alerts(meter_id: str | None = None) -> list[dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    alerts = [
+        {
+            "id": 1,
+            "meterId": "MTR-DEMO-002",
+            "meterName": "Demo Shop Floor",
+            "location": "Panel B",
+            "parameterKey": "voltage_l_minus_n_avg",
+            "parameterLabel": "Voltage L-N Avg",
+            "unit": "V",
+            "minValue": 220.0,
+            "maxValue": 235.0,
+            "value": 218.4,
+            "eventType": "triggered",
+            "timestamp": _serialize_timestamp(now - timedelta(minutes=1)),
+            "date": (now - timedelta(minutes=1)).astimezone(_app_timezone()).strftime("%d/%m/%Y"),
+            "time": (now - timedelta(minutes=1)).astimezone(_app_timezone()).strftime("%H:%M:%S"),
+        }
+    ]
+    if meter_id and meter_id != "ALL":
+        return [alert for alert in alerts if alert["meterId"] == meter_id]
+    return alerts
+
+
+def _get_demo_dashboard_data(meter_id: str, trend_parameter_key: str) -> dict[str, Any]:
+    catalog = get_parameter_catalog()
+    catalog_map = get_parameter_map()
+    meters = _demo_meters()
+    trend_parameter = catalog_map.get(trend_parameter_key) or (
+        catalog[0]
+        if catalog
+        else {
+            "key": trend_parameter_key,
+            "label": trend_parameter_key,
+            "category": "System",
+            "unit": "",
+            "dataType": "number",
+            "common": False,
+            "order": 0,
+        }
+    )
+
+    latest_rows_by_meter = {meter["meter_id"]: _demo_latest_row_for_meter(meter["meter_id"]) for meter in meters}
+
+    if meter_id == "ALL":
+        aggregate_row = _aggregate_latest_row(latest_rows_by_meter, [meter["meter_id"] for meter in meters])
+        selected_meter = _build_all_selected_meter(meters, aggregate_row)
+        metrics = _metrics_from_latest_row(aggregate_row, catalog)
+        latest_readings = _latest_readings_from_row(aggregate_row, catalog)
+        trend_series = _aggregate_trend_series([meter["meter_id"] for meter in meters], trend_parameter["key"])
+        active_alerts = _demo_active_alerts(None)
+    else:
+        selected_meter = next((meter for meter in meters if meter["meter_id"] == meter_id), meters[0])
+        selected_row = latest_rows_by_meter.get(selected_meter["meter_id"])
+        metrics = _metrics_from_latest_row(selected_row, catalog)
+        latest_readings = _latest_readings_from_row(selected_row, catalog)
+        trend_series = _demo_trend_series_for_meter(selected_meter["meter_id"], trend_parameter["key"])
+        active_alerts = _demo_active_alerts(selected_meter["meter_id"])
+
+    return {
+        "meters": meters,
+        "selectedMeter": selected_meter,
+        "summary": _meter_summary(meters),
+        "metrics": metrics,
+        "latestReadings": latest_readings,
+        "parameterCatalog": catalog,
+        "trendParameter": trend_parameter,
+        "trendSeries": trend_series,
+        "activeAlerts": active_alerts,
+    }
+
+
 def _open_connection() -> Connection:
     return get_connection(get_runtime_settings())
 
@@ -205,6 +501,52 @@ def ensure_schema() -> None:
 
     with _open_connection() as connection:
         create_tables(connection, parameters)
+
+
+def get_system_health() -> dict[str, Any]:
+    settings = get_runtime_settings()
+    demo_mode = _demo_mode_enabled()
+
+    checks: dict[str, dict[str, Any]] = {
+        "api": {"status": "ok", "message": "API is reachable."},
+        "dataSource": {
+            "status": "demo" if demo_mode else "live",
+            "message": "Serving synthetic demo data." if demo_mode else "Serving live runtime data.",
+        },
+    }
+    overall_status = "ok"
+
+    if settings.enable_database and not demo_mode:
+        try:
+            with _open_connection() as connection, connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+            checks["database"] = {"status": "ok", "message": "Database connection healthy."}
+        except Exception as exc:
+            checks["database"] = {"status": "degraded", "message": f"Database check failed: {exc}"}
+            overall_status = "degraded"
+    else:
+        checks["database"] = {
+            "status": "skipped",
+            "message": "Database check skipped because database is disabled or demo mode is enabled.",
+        }
+
+    try:
+        meter_count = len(_demo_meters() if demo_mode else list_meters())
+        checks["meters"] = {"status": "ok", "message": f"Meter inventory available ({meter_count} meter(s))."}
+    except Exception as exc:
+        checks["meters"] = {"status": "degraded", "message": f"Meter inventory check failed: {exc}"}
+        overall_status = "degraded"
+
+    return {
+        "status": overall_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "mode": {
+            "demoMode": demo_mode,
+            "databaseEnabled": settings.enable_database,
+        },
+        "checks": checks,
+    }
 
 
 def _safe_meters() -> list[dict[str, Any]]:
@@ -773,6 +1115,9 @@ def _meter_summary(meters: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def list_meters() -> list[dict[str, Any]]:
+    if _demo_mode_enabled():
+        return _demo_meters()
+
     with _open_connection() as connection:
         latest_rows = _fetch_latest_rows_by_meter(connection)
         with connection.cursor(row_factory=dict_row) as cursor:
@@ -791,6 +1136,11 @@ def list_meters() -> list[dict[str, Any]]:
 
 def get_latest_readings(meter_id: str) -> list[dict[str, Any]]:
     catalog = get_parameter_catalog()
+
+    if _demo_mode_enabled():
+        latest_row = _demo_latest_row_for_meter(meter_id)
+        return _latest_readings_from_row(latest_row, catalog)
+
     with _open_connection() as connection:
         latest_row = _fetch_selected_latest_row(connection, meter_id)
 
@@ -805,6 +1155,9 @@ def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12) -> list
     parameter = catalog_map[parameter_key]
     if parameter["dataType"] != "number":
         return []
+
+    if _demo_mode_enabled():
+        return _demo_trend_series_for_meter(meter_id, parameter_key, limit)
 
     column_name = parameter["key"]
     query = sql.SQL(
@@ -833,6 +1186,9 @@ def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12) -> list
 
 
 def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_total") -> dict[str, Any]:
+    if _demo_mode_enabled():
+        return _get_demo_dashboard_data(meter_id, trend_parameter_key)
+
     catalog = get_parameter_catalog()
     catalog_map = get_parameter_map()
 
@@ -1246,6 +1602,9 @@ def _serialize_alert_rule(record: dict[str, Any], parameter: dict[str, Any] | No
 
 
 def list_alert_rules(meter_id: str) -> list[dict[str, Any]]:
+    if _demo_mode_enabled():
+        return []
+
     normalized_meter_id = _normalize_meter_id(meter_id)
     _require_known_meter(normalized_meter_id)
     repository = AlertRuleRepository(settings=get_runtime_settings())
@@ -1257,6 +1616,9 @@ def list_alert_rules(meter_id: str) -> list[dict[str, Any]]:
 
 
 def save_alert_rule(payload: dict[str, Any]) -> dict[str, Any]:
+    if _demo_mode_enabled():
+        raise ValueError("Alert rule editing is disabled in demo mode.")
+
     meter_id = _normalize_meter_id(payload.get("meter_id") or payload.get("meterId"))
     parameter_key = _normalize_text(payload.get("parameter_key") or payload.get("parameterKey"))
     min_value = _normalize_optional_float(payload.get("min_value") if "min_value" in payload else payload.get("minValue"))
@@ -1293,6 +1655,9 @@ def save_alert_rule(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def delete_alert_rule(rule_id: int) -> None:
+    if _demo_mode_enabled():
+        raise ValueError("Alert rule deletion is disabled in demo mode.")
+
     repository = AlertRuleRepository(settings=get_runtime_settings())
     repository.delete_rule(rule_id)
 
@@ -1319,12 +1684,20 @@ def _serialize_alert_event(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_active_alerts(meter_id: str | None = None) -> list[dict[str, Any]]:
+    if _demo_mode_enabled():
+        normalized_meter_id = _normalize_meter_id(meter_id) if meter_id and meter_id != "ALL" else None
+        return _demo_active_alerts(normalized_meter_id)
+
     normalized_meter_id = _normalize_meter_id(meter_id) if meter_id and meter_id != "ALL" else None
     repository = AlertRuleRepository(settings=get_runtime_settings())
     return [_serialize_alert_event(record) for record in repository.list_active_alerts(normalized_meter_id)]
 
 
 def list_alert_history(meter_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    if _demo_mode_enabled():
+        normalized_meter_id = _normalize_meter_id(meter_id) if meter_id and meter_id != "ALL" else None
+        return _demo_active_alerts(normalized_meter_id)
+
     normalized_meter_id = _normalize_meter_id(meter_id) if meter_id and meter_id != "ALL" else None
     repository = AlertRuleRepository(settings=get_runtime_settings())
     return [_serialize_alert_event(record) for record in repository.list_alert_history(normalized_meter_id, limit)]

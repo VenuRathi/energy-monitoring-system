@@ -9,6 +9,7 @@ from utils.coercion import coerce_bool
 @dataclass
 class Settings:
     poll_interval_seconds: int
+    demo_mode: bool
     enable_database: bool
     api_host: str
     api_port: int
@@ -44,6 +45,7 @@ def load_settings() -> Settings:
 
     return Settings(
         poll_interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", "18")),
+        demo_mode=coerce_bool(os.getenv("DEMO_MODE", "false"), False),
         enable_database=enable_database,
         api_host=os.getenv("API_HOST", "127.0.0.1"),
         api_port=int(os.getenv("API_PORT", "5000")),

@@ -7,11 +7,25 @@ function resolveUrl(path: string) {
 async function readError(response: Response) {
   const text = await response.text();
   try {
-    const json = JSON.parse(text) as { error?: string };
+    const json = JSON.parse(text) as { error?: string; message?: string; status?: string };
     return json.error || text || response.statusText;
   } catch {
     return text || response.statusText;
   }
+}
+
+function friendlyErrorMessage(message: string) {
+  const normalized = message.trim();
+  if (!normalized) {
+    return "Request failed. Please try again.";
+  }
+  if (/failed to fetch|networkerror|network error/i.test(normalized)) {
+    return "Cannot reach backend API. Check if the backend is running and CORS/API URL settings are correct.";
+  }
+  if (/timeout/i.test(normalized)) {
+    return "Request timed out. Check device connectivity and try again.";
+  }
+  return normalized;
 }
 
 export async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -27,7 +41,7 @@ export async function requestJson<T>(path: string, options: RequestInit = {}): P
   });
 
   if (!response.ok) {
-    throw new Error(await readError(response));
+    throw new Error(friendlyErrorMessage(await readError(response)));
   }
 
   if (response.status === 204) {
@@ -78,7 +92,7 @@ export async function requestReportDownload<T>(path: string, body: unknown, fall
   });
 
   if (!response.ok) {
-    throw new Error(await readError(response));
+    throw new Error(friendlyErrorMessage(await readError(response)));
   }
 
   const blob = await response.blob();

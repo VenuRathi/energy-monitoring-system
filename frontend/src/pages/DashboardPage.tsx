@@ -16,7 +16,7 @@ type DashboardPageProps = {
 
 export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeters }: DashboardPageProps) {
   const [trendParameterKey, setTrendParameterKey] = useState("active_power_total");
-  const { data, isLoading, isError } = useDashboardData(selectedMeterId, trendParameterKey);
+  const { data, isLoading, isError, error, refetch } = useDashboardData(selectedMeterId, trendParameterKey);
 
   const selectedTrendLabel = useMemo(
     () => data?.trendParameter?.label ?? "Active Power Total",
@@ -28,7 +28,15 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
   }
 
   if (isError || !data) {
-    return <div className="page-state page-state--error">Unable to load dashboard data.</div>;
+    const message = error instanceof Error ? error.message : "Unable to load dashboard data.";
+    return (
+      <div className="page-state page-state--error">
+        <p>{message}</p>
+        <button type="button" className="ghost-button" onClick={() => refetch()}>
+          Retry
+        </button>
+      </div>
+    );
   }
 
   const selectedMeter = data.selectedMeter ?? data.meters[0];

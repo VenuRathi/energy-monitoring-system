@@ -1,0 +1,202 @@
+openapi: 3.0.3
+info:
+  title: Energy Monitoring System API
+  version: 0.1.0
+  description: |
+    Starter API contract for core endpoints used by the frontend dashboard.
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /api/health:
+    get:
+      summary: Get system health
+      responses:
+        '200':
+          description: Health payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  mode:
+                    type: object
+                    properties:
+                      demoMode:
+                        type: boolean
+                      databaseEnabled:
+                        type: boolean
+                  checks:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                        message:
+                          type: string
+  /api/meters:
+    get:
+      summary: List configured meters
+      responses:
+        '200':
+          description: Meter records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Meter'
+  /api/dashboard:
+    get:
+      summary: Dashboard aggregate payload
+      parameters:
+        - in: query
+          name: meterId
+          schema:
+            type: string
+        - in: query
+          name: trendParameterKey
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dashboard response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardPayload'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/meters/{meter_id}/readings:
+    get:
+      summary: Get latest readings for a meter
+      parameters:
+        - in: path
+          name: meter_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Latest readings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LatestReadingRow'
+  /api/meters/{meter_id}/trend:
+    get:
+      summary: Get trend series for a parameter
+      parameters:
+        - in: path
+          name: meter_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: parameterKey
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 12
+      responses:
+        '200':
+          description: Trend points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrendPoint'
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: fail
+        error:
+          type: string
+    Meter:
+      type: object
+      properties:
+        meter_id:
+          type: string
+        meter_name:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+        data_quality:
+          type: string
+        last_update:
+          type: string
+    DashboardPayload:
+      type: object
+      properties:
+        meters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Meter'
+        selectedMeter:
+          $ref: '#/components/schemas/Meter'
+        summary:
+          type: object
+          properties:
+            totalMeters:
+              type: integer
+            onlineMeters:
+              type: integer
+            warningMeters:
+              type: integer
+            offlineMeters:
+              type: integer
+        latestReadings:
+          type: array
+          items:
+            $ref: '#/components/schemas/LatestReadingRow'
+        trendSeries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+    LatestReadingRow:
+      type: object
+      properties:
+        parameterKey:
+          type: string
+        label:
+          type: string
+        value:
+          oneOf:
+            - type: number
+            - type: string
+        unit:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    TrendPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
