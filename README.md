@@ -1,111 +1,91 @@
 # Energy Monitoring System
 
-Real-time energy monitoring pipeline for Schneider PM5000 / EM6400 style meters.
+Production-style full-stack energy monitoring platform for Schneider PM5000 / EM6400 class meters.
 
-## Current Architecture
+[![CI](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml/badge.svg)](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml)
 
-Schneider Meter
--> Modbus RTU
--> Python Collector
--> Polling Service
--> PostgreSQL
--> Flask API
--> React Frontend
+## Why this project stands out
+
+- Real meter polling using Modbus RTU
+- Live backend API with dashboard, trend, and alert workflows
+- Report generation (Excel and Word exports)
+- Email settings and scheduled report delivery
+- Full frontend experience with React + TypeScript
+
+## Architecture
+
+```text
+Meters (PM5000/EM6400)
+	-> Modbus RTU
+	-> Python collectors and polling services
+	-> PostgreSQL persistence and rules
+	-> Flask API layer
+	-> React dashboard and reporting UI
+```
 
 ## Tech Stack
 
-- Python 3
+- Python 3.11+
 - Flask
-- PostgreSQL
-- psycopg 3
-- pymodbus
-- pyserial
-- React
-- TypeScript
-- Vite
-- TanStack Query
-- Recharts
+- PostgreSQL + psycopg
+- pymodbus + pyserial
+- React + TypeScript + Vite
+- TanStack Query + Recharts
 
-## Project Layout
+## Repository Layout
 
 - `main.py`: backend runtime entrypoint and polling loop
-- `run_app.bat`: Windows startup script for the backend
+- `run_app.bat`: Windows startup script for backend
 - `app/collectors/`: Modbus client and Schneider register decoding
 - `app/services/`: polling service orchestration
 - `app/database/`: PostgreSQL connection, schema, repositories
 - `app/api/`: Flask API routes and response shaping
-- `config/`: `.env` settings and meter/register config
+- `config/`: meter definitions and runtime settings loader
 - `frontend/`: Vite + React frontend
 - `sql/`: optional database views for dashboard/reporting
-- `tests/`: lightweight smoke tests
+- `tests/`: smoke tests
 
-## Runtime Notes
+## Quick Start
 
-- Meter register definitions remain in `config/meter_config.json`.
-- Meter connection settings are stored in PostgreSQL and refreshed by the backend.
-- Only one backend instance should run at a time.
-- The backend and frontend are both designed for local-network or local-machine use.
+1. Clone repository.
+2. Create Python virtual environment and install backend dependencies.
+3. Copy `.env.example` to `.env` and fill your local values.
+4. Start backend and frontend.
 
-## Environment
-
-Create a `.env` file with values like:
-
-```env
-ENABLE_DATABASE=true
-POLL_INTERVAL_SECONDS=18
-
-API_HOST=127.0.0.1
-API_PORT=5000
-API_DEBUG=false
-CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=energy_monitoring
-DB_USER=postgres
-DB_PASSWORD=postgres
-
-SMTP_HOST=smtp.office365.com
-SMTP_PORT=587
-SMTP_USERNAME=alerts@example.com
-SMTP_PASSWORD=your-password
-SMTP_FROM_EMAIL=alerts@example.com
-SMTP_USE_TLS=true
-SMTP_USE_SSL=false
-```
-
-## Run Backend
-
-Preferred on Windows:
+### Backend Setup (Windows PowerShell)
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
 run_app.bat
 ```
 
-Manual start:
-
-```powershell
-.\.venv\Scripts\python.exe main.py
-```
-
-## Run Frontend
+### Frontend Setup
 
 ```powershell
 cd frontend
+npm ci
 npm run dev
 ```
 
-Open the printed Vite URL, usually:
+Frontend default URL:
 
 ```text
 http://127.0.0.1:5173
 ```
 
-## Run API Only
+## Environment Variables
 
-```powershell
-.\.venv\Scripts\python.exe -m app.api.server
-```
+Use `.env.example` as the source of truth for required keys.
+
+Important values:
+
+- `ENABLE_DATABASE`, `POLL_INTERVAL_SECONDS`, `APP_TIMEZONE`
+- `API_HOST`, `API_PORT`, `CORS_ALLOWED_ORIGINS`
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`
 
 ## API Endpoints
 
@@ -125,10 +105,19 @@ http://127.0.0.1:5173
 - `GET /api/email/health`
 - `POST /api/email/test`
 
-## Tests
+## Security and Responsible Use
 
-Run the smoke tests with:
+- Never commit `.env` or real credentials.
+- Treat database and SMTP credentials as secrets and rotate them if leaked.
+- Keep this project private until you complete your public-release checklist.
+- Review [SECURITY.md](SECURITY.md) before production deployment.
+
+## Testing
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
