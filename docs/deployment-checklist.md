@@ -1,66 +1,105 @@
 # Deployment Checklist
 
-Use this checklist for a clean setup on a fresh machine.
+Use this before a boss demo, pilot deployment, or plant-side local-network setup.
 
-## 1. Prerequisites
+## 1. Python environment
 
-- Python 3.11+
-- Node.js 20+
-- PostgreSQL 14+ (if using live database mode)
+- [ ] Python 3.11 installed
+- [ ] Virtual environment created
+- [ ] `pip install -r requirements.txt` completed without errors
+- [ ] Backend starts with `.\.venv\Scripts\python.exe main.py`
 
-## 2. Clone and install
+## 2. Frontend environment
 
-```powershell
-git clone https://github.com/VenuRathi/energy-monitoring-system.git
-cd energy-monitoring-system
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-cd frontend
-npm ci
-cd ..
-```
+- [ ] Node.js 20+ installed
+- [ ] `cd frontend && npm ci` completed
+- [ ] `cd frontend && npm run build` passes
 
-## 3. Configure environment
+## 3. PostgreSQL database
 
-```powershell
-Copy-Item .env.example .env
-```
+- [ ] PostgreSQL running
+- [ ] Database created
+- [ ] `.env` DB settings verified
+- [ ] Backend creates/updates tables successfully on startup
+- [ ] Latest readings can be queried in PostgreSQL
 
-Minimum edits in `.env`:
-- `DEMO_MODE=true` for hardware-free demonstrations
-- or `DEMO_MODE=false` with real DB + meter settings
-- Update DB and SMTP credentials appropriately
+## 4. `.env` configuration
 
-## 4. Start services
+- [ ] `ENABLE_DATABASE` correct for the target environment
+- [ ] `DEMO_MODE=false` for real meter operation
+- [ ] `API_HOST` and `API_PORT` correct
+- [ ] `API_DEBUG=false`
+- [ ] `API_ALLOWED_ORIGINS` matches the frontend URL(s)
+- [ ] `POLL_INTERVAL_SECONDS` verified
+- [ ] `APP_TIMEZONE` verified
 
-Backend:
-```powershell
-run_app.bat
-```
+## 5. API key mode
 
-Frontend:
-```powershell
-cd frontend
-npm run dev
-```
+- [ ] Decide whether `API_KEY_ENABLED` is on or off
+- [ ] If enabled, `API_KEY` is set
+- [ ] If frontend writes are used, `VITE_API_KEY` matches `API_KEY`
 
-## 5. Validate system
+## 6. CORS allowed origins
 
-- `GET /api/health` returns status payload with checks.
-- Dashboard loads and meter cards render.
-- Trend chart and latest readings populate.
-- Report export and email settings endpoints respond.
+- [ ] Local dev URLs included if needed
+- [ ] Plant/demo frontend URL included
+- [ ] No wildcard origin fallback relied on
 
-## 6. Security pre-go-live
+## 7. COM port verification
 
-- Confirm `.env` is not tracked.
-- Rotate any leaked credentials.
-- Keep branch protection enabled on `main`.
-- Ensure CI and secret scan workflows are passing.
+- [ ] Correct COM port confirmed in Device Manager
+- [ ] No other application is holding the port
+- [ ] USB-to-RS485 adapter is stable and recognized
 
-## 7. Release hygiene
+## 8. Meter verification
 
-- Update `CHANGELOG.md`.
-- Tag release (`v0.x.y`).
-- Add release notes and screenshots.
+- [ ] Meter slave IDs verified physically
+- [ ] `MTR-001` reads successfully
+- [ ] `MTR-002` reads successfully
+- [ ] `MTR-003` disabled if not physically connected
+- [ ] Shared-bus serial settings match across enabled meters on one COM port
+
+## 9. Modbus test
+
+- [ ] Backend logs show polling cycles running
+- [ ] `/api/status` shows polling heartbeat
+- [ ] Enabled live meters report `communicationStatus=online`
+- [ ] `staleMeterCount=0` for the current healthy demo state
+
+## 10. Dashboard test
+
+- [ ] Frontend opens successfully
+- [ ] Dashboard loads without white screen
+- [ ] Meter selector works
+- [ ] Latest readings visible for `MTR-001`
+- [ ] Latest readings visible for `MTR-002`
+- [ ] Disabled meter does not break dashboard behavior
+
+## 11. Report/export test
+
+- [ ] Excel export works for a recent range with data
+- [ ] Word export works for a recent range with data
+- [ ] Empty/invalid range errors are clear
+
+## 12. Network / firewall setup
+
+- [ ] API port reachable from the frontend machine if split across devices
+- [ ] PostgreSQL reachable if not on the same machine
+- [ ] Firewall rules documented
+- [ ] Deployment remains on a controlled network
+
+## 13. Logging and backup plan
+
+- [ ] `logs/` folder reviewed
+- [ ] Log cleanup/rotation plan defined
+- [ ] PostgreSQL backup method agreed
+- [ ] Recovery owner identified
+
+## 14. Final handover test
+
+- [ ] `GET /api/health` ok
+- [ ] `GET /api/status` ok
+- [ ] `MTR-001` online
+- [ ] `MTR-002` online
+- [ ] `MTR-003` disabled/offline and not counted stale
+- [ ] Boss demo flow rehearsed once from start to finish
