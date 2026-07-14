@@ -7,6 +7,7 @@ from pathlib import Path
 from threading import Thread
 from typing import Iterable
 from werkzeug.serving import make_server
+from serial.tools import list_ports
 
 from app.api import app as api_app
 from app.api.service import process_due_report_schedules
@@ -295,15 +296,25 @@ def _close_modbus_clients(shared_modbus_clients: dict[tuple, ModbusRTUClient]) -
             pass
 
 
+def _available_com_ports() -> set[str]:
+    try:
+        return {str(port.device).upper() for port in list_ports.comports() if getattr(port, "device", None)}
+    except Exception:
+        return set()
+
+
 def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging.Logger) -> list[dict]:
     valid_meter_definitions: list[dict] = []
     serial_settings_by_port: dict[str, tuple[int, str, int, int, float]] = {}
+    slave_ids_by_port: dict[str, set[int]] = {}
+    available_ports = _available_com_ports()
+    warned_missing_ports: set[str] = set()
 
     for meter_definition in meter_definitions:
         connection = meter_definition.get("connection", {})
         meter_id = meter_definition.get("meter_id", "unknown-meter")
         com_port = str(connection.get("com_port") or connection.get("port", "unknown-port")).upper()
-        slave_id = connection.get("slave_id", "unknown-slave")
+        slave_id = int(connection.get("slave_id", 1))
         serial_settings = (
             int(connection.get("baud_rate", 9600)),
             str(connection.get("parity", "N")),
@@ -328,7 +339,32 @@ def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging
             )
             continue
 
+        known_slave_ids = slave_ids_by_port.setdefault(com_port, set())
+        if slave_id in known_slave_ids:
+            message = (
+                f"Skipping meter {meter_id} on {com_port} slave {slave_id}: "
+                f"duplicate slave_id detected on the same RS485 bus."
+            )
+            logger.warning(message)
+            record_meter_runtime_error(
+                meter_id,
+                error_at=datetime.now(timezone.utc),
+                error_message=message,
+                com_port=com_port,
+                slave_id=slave_id,
+                communication_status="warning",
+            )
+            continue
+
+        if available_ports and com_port not in available_ports and com_port not in warned_missing_ports:
+            warned_missing_ports.add(com_port)
+            logger.warning(
+                "Configured COM port %s is not currently present on this machine. Polling will keep retrying if the adapter reconnects.",
+                com_port,
+            )
+
         serial_settings_by_port[com_port] = serial_settings
+        known_slave_ids.add(slave_id)
         valid_meter_definitions.append(meter_definition)
 
     return valid_meter_definitions

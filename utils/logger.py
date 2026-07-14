@@ -1,15 +1,33 @@
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 
 def setup_logger() -> logging.Logger:
+    log_directory = Path("logs")
+    log_directory.mkdir(parents=True, exist_ok=True)
+    log_file = log_directory / "energy_monitoring.log"
+
     logger = logging.getLogger("energy_monitoring")
     logger.setLevel(logging.INFO)
+    logger.propagate = False
 
     if not logger.handlers:
-        handler = logging.StreamHandler()
         formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=5 * 1024 * 1024,
+            backupCount=7,
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(formatter)
+
+        logger.addHandler(stream_handler)
+        logger.addHandler(file_handler)
 
     return logger
 

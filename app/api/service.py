@@ -137,7 +137,13 @@ def _serialize_runtime_meter_status(runtime_state: dict[str, Any] | None) -> dic
 
 def _serialize_polling_loop_state() -> dict[str, Any]:
     state = get_polling_loop_state()
+    started_at = _coerce_aware_datetime(state.get("startedAt"))
+    uptime_seconds = None
+    if started_at is not None:
+        uptime_seconds = max(0.0, (datetime.now(timezone.utc) - started_at).total_seconds())
     return {
+        "startedAt": _serialize_timestamp(started_at),
+        "uptimeSeconds": uptime_seconds,
         "running": bool(state.get("running", False)),
         "cycleInProgress": bool(state.get("cycleInProgress", False)),
         "lastCycleStartTime": _serialize_timestamp(state.get("lastCycleStartTime")),

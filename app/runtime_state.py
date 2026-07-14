@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import RLock
 from typing import TYPE_CHECKING, Iterable, Literal
 
@@ -13,6 +13,7 @@ _registry_lock = RLock()
 _shared_modbus_clients: dict[tuple, "ModbusRTUClient"] = {}
 _meter_runtime_statuses: dict[str, dict] = {}
 _polling_loop_state: dict[str, object] = {
+    "startedAt": datetime.now(timezone.utc),
     "running": False,
     "cycleInProgress": False,
     "lastCycleStartTime": None,
