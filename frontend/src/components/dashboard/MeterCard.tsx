@@ -45,7 +45,7 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
       <div className="meter-card__footer">
         <span>{meter.location}</span>
         <span>{meter.seu ? "SEU" : "Non-SEU"}</span>
-        <span>{formatTimestamp(meter.last_update)}</span>
+        <span>Updated {formatTimestamp(meter.last_update)}</span>
       </div>
     </button>
   );

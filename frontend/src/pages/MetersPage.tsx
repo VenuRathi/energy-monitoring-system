@@ -5,7 +5,7 @@ import { MeterTable } from "../components/meters/MeterTable";
 import { useMeterMutations, useReportMutations } from "../hooks/useEnergyMutations";
 import { useAlertRulesData, useMetersData, useParameterCatalog } from "../hooks/useMetersData";
 import type { MeterInput, MeterRecord } from "../types/energy";
-import { formatNumber } from "../lib/formatters";
+import { formatNumber, formatTimestamp } from "../lib/formatters";
 
 type MetersPageProps = {
   selectedMeterId: string;
@@ -232,41 +232,61 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
   }
 
   const onlineCount = meters.filter((meter) => meter.status === "online").length;
+  const warningCount = meters.filter((meter) => meter.status === "warning").length;
   const disabledCount = meters.filter((meter) => !meter.enabled).length;
   const needsSetup = meters.length === 0 || onlineCount === 0;
+  const selectedMeterUpdated = formatTimestamp(selectedMeter?.last_update ?? "");
 
   return (
     <section className="page-stack">
-      <section className="page-state page-state--padded">
-        <div className="section-heading">
-          <div>
-            <p className="section-label">Meter setup</p>
-            <h3 className="page-title">Set up the line in a few simple steps</h3>
-            <p className="page-copy">
-              This page is designed for operators: enter line settings, scan the connected meters, then save names and locations.
-            </p>
-          </div>
-          <button type="button" className="primary-button" onClick={startAdd}>
-            Add or edit meter
-          </button>
+      <section className="dashboard__hero dashboard__hero--compact">
+        <div className="dashboard__hero-copy">
+          <p className="section-label">Meter setup</p>
+          <h3 className="dashboard__headline">Set up the line and keep the right meters active</h3>
+          <p className="dashboard__copy">
+            Enter the serial settings, scan the daisy chain, and keep only the physically connected meters active for polling.
+          </p>
         </div>
 
-        <div className="meters-summary">
-          <div className="summary-card">
-            <span className="summary-card__label">Total meters</span>
-            <strong>{meters.length}</strong>
+        <div className="dashboard__hero-actions">
+          <div className="dashboard__summary dashboard__summary--compact">
+            <div className="summary-card">
+              <span className="summary-card__label">Total meters</span>
+              <strong>{meters.length}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Online</span>
+              <strong>{onlineCount}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Warning</span>
+              <strong>{warningCount}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Disabled</span>
+              <strong>{disabledCount}</strong>
+            </div>
           </div>
-          <div className="summary-card">
-            <span className="summary-card__label">Talking now</span>
-            <strong>{meters.filter((meter) => meter.status === "online").length}</strong>
-          </div>
-          <div className="summary-card">
-            <span className="summary-card__label">Need attention</span>
-            <strong>{meters.filter((meter) => meter.status === "warning").length}</strong>
-          </div>
-          <div className="summary-card">
-            <span className="summary-card__label">Disabled</span>
-            <strong>{disabledCount}</strong>
+
+          <div className="dashboard__control-card">
+            <div className="dashboard__control-copy">
+              <p className="section-label">Selected meter</p>
+              <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
+              <p className="dashboard__control-note">Last update: {selectedMeterUpdated}</p>
+            </div>
+            <div className="dashboard__control-row">
+              <span className={`status-pill status-pill--${selectedMeter?.status ?? "offline"}`}>
+                {selectedMeter?.status ?? "offline"}
+              </span>
+              <button type="button" className="primary-button" onClick={startAdd}>
+                Add new meter
+              </button>
+            </div>
+            <p className="page-copy">
+              {selectedMeter
+                ? `${selectedMeter.location} • ${selectedMeter.manufacturer} ${selectedMeter.model} • ${selectedMeter.enabled ? "Polling enabled" : "Disabled"}`
+                : "Choose a meter from the table to review or edit it."}
+            </p>
           </div>
         </div>
       </section>
@@ -303,6 +323,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             <div>
               <p className="section-label">Detected and saved meters</p>
               <h4>Current meter list</h4>
+              <p className="page-copy">Disabled meters stay in history and reports but are excluded from active polling.</p>
             </div>
           </div>
           <MeterTable
@@ -346,12 +367,22 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         />
       </section>
 
-      <section className="page-state page-state--padded">
-        <p className="section-label">Selected meter</p>
-        <h4 className="page-title">{selectedMeter?.meter_name ?? "No meter selected"}</h4>
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Selected meter</p>
+            <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
+          </div>
+          {selectedMeter ? (
+            <div className="dashboard__meter-aside">
+              <span className={`status-pill status-pill--${selectedMeter.status}`}>{selectedMeter.status}</span>
+              <span className="dashboard__updated-at">Updated {selectedMeterUpdated}</span>
+            </div>
+          ) : null}
+        </div>
         <p className="page-copy">
           {selectedMeter
-            ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " - disabled for polling"}`
+            ? `${selectedMeter.location} • ${selectedMeter.manufacturer} ${selectedMeter.model} • ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " • disabled for polling"}`
             : "Choose a meter from the table to review or edit it."}
         </p>
       </section>

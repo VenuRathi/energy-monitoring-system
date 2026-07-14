@@ -1,9 +1,11 @@
+import { APP_META } from "../../app/appMeta";
 import type { PageKey } from "../../types/energy";
 
 const navItems: Array<{ key: PageKey; label: string }> = [
   { key: "dashboard", label: "Live View" },
   { key: "meters", label: "Meter Setup" },
   { key: "reports", label: "Reports & Email" },
+  { key: "help", label: "Help & Guide" },
 ];
 
 type SidebarProps = {
@@ -26,8 +28,9 @@ export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps)
         <div className="sidebar__brand">
           <div className="sidebar__badge">EM</div>
           <div>
-            <p className="sidebar__eyebrow">Energy monitoring system</p>
-            <h1 className="sidebar__title">Line Meter App</h1>
+            <p className="sidebar__eyebrow">{APP_META.systemName}</p>
+            <h1 className="sidebar__title">{APP_META.productName}</h1>
+            <p className="sidebar__meta">{APP_META.version}</p>
           </div>
         </div>
 
@@ -48,7 +51,9 @@ export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps)
         <section className="sidebar__status">
           <p className="sidebar__status-label">System Status</p>
           <div className="sidebar__status-pill sidebar__status-pill--ok">Operational</div>
-          <p className="sidebar__status-note">Use Meter Setup to scan the line, then Live View to check readings.</p>
+          <p className="sidebar__status-note">
+            Use Meter Setup to scan the line, Live View to check readings, and Help &amp; Guide for troubleshooting.
+          </p>
         </section>
       </aside>
     </>

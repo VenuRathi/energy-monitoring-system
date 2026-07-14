@@ -166,6 +166,16 @@ Then verify:
 - `http://127.0.0.1:5000/api/status`
 - `http://127.0.0.1:5000/`
 
+What the backend now checks/logs at startup:
+
+- whether `.env` is present
+- whether `frontend/dist` exists
+- current API/polling mode summary
+- COM ports detected on the machine
+- database preflight success if PostgreSQL is enabled
+- validated enabled meter summary
+- warnings for duplicate slave IDs or serial-setting conflicts
+
 ## 10. Firewall notes
 
 Recommended:
@@ -199,3 +209,18 @@ Healthy state:
 - `MTR-002` online
 - disabled/fake meters not counted stale
 - logs rotating into `logs/energy_monitoring.log`
+- startup warnings reviewed and understood if any appear
+
+## 13. Optional release-bundle handoff
+
+If you want to move a clean snapshot instead of cloning the full repo, create a bundle on the source machine:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\prepare_release_bundle.ps1
+```
+
+Then transfer the generated zip/folder from `release\`.
+
+See:
+
+- [release-bundle.md](release-bundle.md)

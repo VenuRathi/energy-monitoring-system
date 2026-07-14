@@ -18,6 +18,12 @@ Use:
 
 This runner is non-interactive and intended for scheduled-task/service use.
 
+It also:
+
+- creates the `logs/` folder if missing
+- starts Python in unbuffered UTF-8 mode
+- warns if `.env` is missing before launch
+
 ## Register the task automatically
 
 PowerShell as Administrator:
@@ -73,6 +79,13 @@ After registration:
 3. Open:
    - `http://127.0.0.1:5000/api/health`
    - `http://127.0.0.1:5000/api/status`
+
+Recommended log review after first scheduled run:
+
+- startup configuration summary
+- detected COM ports
+- validated enabled meter summary
+- any duplicate `slave_id` or serial settings warnings
 
 ## NSSM option
 

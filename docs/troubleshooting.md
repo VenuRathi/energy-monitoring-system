@@ -126,3 +126,18 @@ FROM readings
 GROUP BY meter_id
 ORDER BY meter_id;
 ```
+
+## Fast runtime summary command
+
+Use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
+```
+
+This gives a quick operator/support summary of:
+
+- API state
+- database state
+- polling heartbeat
+- per-meter status

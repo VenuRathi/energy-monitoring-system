@@ -44,6 +44,7 @@ Use this for the final 4-5 meter pilot readiness review on the plant PC.
 - [ ] backend restarts after reboot
 - [ ] logs are written to `logs/energy_monitoring.log`
 - [ ] log rotation active
+- [ ] startup preflight logs reviewed once after deployment
 
 ## Health
 
@@ -61,6 +62,8 @@ Use this for the final 4-5 meter pilot readiness review on the plant PC.
 - [ ] new readings appear in PostgreSQL
 - [ ] row counts increase over time
 - [ ] database backup plan agreed
+- [ ] daily backup script tested once
+- [ ] backup task installed if required
 
 ## Network
 
@@ -73,5 +76,7 @@ Use this for the final 4-5 meter pilot readiness review on the plant PC.
 - [ ] one cold reboot tested
 - [ ] one COM disconnect/reconnect test done
 - [ ] one wrong meter/disabled meter test done
+- [ ] one PostgreSQL outage recovery test done
 - [ ] one export test done
 - [ ] one `/api/status` review done with operators
+- [ ] [pilot-validation-runbook.md](pilot-validation-runbook.md) completed or reviewed

@@ -1,4 +1,4 @@
-export type PageKey = "dashboard" | "meters" | "reports";
+export type PageKey = "dashboard" | "meters" | "reports" | "help";
 
 export type MeterStatus = "online" | "warning" | "offline";
 

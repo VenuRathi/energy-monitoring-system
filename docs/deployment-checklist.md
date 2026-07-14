@@ -32,6 +32,7 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] `API_ALLOWED_ORIGINS` matches the frontend URL(s)
 - [ ] `POLL_INTERVAL_SECONDS` verified
 - [ ] `APP_TIMEZONE` verified
+- [ ] `.env` exists on the plant PC and is not accidentally relying on defaults
 
 ## 5. API key mode
 
@@ -62,6 +63,8 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 ## 9. Modbus test
 
 - [ ] Backend logs show polling cycles running
+- [ ] Startup logs show the expected detected COM port(s)
+- [ ] Startup logs show the expected validated enabled meter list
 - [ ] `/api/status` shows polling heartbeat
 - [ ] Enabled live meters report `communicationStatus=online`
 - [ ] `staleMeterCount=0` for the current healthy demo state

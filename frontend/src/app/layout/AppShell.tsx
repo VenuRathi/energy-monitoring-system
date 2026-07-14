@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { APP_META } from "../appMeta";
 import { Header } from "../../components/layout/Header";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardPage } from "../../pages/DashboardPage";
+import { HelpPage } from "../../pages/HelpPage";
 import { MetersPage } from "../../pages/MetersPage";
 import { ReportsPage } from "../../pages/ReportsPage";
 import { useMetersData } from "../../hooks/useMetersData";
@@ -32,7 +34,8 @@ export function AppShell() {
   const pageTitle = useMemo(() => {
     if (page === "dashboard") return "Dashboard";
     if (page === "meters") return "Meters";
-    return "Reports";
+    if (page === "reports") return "Reports";
+    return "Help & Guide";
   }, [page]);
 
   return (
@@ -47,7 +50,13 @@ export function AppShell() {
         onClose={() => setSidebarOpen(false)}
       />
       <div className="app-shell__main">
-        <Header pageTitle={pageTitle} onMenuClick={() => setSidebarOpen((value) => !value)} />
+        <Header
+          pageTitle={pageTitle}
+          systemName={APP_META.systemName}
+          version={APP_META.version}
+          deploymentMode={APP_META.deploymentMode}
+          onMenuClick={() => setSidebarOpen((value) => !value)}
+        />
         <main className="app-shell__content">
           {page === "dashboard" ? (
             <DashboardPage
@@ -62,6 +71,7 @@ export function AppShell() {
           {page === "reports" ? (
             <ReportsPage selectedMeterId={selectedMeterId} onSelectMeter={setSelectedMeterId} />
           ) : null}
+          {page === "help" ? <HelpPage /> : null}
         </main>
       </div>
     </div>

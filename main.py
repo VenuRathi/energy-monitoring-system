@@ -303,6 +303,83 @@ def _available_com_ports() -> set[str]:
         return set()
 
 
+def _all_config_parameters(meter_config: dict) -> list[dict]:
+    all_parameters: list[dict] = []
+    for meter in meter_config.get("meters", []):
+        all_parameters.extend(meter.get("parameters", []))
+    return all_parameters
+
+
+def _log_startup_context(settings: Settings, logger: logging.Logger) -> None:
+    logger.info(
+        "Startup configuration: api=http://%s:%s poll_interval_seconds=%s database=%s demo_mode=%s timezone=%s api_key_enabled=%s",
+        settings.api_host,
+        settings.api_port,
+        settings.poll_interval_seconds,
+        settings.enable_database,
+        settings.demo_mode,
+        settings.app_timezone,
+        settings.api_key_enabled,
+    )
+    logger.info("Primary log file: %s", (Path("logs") / "energy_monitoring.log").resolve())
+
+    if not Path(".env").exists():
+        logger.warning(
+            "No .env file found at startup. The application will rely on machine environment variables or built-in defaults."
+        )
+
+    frontend_index = Path("frontend") / "dist" / "index.html"
+    if frontend_index.exists():
+        logger.info("Frontend production build detected at %s.", frontend_index.resolve())
+    else:
+        logger.warning(
+            "Frontend production build not found at %s. The API will still run, but browser users may need the Vite dev server or a frontend build first.",
+            frontend_index.resolve(),
+        )
+
+    available_ports = sorted(_available_com_ports())
+    if available_ports:
+        logger.info("Detected COM ports at startup: %s", ", ".join(available_ports))
+    else:
+        logger.warning("No COM ports were detected at startup. Polling will keep retrying if the adapter appears later.")
+
+    if settings.api_key_enabled and not settings.api_key.strip():
+        logger.warning(
+            "API_KEY_ENABLED is true but API_KEY is blank. Protected write/control endpoints will reject requests until a key is configured."
+        )
+
+
+def _log_meter_startup_summary(
+    meter_definitions: list[dict],
+    logger: logging.Logger,
+    *,
+    skipped_count: int = 0,
+) -> None:
+    if skipped_count > 0:
+        logger.warning("%s configured enabled meter(s) were skipped during startup validation.", skipped_count)
+
+    if not meter_definitions:
+        logger.warning("No valid enabled meters remain after startup validation.")
+        return
+
+    logger.info("Validated %s enabled meter(s) for polling startup.", len(meter_definitions))
+    for meter_definition in meter_definitions:
+        connection = meter_definition.get("connection", {})
+        logger.info(
+            "Meter ready: %s (%s) on %s slave %s baud=%s parity=%s stop_bits=%s byte_size=%s timeout=%s enabled=%s",
+            meter_definition.get("meter_id", "unknown-meter"),
+            meter_definition.get("meter_name", "Unnamed Meter"),
+            connection.get("com_port") or connection.get("port", "unknown-port"),
+            connection.get("slave_id", "unknown-slave"),
+            connection.get("baud_rate", "unknown"),
+            connection.get("parity", "unknown"),
+            connection.get("stop_bits", "unknown"),
+            connection.get("byte_size", "unknown"),
+            connection.get("timeout", "unknown"),
+            coerce_bool(meter_definition.get("enabled", True), True),
+        )
+
+
 def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging.Logger) -> list[dict]:
     valid_meter_definitions: list[dict] = []
     serial_settings_by_port: dict[str, tuple[int, str, int, int, float]] = {}
@@ -399,25 +476,35 @@ def build_polling_service(
 
 def main() -> None:
     logger = setup_logger()
+    logger.info("Energy monitoring startup initiated in PID %s.", os.getpid())
     acquire_instance_lock()
     settings = load_settings()
     meter_config = load_meter_config()
-    api_server = start_embedded_api(settings)
-    meter_definitions = load_runtime_meters(settings, meter_config)
-    logger.info("Starting energy monitoring with %s enabled meter(s).", len(meter_definitions))
+    _log_startup_context(settings, logger)
 
     # Database setup (optional)
     meter_repository = None
     if settings.enable_database:
-        all_parameters = []
-        for meter in meter_config.get("meters", []):
-            all_parameters.extend(meter.get("parameters", []))
+        all_parameters = _all_config_parameters(meter_config)
         with get_connection(settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1;")
             create_tables(connection, all_parameters)
         meter_repository = MeterRepository(connection=None, settings=settings)
-        logger.info("PostgreSQL logging is enabled.")
+        logger.info("PostgreSQL startup preflight succeeded and schema is ready.")
     else:
         logger.info("PostgreSQL logging is disabled.")
+
+    raw_meter_definitions = load_runtime_meters(settings, meter_config)
+    meter_definitions = _validate_shared_bus_settings(raw_meter_definitions, logger)
+    _log_meter_startup_summary(
+        meter_definitions,
+        logger,
+        skipped_count=max(0, len(raw_meter_definitions) - len(meter_definitions)),
+    )
+    logger.info("Starting energy monitoring with %s enabled valid meter(s).", len(meter_definitions))
+
+    api_server: EmbeddedApiServer | None = start_embedded_api(settings)
 
     shared_modbus_clients: dict[tuple, ModbusRTUClient] = {}
 
@@ -549,7 +636,8 @@ def main() -> None:
             time.sleep(settings.poll_interval_seconds)
     finally:
         set_polling_loop_running(False)
-        api_server.stop()
+        if api_server is not None:
+            api_server.stop()
         _close_modbus_clients(shared_modbus_clients)
         release_instance_lock()
 

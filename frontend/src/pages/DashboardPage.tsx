@@ -7,6 +7,7 @@ import { MeterSelector } from "../components/dashboard/MeterSelector";
 import { MetricStrip } from "../components/dashboard/MetricStrip";
 import { ParameterExplorer } from "../components/dashboard/ParameterExplorer";
 import { useDashboardData } from "../hooks/useDashboardData";
+import { formatTimestamp } from "../lib/formatters";
 
 type DashboardPageProps = {
   selectedMeterId: string;
@@ -46,6 +47,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
     selectedMeter?.data_quality === "live"
       ? "online"
       : selectedMeter?.data_quality ?? selectedMeter?.status ?? "offline";
+  const latestUpdateText = formatTimestamp(selectedMeter?.last_update ?? "");
 
   return (
     <section className="dashboard">
@@ -59,10 +61,39 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         </div>
 
         <div className="dashboard__hero-actions">
-          <button type="button" className="ghost-button" onClick={onConfigureMeters}>
-            Open Meter Setup
-          </button>
-          <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
+          <div className="dashboard__summary dashboard__summary--compact">
+            <div className="summary-card">
+              <span className="summary-card__label">Total meters</span>
+              <strong>{data.summary.totalMeters}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Online</span>
+              <strong>{data.summary.onlineMeters}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Warning</span>
+              <strong>{data.summary.warningMeters}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Offline</span>
+              <strong>{data.summary.offlineMeters}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard__control-card">
+            <div className="dashboard__control-copy">
+              <p className="section-label">Selected meter</p>
+              <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
+              <p className="dashboard__control-note">Last update: {latestUpdateText}</p>
+            </div>
+            <div className="dashboard__control-row">
+              <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
+              <button type="button" className="ghost-button" onClick={onConfigureMeters}>
+                Open Meter Setup
+              </button>
+            </div>
+            <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
+          </div>
         </div>
       </section>
 
@@ -83,11 +114,15 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
             <p className="section-label">Selected meter</p>
             <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
           </div>
-          <div className="dashboard__meter-meta">
-            <span>{selectedMeter?.location ?? "n/a"}</span>
-            <span>{selectedMeter?.manufacturer ?? "n/a"}</span>
-            <span>{selectedMeter?.model ?? "n/a"}</span>
+          <div className="dashboard__meter-aside">
+            <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
+            <span className="dashboard__updated-at">Updated {latestUpdateText}</span>
           </div>
+        </div>
+        <div className="dashboard__meter-meta">
+          <span>{selectedMeter?.location ?? "n/a"}</span>
+          <span>{selectedMeter?.manufacturer ?? "n/a"}</span>
+          <span>{selectedMeter?.model ?? "n/a"}</span>
         </div>
         {selectedMeter?.status_detail ? (
           <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>

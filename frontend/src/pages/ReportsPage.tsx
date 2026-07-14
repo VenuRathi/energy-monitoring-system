@@ -37,6 +37,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         ? reportMutations.wordReport.error.message
         : null;
   const fallbackMeterId = selectedMeterId === "ALL" ? meters[0]?.meter_id ?? "" : selectedMeterId;
+  const enabledMeters = meters.filter((meter) => meter.enabled).length;
   const [filters, setFilters] = useState<ReportFilters>({
     meterId: fallbackMeterId,
     meterIds: fallbackMeterId ? [fallbackMeterId] : [],
@@ -74,6 +75,55 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
 
   return (
     <section className="page-stack">
+      <section className="dashboard__hero dashboard__hero--compact">
+        <div className="dashboard__hero-copy">
+          <p className="section-label">Reports and email</p>
+          <h3 className="dashboard__headline">Prepare exports and scheduled report delivery</h3>
+          <p className="dashboard__copy">
+            Choose the meters and time range first, then download files or send the same report by email.
+          </p>
+        </div>
+
+        <div className="dashboard__hero-actions">
+          <div className="dashboard__summary dashboard__summary--compact">
+            <div className="summary-card">
+              <span className="summary-card__label">Enabled meters</span>
+              <strong>{enabledMeters}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Schedules</span>
+              <strong>{schedules.length}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Selected meters</span>
+              <strong>{filters.meterIds.length}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Selected parameters</span>
+              <strong>{filters.parameterKeys.length}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard__control-card">
+            <div className="dashboard__control-copy">
+              <p className="section-label">Current export range</p>
+              <h4>{filters.meterIds.length > 0 ? `${filters.meterIds.length} meter(s) selected` : "No meter selected"}</h4>
+              <p className="dashboard__control-note">
+                {filters.startDateTime} to {filters.endDateTime}
+              </p>
+            </div>
+            <div className="dashboard__control-row">
+              <span className={`status-pill status-pill--${emailHealth?.configured ? "online" : "warning"}`}>
+                {emailHealth?.configured ? "email ready" : "email needs setup"}
+              </span>
+            </div>
+            <p className="page-copy">
+              Interval: {filters.intervalHours === null ? "All readings" : `Every ${filters.intervalHours} hour(s)`}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="panel">
         <div className="section-heading">
           <div>

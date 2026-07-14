@@ -1,9 +1,12 @@
 type HeaderProps = {
   pageTitle: string;
+  systemName: string;
+  version: string;
+  deploymentMode: string;
   onMenuClick: () => void;
 };
 
-export function Header({ pageTitle, onMenuClick }: HeaderProps) {
+export function Header({ pageTitle, systemName, version, deploymentMode, onMenuClick }: HeaderProps) {
   return (
     <header className="header">
       <button type="button" className="header__menu-button" onClick={onMenuClick} aria-label="Toggle navigation">
@@ -11,12 +14,13 @@ export function Header({ pageTitle, onMenuClick }: HeaderProps) {
       </button>
 
       <div>
-        <p className="header__eyebrow">Energy Monitoring System</p>
+        <p className="header__eyebrow">{systemName}</p>
         <h2 className="header__title">{pageTitle}</h2>
       </div>
 
       <div className="header__meta">
-        <div className="header__pill">Light Industrial Theme</div>
+        <div className="header__pill header__pill--accent">{version}</div>
+        <div className="header__pill">{deploymentMode}</div>
       </div>
     </header>
   );

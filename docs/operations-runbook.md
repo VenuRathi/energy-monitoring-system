@@ -39,6 +39,12 @@ Expected:
 curl http://127.0.0.1:5000/api/status
 ```
 
+Or use the helper script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
+```
+
 Look for:
 
 - `status`
@@ -165,3 +171,16 @@ Check:
 - PowerShell console output during local run
 
 If running a boss demo, keep one terminal visible for backend status and errors.
+
+## Recommended on-site pilot validation
+
+Use the dedicated runbook for:
+
+- reboot recovery
+- COM disconnect/reconnect
+- one bad meter among good meters
+- PostgreSQL outage recovery
+
+See:
+
+- [pilot-validation-runbook.md](pilot-validation-runbook.md)

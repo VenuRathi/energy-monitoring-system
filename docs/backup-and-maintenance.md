@@ -9,19 +9,36 @@ For a pilot, use:
 - daily logical backup
 - weekly retention review
 
-Example daily backup command:
+Recommended script:
 
 ```powershell
-pg_dump -h 127.0.0.1 -U postgres -d energy_monitoring -F c -f C:\EnergyMonitoring\backups\energy_monitoring_%DATE%.dump
+powershell -ExecutionPolicy Bypass -File .\scripts\backup_postgres.ps1
 ```
 
-Use a backup filename pattern suitable for your Windows locale or wrap it in a scheduled script.
+What it does:
+
+- reads `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` from `.env`
+- creates a timestamped `.dump` file in `backups\`
+- keeps recent dumps and removes older ones based on retention days
+
+Optional daily backup task install:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_daily_backup_task.ps1
+```
+
+Optional example with explicit retention:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\backup_postgres.ps1 -RetentionDays 14
+```
 
 ## Minimum backup recommendation
 
 - Daily backup of PostgreSQL database
 - Weekly copy of the project `.env`
 - Weekly copy of `config/` and any deployment scripts/docs
+- occasional release snapshot using [release-bundle.md](release-bundle.md)
 
 ## Database size check
 

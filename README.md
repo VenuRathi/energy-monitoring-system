@@ -33,6 +33,7 @@ Healthy live target state:
 - PostgreSQL storage for meter definitions and readings
 - Flask API for dashboard, meter management, reports, email settings, and status
 - React frontend with dashboard, trends, reports, and meter pages
+- In-app Help & Guide page for operators and support handover
 - Excel export and Word report generation
 - Optional API key protection for write/control endpoints
 - Runtime heartbeat and per-meter status via `/api/status`
@@ -95,10 +96,23 @@ For full local setup details, see [docs/local-setup.md](docs/local-setup.md).
 - Task Scheduler setup: [docs/task-scheduler-setup.md](docs/task-scheduler-setup.md)
 - Pilot checklist: [docs/pilot-checklist.md](docs/pilot-checklist.md)
 - Backup and maintenance: [docs/backup-and-maintenance.md](docs/backup-and-maintenance.md)
+- Release bundle workflow: [docs/release-bundle.md](docs/release-bundle.md)
+- Pilot validation runbook: [docs/pilot-validation-runbook.md](docs/pilot-validation-runbook.md)
+- Windows installer workflow: [docs/windows-installer-workflow.md](docs/windows-installer-workflow.md)
 - Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Data model: [docs/data-model.md](docs/data-model.md)
+- Engineering gap review: [docs/engineering-gap-review.md](docs/engineering-gap-review.md)
+- Final 45-day plan: [docs/final-45-day-plan.md](docs/final-45-day-plan.md)
 - OpenAPI starter contract: [docs/openapi.yaml](docs/openapi.yaml)
+
+## Developer handover package
+
+- Developer guide: [docs/developer-guide.md](docs/developer-guide.md)
+- Codebase map: [docs/codebase-map.md](docs/codebase-map.md)
+- Debugging guide: [docs/debugging-guide.md](docs/debugging-guide.md)
+- Change guide: [docs/change-guide.md](docs/change-guide.md)
+- Maintenance playbook: [docs/maintenance-playbook.md](docs/maintenance-playbook.md)
 
 ## Repository Layout
 

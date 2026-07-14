@@ -33,7 +33,7 @@ class ModbusRTUClient:
         self.reconnect_interval_seconds = reconnect_interval_seconds
         self._client: Optional[ModbusSerialClient] = None
         self._last_connect_attempt_monotonic = 0.0
-        self._lock = threading.RLock()
+        self._lock = threading.RLock() 
         self._failure_suppression_window_seconds = 30.0
         self._last_failure_signature: tuple[str, str, int, int, int, str] | None = None
         self._last_failure_logged_at = 0.0
@@ -236,6 +236,7 @@ class ModbusRTUClient:
                     error=f"incomplete register response ({actual_count}/{count})",
                 )
                 return None
+                return None 
 
             self._flush_suppressed_failures()
             return response.registers
