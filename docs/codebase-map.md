@@ -7,7 +7,7 @@ This document explains where major responsibilities live so a new developer can 
 | Path | Responsibility |
 |---|---|
 | `main.py` | Main runtime entrypoint, embedded API startup, polling loop, meter-service rebuilds, COM/bus validation |
-| `run_app.bat` | Manual Windows backend launcher |
+| `run_app.bat` | Windows local app launcher that starts the backend if needed and opens the UI |
 | `scripts/` | Service/task-run helper scripts for deployment |
 | `app/` | Backend application code |
 | `config/` | Runtime settings and meter template/config loading |

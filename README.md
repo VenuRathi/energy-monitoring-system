@@ -53,7 +53,7 @@ Mermaid diagram version: [docs/architecture.md](docs/architecture.md)
 
 ## Tech Stack
 
-- Python 3.11+
+- Python 3.11+ (Python 3.13 currently validated)
 - Flask
 - PostgreSQL + psycopg
 - pymodbus + pyserial

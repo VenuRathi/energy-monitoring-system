@@ -4,7 +4,7 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 
 ## 1. Python environment
 
-- [ ] Python 3.11 installed
+- [ ] Python 3.13 installed (or another validated 3.11+ interpreter)
 - [ ] Virtual environment created
 - [ ] `pip install -r requirements.txt` completed without errors
 - [ ] Backend starts with `.\.venv\Scripts\python.exe main.py`

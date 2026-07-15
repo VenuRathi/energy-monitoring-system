@@ -5,7 +5,7 @@ This guide is for running the current system on a Windows development machine wi
 ## Prerequisites
 
 - Windows 10/11
-- Python 3.11 recommended
+- Python 3.13 recommended for the current validated Windows setup
 - Node.js 20+ recommended
 - PostgreSQL 14+ recommended
 - Access to the required COM port if using real meters
