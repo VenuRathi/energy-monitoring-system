@@ -14,6 +14,7 @@ logs/*.xlsx
 backups/
 release/
 installer/output/
+.installer_smoke/
 
 frontend/node_modules/
 frontend/dist/

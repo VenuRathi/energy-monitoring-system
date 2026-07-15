@@ -619,11 +619,12 @@ def main() -> None:
                         slave_id,
                         exc,
                     )
-            try:
-                process_due_report_schedules()
-            except Exception as exc:
-                record_polling_loop_error(f"Scheduled report processing failed: {exc}", datetime.now(timezone.utc))
-                logger.exception("Scheduled report processing failed: %s", exc)
+            if settings.enable_database:
+                try:
+                    process_due_report_schedules()
+                except Exception as exc:
+                    record_polling_loop_error(f"Scheduled report processing failed: {exc}", datetime.now(timezone.utc))
+                    logger.exception("Scheduled report processing failed: %s", exc)
             cycle_ended_at = datetime.now(timezone.utc)
             cycle_duration_seconds = time.monotonic() - cycle_started_monotonic
             record_polling_cycle_end(cycle_ended_at, cycle_duration_seconds)
