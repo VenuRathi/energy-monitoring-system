@@ -80,6 +80,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\validate_release_bundle.ps1 -
 
 4. Install Inno Setup on the machine where you will build the installer.
 
+If `ISCC.exe` is not on PATH, the helper script can also use:
+
+- `-IsccPath "C:\path\to\ISCC.exe"`
+- `ISCC_PATH`
+- `INNO_SETUP_HOME`
+
 ## Installer source file
 
 - [installer/energy_monitoring_system.iss](../installer/energy_monitoring_system.iss)
@@ -107,8 +113,19 @@ That script automatically:
 
 - finds the latest prepared release bundle
 - validates the bundle first unless you explicitly skip that step
-- finds `ISCC.exe`
+- finds `ISCC.exe` from:
+  - explicit `-IsccPath`
+  - `ISCC_PATH`
+  - `INNO_SETUP_HOME`
+  - PATH
+  - common Inno Setup install folders and registry hints
 - compiles the installer against that bundle
+
+Example with an explicit compiler path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1 -IsccPath "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+```
 
 ## Recommended target-machine workflow
 
