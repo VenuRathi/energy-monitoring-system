@@ -19,6 +19,7 @@ The release bundle script creates:
 - deployment docs
 - scripts
 - a top-level `START_HERE.txt`
+- a top-level `RELEASE_INFO.txt` with source commit metadata
 - a `.zip` archive for transfer
 
 It does not include:
@@ -74,6 +75,7 @@ This verifies that the latest bundle still contains the expected:
 - setup scripts
 - deployment docs
 - top-level `START_HERE.txt`
+- top-level `RELEASE_INFO.txt`
 - matching `.zip` archive
 
 ## What goes into the bundle

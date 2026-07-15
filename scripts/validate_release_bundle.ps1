@@ -83,6 +83,13 @@ if (-not $startHereExists) {
     $allOk = $false
 }
 
+$releaseInfoPath = Join-Path $bundleFolder "RELEASE_INFO.txt"
+$releaseInfoExists = Test-Path $releaseInfoPath
+Write-Check -Label "RELEASE_INFO.txt" -Ok $releaseInfoExists -Details $releaseInfoPath
+if (-not $releaseInfoExists) {
+    $allOk = $false
+}
+
 if ($RequireZip) {
     $zipPath = "$bundleFolder.zip"
     $zipExists = Test-Path $zipPath

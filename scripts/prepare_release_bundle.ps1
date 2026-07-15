@@ -4,6 +4,21 @@ param(
     [string]$BundleName = "energy-monitoring-system-pilot"
 )
 
+function Resolve-GitCommit {
+    param([string]$RootPath)
+
+    try {
+        $commit = git -C $RootPath rev-parse --short HEAD 2>$null
+        if ($LASTEXITCODE -eq 0 -and $commit) {
+            return ($commit | Select-Object -First 1).Trim()
+        }
+    }
+    catch {
+    }
+
+    return "unknown"
+}
+
 if (-not $OutputRoot) {
     $OutputRoot = Join-Path $ProjectRoot "release"
 }
@@ -16,6 +31,8 @@ if (-not (Test-Path $frontendDist)) {
 New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
 
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
+$bundleCreatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$sourceCommit = Resolve-GitCommit -RootPath $ProjectRoot
 $bundleRoot = Join-Path $OutputRoot "${BundleName}_${timestamp}"
 $bundleAppRoot = Join-Path $bundleRoot "energy-monitoring-system"
 New-Item -ItemType Directory -Path $bundleAppRoot -Force | Out-Null
@@ -54,7 +71,8 @@ $startHerePath = Join-Path $bundleRoot "START_HERE.txt"
 @"
 Energy Monitoring System - Pilot Release Bundle
 
-Bundle created: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+Bundle created: $bundleCreatedAt
+Source commit: $sourceCommit
 
 Contents:
 - energy-monitoring-system\  -> application files
@@ -72,6 +90,17 @@ Important:
 - This bundle does not include PostgreSQL binaries
 - This bundle does include the built frontend from frontend\dist
 "@ | Set-Content -Path $startHerePath -Encoding UTF8
+
+$releaseInfoPath = Join-Path $bundleRoot "RELEASE_INFO.txt"
+@"
+Energy Monitoring System - Release Metadata
+
+Bundle created: $bundleCreatedAt
+Bundle name: ${BundleName}_${timestamp}
+Source commit: $sourceCommit
+Project root: $ProjectRoot
+Application folder: $bundleAppRoot
+"@ | Set-Content -Path $releaseInfoPath -Encoding UTF8
 
 $zipPath = Join-Path $OutputRoot "${BundleName}_${timestamp}.zip"
 if (Test-Path $zipPath) {
