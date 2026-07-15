@@ -186,7 +186,7 @@ Use:
 
 ```powershell
 cd frontend
-npx tsc --noEmit
+npm run typecheck
 npm run build
 ```
 

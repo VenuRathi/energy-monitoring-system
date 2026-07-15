@@ -63,6 +63,12 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
     });
   }, [fallbackMeterId]);
 
+  const selectedMeterNames = meters
+    .filter((meter) => filters.meterIds.includes(meter.meter_id))
+    .map((meter) => meter.meter_name);
+  const reportReady = filters.meterIds.length > 0 && filters.parameterKeys.length > 0;
+  const emailReady = Boolean(emailHealth?.configured);
+
   const submitExport = (format: "excel" | "word") => {
     const meterIds = filters.meterIds.length > 0 ? filters.meterIds : filters.meterId ? [filters.meterId] : fallbackMeterId ? [fallbackMeterId] : [];
     const payload = { ...filters, meterId: meterIds[0] ?? "", meterIds };
@@ -85,7 +91,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         </div>
 
         <div className="dashboard__hero-actions">
-          <div className="dashboard__summary dashboard__summary--compact">
+          <div className="dashboard__summary dashboard__summary--compact dashboard__summary--reports">
             <div className="summary-card">
               <span className="summary-card__label">Enabled meters</span>
               <strong>{enabledMeters}</strong>
@@ -101,6 +107,10 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
             <div className="summary-card">
               <span className="summary-card__label">Selected parameters</span>
               <strong>{filters.parameterKeys.length}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Email</span>
+              <strong>{emailReady ? "Ready" : "Needs setup"}</strong>
             </div>
           </div>
 
@@ -139,6 +149,30 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
           onChange={setFilters}
           onSelectMeter={onSelectMeter}
         />
+
+        <div className="report-inline-summary report-inline-summary--stacked">
+          <span>
+            <strong>Selected meters:</strong> {selectedMeterNames.length > 0 ? selectedMeterNames.join(", ") : "none"}
+          </span>
+          <span>
+            <strong>Range:</strong> {filters.startDateTime} to {filters.endDateTime}
+          </span>
+          <span>
+            <strong>Interval:</strong> {filters.intervalHours === null ? "All readings" : `Every ${filters.intervalHours} hour(s)`}
+          </span>
+          <span>
+            <strong>Parameters:</strong> {filters.parameterKeys.length}
+          </span>
+        </div>
+
+        <div className={`report-readiness report-readiness--${reportReady ? "ready" : "pending"}`}>
+          <strong>{reportReady ? "Report filters ready" : "Finish filter selection"}</strong>
+          <p>
+            {reportReady
+              ? "You can export now or send the same selection through the email flow below."
+              : "Choose at least one meter and one parameter before exporting or scheduling reports."}
+          </p>
+        </div>
       </section>
 
       <section className="reports-flow">

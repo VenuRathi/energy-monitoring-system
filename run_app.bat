@@ -1,23 +1,23 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions
 
 cd /d "%~dp0"
 set "APP_ROOT=%CD%"
-set "PYTHON=%APP_ROOT%\.venv\Scripts\python.exe"
+set "LAUNCHER=%APP_ROOT%\scripts\launch_app.ps1"
 
-if not exist "%PYTHON%" (
-	echo Project virtual environment was not found at:
-	echo %PYTHON%
-	echo.
-	echo Restore or create .venv before starting the service.
+if not exist "%LAUNCHER%" (
+	echo Missing launcher script:
+	echo %LAUNCHER%
 	pause
 	exit /b 1
 )
 
-echo Starting energy monitoring service...
-echo Using Python: %PYTHON%
-"%PYTHON%" -u main.py
+powershell -ExecutionPolicy Bypass -File "%LAUNCHER%" -ProjectRoot "%APP_ROOT%"
+if errorlevel 1 (
+	echo.
+	echo Launch failed. Review the message above, then run post-install checks if needed.
+	pause
+	exit /b 1
+)
 
-echo.
-echo Service stopped.
-pause
+exit /b 0

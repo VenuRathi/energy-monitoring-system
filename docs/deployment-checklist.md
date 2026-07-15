@@ -13,7 +13,15 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 
 - [ ] Node.js 20+ installed
 - [ ] `cd frontend && npm ci` completed
+- [ ] `cd frontend && npm run typecheck` passes
 - [ ] `cd frontend && npm run build` passes
+
+## 2A. Release / installer handoff
+
+- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\prepare_release_bundle.ps1` completed
+- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\validate_release_bundle.ps1 -RequireZip` passes
+- [ ] If building installer, Inno Setup 6 installed
+- [ ] If building installer, `powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1` passes
 
 ## 3. PostgreSQL database
 

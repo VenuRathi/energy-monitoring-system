@@ -1,6 +1,38 @@
 import { APP_META } from "../app/appMeta";
+import { useSystemStatusData } from "../hooks/useMetersData";
+import { formatTimestamp } from "../lib/formatters";
+import type { SystemStatusMeter } from "../types/energy";
+
+function formatStatusDuration(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) {
+    return "n/a";
+  }
+
+  if (value < 60) {
+    return `${Math.round(value)} sec`;
+  }
+
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.round(value % 60);
+  if (minutes < 60) {
+    return `${minutes} min ${seconds} sec`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours} hr ${remainingMinutes} min`;
+}
+
+function statusLabel(meter: SystemStatusMeter) {
+  if (!meter.enabled) {
+    return "disabled";
+  }
+  return meter.communicationStatus;
+}
 
 export function HelpPage() {
+  const { data: systemStatus, isLoading, isError, error, refetch } = useSystemStatusData();
+
   return (
     <section className="page-stack">
       <section className="panel">
@@ -45,6 +77,165 @@ export function HelpPage() {
             per-meter communication state.
           </p>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Runtime health</p>
+            <h4>Live backend and polling status</h4>
+          </div>
+          {systemStatus ? (
+            <span className={`status-pill status-pill--${systemStatus.status === "ok" ? "online" : "warning"}`}>
+              {systemStatus.status === "ok" ? "ok" : "degraded"}
+            </span>
+          ) : null}
+        </div>
+
+        {isLoading ? <div className="page-state">Loading live system status...</div> : null}
+
+        {isError ? (
+          <div className="page-state page-state--error">
+            <h3>Live status unavailable</h3>
+            <p>{error instanceof Error ? error.message : "Unable to load /api/status."}</p>
+            <button type="button" className="ghost-button" onClick={() => refetch()}>
+              Retry status
+            </button>
+          </div>
+        ) : null}
+
+        {systemStatus ? (
+          <div className="status-stack">
+            <div className="dashboard__summary dashboard__summary--compact">
+              <div className="summary-card">
+                <span className="summary-card__label">API</span>
+                <strong>{systemStatus.checks.api.status}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Database</span>
+                <strong>{systemStatus.databaseStatus}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Polling</span>
+                <strong>{systemStatus.polling.running ? "running" : "stopped"}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Enabled meters</span>
+                <strong>{systemStatus.summary.enabledMeterCount}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Stale / warning</span>
+                <strong>{systemStatus.summary.staleMeterCount}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Polling cycles</span>
+                <strong>{systemStatus.polling.totalCyclesCompleted}</strong>
+              </div>
+            </div>
+
+            <div className="help-grid">
+              <article className="panel help-card">
+                <div className="section-heading">
+                  <div>
+                    <p className="section-label">Polling heartbeat</p>
+                    <h4>Cycle activity</h4>
+                  </div>
+                </div>
+                <ul className="help-list help-list--compact">
+                  <li>Cycle in progress: {systemStatus.polling.cycleInProgress ? "Yes" : "No"}</li>
+                  <li>Started at: {formatTimestamp(systemStatus.polling.startedAt)}</li>
+                  <li>Last cycle start: {formatTimestamp(systemStatus.polling.lastCycleStartTime)}</li>
+                  <li>Last cycle end: {formatTimestamp(systemStatus.polling.lastCycleEndTime)}</li>
+                  <li>Last cycle duration: {formatStatusDuration(systemStatus.polling.lastCycleDurationSeconds)}</li>
+                  <li>Backend uptime: {formatStatusDuration(systemStatus.polling.uptimeSeconds)}</li>
+                </ul>
+                {systemStatus.polling.lastGlobalPollingError ? (
+                  <div className="help-note help-note--danger">
+                    <strong>Last polling error</strong>
+                    <p>{systemStatus.polling.lastGlobalPollingError}</p>
+                  </div>
+                ) : null}
+              </article>
+
+              <article className="panel help-card">
+                <div className="section-heading">
+                  <div>
+                    <p className="section-label">Health checks</p>
+                    <h4>Backend dependencies</h4>
+                  </div>
+                </div>
+                <ul className="help-list help-list--compact">
+                  <li>API: {systemStatus.checks.api.message}</li>
+                  <li>Database: {systemStatus.checks.database.message}</li>
+                  <li>Meter inventory: {systemStatus.checks.meters.message}</li>
+                  <li>Polling: {systemStatus.checks.polling.message}</li>
+                  <li>Data source: {systemStatus.checks.dataSource.message}</li>
+                </ul>
+              </article>
+            </div>
+
+            <div className="section-heading">
+              <div>
+                <p className="section-label">Per-meter runtime state</p>
+                <h4>Live communication summary</h4>
+              </div>
+            </div>
+
+            <div className="status-meter-grid">
+              {systemStatus.summary.meters.map((meter) => {
+                const tone = !meter.enabled ? "offline" : meter.communicationStatus === "online" ? "online" : meter.communicationStatus === "warning" ? "warning" : "offline";
+                return (
+                  <article key={meter.meterId} className="status-meter-card">
+                    <div className="status-meter-card__top">
+                      <div>
+                        <p className="section-label">Meter</p>
+                        <h4>{meter.meterName}</h4>
+                        <p className="meter-card__detail">
+                          {meter.comPort || "COM n/a"} · Slave {meter.slaveId ?? "n/a"}
+                        </p>
+                      </div>
+                      <span className={`status-pill status-pill--${tone}`}>{statusLabel(meter)}</span>
+                    </div>
+
+                    <dl className="status-meter-card__list">
+                      <div>
+                        <dt>Last success</dt>
+                        <dd>{formatTimestamp(meter.lastSuccessfulReadingTime)}</dd>
+                      </div>
+                      <div>
+                        <dt>Latest reading</dt>
+                        <dd>{formatTimestamp(meter.latestReadingTimestamp ?? "")}</dd>
+                      </div>
+                      <div>
+                        <dt>Last poll</dt>
+                        <dd>{formatTimestamp(meter.lastPollAttemptTime)}</dd>
+                      </div>
+                      <div>
+                        <dt>Failures</dt>
+                        <dd>{meter.consecutiveFailureCount}</dd>
+                      </div>
+                      <div>
+                        <dt>Stale</dt>
+                        <dd>{meter.staleWarning ? "Yes" : "No"}</dd>
+                      </div>
+                      <div>
+                        <dt>Enabled</dt>
+                        <dd>{meter.enabled ? "Yes" : "No"}</dd>
+                      </div>
+                    </dl>
+
+                    {meter.lastErrorMessage ? (
+                      <div className="help-note help-note--warning">
+                        <strong>Last error</strong>
+                        <p>{meter.lastErrorMessage}</p>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="help-grid">

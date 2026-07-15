@@ -1,4 +1,5 @@
 import { APP_META } from "../../app/appMeta";
+import { useSystemStatusData } from "../../hooks/useMetersData";
 import type { PageKey } from "../../types/energy";
 
 const navItems: Array<{ key: PageKey; label: string }> = [
@@ -16,6 +17,17 @@ type SidebarProps = {
 };
 
 export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps) {
+  const { data: systemStatus, isError } = useSystemStatusData();
+  const overallStatusTone = isError ? "offline" : systemStatus?.status === "degraded" ? "warning" : "online";
+  const overallStatusLabel = isError ? "Backend Unreachable" : systemStatus?.status === "degraded" ? "Needs Attention" : "Operational";
+  const statusNote = isError
+    ? "Live system status could not be loaded. Check backend availability and API network settings."
+    : systemStatus
+      ? `${systemStatus.summary.enabledMeterCount} enabled meter(s), ${systemStatus.summary.staleMeterCount} stale/warning, polling ${
+          systemStatus.polling.running ? "running" : "stopped"
+        }.`
+      : "Loading live system status...";
+
   return (
     <>
       <button
@@ -50,10 +62,8 @@ export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps)
 
         <section className="sidebar__status">
           <p className="sidebar__status-label">System Status</p>
-          <div className="sidebar__status-pill sidebar__status-pill--ok">Operational</div>
-          <p className="sidebar__status-note">
-            Use Meter Setup to scan the line, Live View to check readings, and Help &amp; Guide for troubleshooting.
-          </p>
+          <div className={`sidebar__status-pill status-pill--${overallStatusTone}`}>{overallStatusLabel}</div>
+          <p className="sidebar__status-note">{statusNote}</p>
         </section>
       </aside>
     </>

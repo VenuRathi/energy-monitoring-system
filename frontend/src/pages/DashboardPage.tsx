@@ -8,6 +8,7 @@ import { MetricStrip } from "../components/dashboard/MetricStrip";
 import { ParameterExplorer } from "../components/dashboard/ParameterExplorer";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { formatTimestamp } from "../lib/formatters";
+import type { MeterRecord } from "../types/energy";
 
 type DashboardPageProps = {
   selectedMeterId: string;
@@ -18,6 +19,13 @@ type DashboardPageProps = {
 export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeters }: DashboardPageProps) {
   const [trendParameterKey, setTrendParameterKey] = useState("active_power_total");
   const { data, isLoading, isError, error, refetch } = useDashboardData(selectedMeterId, trendParameterKey);
+
+  const meterTone = (meter: MeterRecord | null | undefined) => {
+    if (!meter?.enabled) return "offline";
+    if (meter.status === "online" && meter.data_quality === "live") return "online";
+    if (meter.status === "offline") return "offline";
+    return "warning";
+  };
 
   const selectedTrendLabel = useMemo(
     () => data?.trendParameter?.label ?? "Active Power Total",
@@ -43,11 +51,22 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
 
   const selectedMeter = data.selectedMeter ?? data.meters[0];
   const noReadingsYet = !selectedMeter?.has_readings || (data.latestReadings?.length ?? 0) === 0;
-  const statusTone =
-    selectedMeter?.data_quality === "live"
-      ? "online"
-      : selectedMeter?.data_quality ?? selectedMeter?.status ?? "offline";
+  const statusTone = meterTone(selectedMeter);
   const latestUpdateText = formatTimestamp(selectedMeter?.last_update ?? "");
+  const selectedMeterAlerts = data.activeAlerts.filter((alert) => alert.meterId === selectedMeter?.meter_id).length;
+  const totalAlerts = data.activeAlerts.length;
+
+  if (!selectedMeter) {
+    return (
+      <div className="page-state page-state--error">
+        <h3>No meters available</h3>
+        <p>Add or enable at least one meter to start using the dashboard.</p>
+        <button type="button" className="primary-button" onClick={onConfigureMeters}>
+          Open Meter Setup
+        </button>
+      </div>
+    );
+  }
 
   return (
     <section className="dashboard">
@@ -61,7 +80,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         </div>
 
         <div className="dashboard__hero-actions">
-          <div className="dashboard__summary dashboard__summary--compact">
+          <div className="dashboard__summary dashboard__summary--compact dashboard__summary--dashboard">
             <div className="summary-card">
               <span className="summary-card__label">Total meters</span>
               <strong>{data.summary.totalMeters}</strong>
@@ -78,12 +97,16 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
               <span className="summary-card__label">Offline</span>
               <strong>{data.summary.offlineMeters}</strong>
             </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Active alerts</span>
+              <strong>{totalAlerts}</strong>
+            </div>
           </div>
 
           <div className="dashboard__control-card">
             <div className="dashboard__control-copy">
               <p className="section-label">Selected meter</p>
-              <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
+              <h4>{selectedMeter.meter_name}</h4>
               <p className="dashboard__control-note">Last update: {latestUpdateText}</p>
             </div>
             <div className="dashboard__control-row">
@@ -92,6 +115,10 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
                 Open Meter Setup
               </button>
             </div>
+            <p className="page-copy">
+              {selectedMeter.location} · {selectedMeter.manufacturer} {selectedMeter.model} ·{" "}
+              {selectedMeter.enabled ? "Polling enabled" : "Disabled"}
+            </p>
             <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
           </div>
         </div>
@@ -112,7 +139,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         <div className="section-heading">
           <div>
             <p className="section-label">Selected meter</p>
-            <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
+            <h4>{selectedMeter.meter_name}</h4>
           </div>
           <div className="dashboard__meter-aside">
             <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
@@ -120,11 +147,12 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
           </div>
         </div>
         <div className="dashboard__meter-meta">
-          <span>{selectedMeter?.location ?? "n/a"}</span>
-          <span>{selectedMeter?.manufacturer ?? "n/a"}</span>
-          <span>{selectedMeter?.model ?? "n/a"}</span>
+          <span>{selectedMeter.location || "n/a"}</span>
+          <span>{selectedMeter.manufacturer || "n/a"}</span>
+          <span>{selectedMeter.model || "n/a"}</span>
+          <span>{selectedMeter.com_port || "COM n/a"} · Slave {selectedMeter.slave_id}</span>
         </div>
-        {selectedMeter?.status_detail ? (
+        {selectedMeter.status_detail ? (
           <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>
             {selectedMeter.status_detail}
           </div>
@@ -134,6 +162,28 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
             No readings available yet for this meter.
           </div>
         ) : null}
+        <div className="dashboard__overview">
+          <div className="summary-card">
+            <span className="summary-card__label">Data quality</span>
+            <strong>{selectedMeter.data_quality?.replaceAll("_", " ") ?? "n/a"}</strong>
+            <span className="table-subtle">{selectedMeter.live_measurements ? "Live values available" : "Waiting for live values"}</span>
+          </div>
+          <div className="summary-card">
+            <span className="summary-card__label">Current alert load</span>
+            <strong>{selectedMeterAlerts}</strong>
+            <span className="table-subtle">{selectedMeterAlerts > 0 ? "Needs operator review" : "No active alerts"}</span>
+          </div>
+          <div className="summary-card">
+            <span className="summary-card__label">Polling state</span>
+            <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong>
+            <span className="table-subtle">{selectedMeter.one_based_map ? "One-based map" : "Zero-based map"}</span>
+          </div>
+          <div className="summary-card">
+            <span className="summary-card__label">Role</span>
+            <strong>{selectedMeter.seu ? "SEU meter" : "Standard meter"}</strong>
+            <span className="table-subtle">{selectedMeter.driver}</span>
+          </div>
+        </div>
         <MetricStrip metrics={data.metrics} />
       </section>
 

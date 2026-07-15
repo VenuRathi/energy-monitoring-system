@@ -19,9 +19,12 @@ Use this when you want:
 The Inno Setup script:
 
 - installs the prepared application folder
+- installs it to a writable machine location under `C:\ProgramData\Plant Energy Monitor`
 - creates app directories like `logs\`, `backups\`, and `release\`
 - creates Start Menu entries
 - can create a desktop shortcut
+- adds first-run and post-install helper shortcuts
+- adds a startup-registration shortcut for Task Scheduler
 - opens the deployment guide after install if desired
 
 ## What it does not do yet
@@ -36,6 +39,21 @@ It does not:
 
 That is intentional for the current project stage.
 
+## Included helpers
+
+After install, the package now includes:
+
+- `scripts\first_run_setup.ps1`
+- `scripts\post_install_check.ps1`
+
+What they do:
+
+- create expected local folders
+- create `.env` from `.env.example` if missing
+- confirm whether frontend build exists
+- check whether Python, `pg_dump`, `.venv`, and COM ports are visible
+- optionally check whether the backend API is reachable
+
 ## Prerequisites
 
 1. Build the frontend:
@@ -43,6 +61,7 @@ That is intentional for the current project stage.
 ```powershell
 cd frontend
 npm ci
+npm run typecheck
 npm run build
 cd ..
 ```
@@ -53,7 +72,13 @@ cd ..
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare_release_bundle.ps1
 ```
 
-3. Install Inno Setup on the machine where you will build the installer.
+3. Validate the latest release bundle:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\validate_release_bundle.ps1 -RequireZip
+```
+
+4. Install Inno Setup on the machine where you will build the installer.
 
 ## Installer source file
 
@@ -72,18 +97,31 @@ Notes:
 - `SourceRoot` must point to the prepared application folder inside the release bundle
 - the script writes installer output to `installer\output\`
 
+Or use the helper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1
+```
+
+That script automatically:
+
+- finds the latest prepared release bundle
+- validates the bundle first unless you explicitly skip that step
+- finds `ISCC.exe`
+- compiles the installer against that bundle
+
 ## Recommended target-machine workflow
 
 After running the installer on the target PC:
 
-1. Open the installed folder
-2. Copy `.env.example` to `.env`
-3. Fill the real environment values
-4. Create `.venv`
-5. Run `pip install -r requirements.txt`
+1. Run **First-Run Setup**
+2. Edit `.env` with real values
+3. Run **Python Environment Bootstrap**
+4. If needed, rerun it with `-Recreate`
+5. Run **Post-Install Check**
 6. Confirm PostgreSQL and COM port settings
-7. Run backend manually once
-8. Register the Task Scheduler backend startup
+7. Launch **Plant Energy Monitor** from the Start Menu
+8. Run **Register Backend Startup** so the backend restarts after reboot
 
 ## Why this is still useful
 
@@ -99,6 +137,5 @@ Future installer upgrades can add:
 
 - prerequisite checks
 - bundled Python strategy
-- first-run setup helper
 - scheduled-task registration during install
 - post-install verification

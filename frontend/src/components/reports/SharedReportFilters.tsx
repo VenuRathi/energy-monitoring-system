@@ -26,6 +26,7 @@ const rangePresets = [
 export function SharedReportFilters({ meters, parameters, filters, onChange, onSelectMeter }: SharedReportFiltersProps) {
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [search, setSearch] = useState("");
+  const enabledMeters = useMemo(() => meters.filter((meter) => meter.enabled), [meters]);
   const selectedMeters = useMemo(
     () => meters.filter((meter) => filters.meterIds.includes(meter.meter_id)),
     [filters.meterIds, meters],
@@ -116,11 +117,18 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
           >
             {meters.map((meter) => (
               <option key={meter.meter_id} value={meter.meter_id}>
-                {meter.meter_name}
+                {meter.meter_name} {meter.enabled ? "" : "(disabled)"}
               </option>
             ))}
           </select>
           <div className="report-meter-actions">
+            <button
+              type="button"
+              className="ghost-button ghost-button--compact"
+              onClick={() => updateMeterSelection(enabledMeters.map((meter) => meter.meter_id))}
+            >
+              Select enabled
+            </button>
             <button type="button" className="ghost-button ghost-button--compact" onClick={() => updateMeterSelection(meters.map((meter) => meter.meter_id))}>
               Select all
             </button>

@@ -69,6 +69,7 @@ Frontend:
 ```powershell
 cd frontend
 npm ci
+npm run typecheck
 npm run dev
 ```
 
@@ -76,6 +77,7 @@ Frontend build for backend-served mode:
 
 ```powershell
 cd frontend
+npm run typecheck
 npm run build
 cd ..
 python main.py

@@ -65,6 +65,7 @@ When frontend code changes:
 ```powershell
 cd D:\FFPL\energy-monitoring-system\frontend
 npm ci
+npm run typecheck
 npm run build
 ```
 

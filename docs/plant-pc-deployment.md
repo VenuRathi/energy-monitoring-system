@@ -66,14 +66,24 @@ Recommended location:
 C:\EnergyMonitoring\energy-monitoring-system
 ```
 
+If using the Inno Setup package instead of a copied repo/release bundle, the default installer location is:
+
+```text
+C:\ProgramData\Plant Energy Monitor
+```
+
 ## 4. Create the virtual environment
 
 ```powershell
 cd C:\EnergyMonitoring\energy-monitoring-system
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+powershell -ExecutionPolicy Bypass -File .\scripts\first_run_setup.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1
+```
+
+If `.venv` already exists but is broken:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1 -Recreate
 ```
 
 ## 5. Configure `.env`
@@ -148,6 +158,7 @@ Current safe pilot pattern:
 ```powershell
 cd frontend
 npm ci
+npm run typecheck
 npm run build
 cd ..
 ```
@@ -176,7 +187,48 @@ What the backend now checks/logs at startup:
 - validated enabled meter summary
 - warnings for duplicate slave IDs or serial-setting conflicts
 
-## 10. Firewall notes
+Optional quick environment check:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\post_install_check.ps1
+```
+
+Optional software-style launch:
+
+```powershell
+.\run_app.bat
+```
+
+What `run_app.bat` does now:
+
+- checks whether the backend is already reachable
+- starts the backend if needed
+- waits briefly for `/api/health`
+- opens the local application URL in the browser
+
+## 10. Register 24/7 backend startup
+
+Recommended on the plant PC:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backend.ps1
+```
+
+Default behavior:
+
+- registers the task as `EnergyMonitoringBackend`
+- runs it as `SYSTEM`
+- starts at boot and logon
+- enables restart retries
+- gives the task a long execution-time limit for continuous runtime
+
+Then verify:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
+```
+
+## 11. Firewall notes
 
 Recommended:
 
@@ -184,7 +236,7 @@ Recommended:
 - keep PostgreSQL on localhost only if possible
 - do not open PostgreSQL to the general network
 
-## 11. Local network access
+## 12. Local network access
 
 If the plant PC IP is `192.168.1.50`, users can open:
 
@@ -198,7 +250,7 @@ That gives them:
 - dashboard
 - API behind the same origin
 
-## 12. Pilot acceptance target
+## 13. Pilot acceptance target
 
 Healthy state:
 
@@ -209,9 +261,10 @@ Healthy state:
 - `MTR-002` online
 - disabled/fake meters not counted stale
 - logs rotating into `logs/energy_monitoring.log`
+- runner lifecycle visible in `logs/backend_runner.log`
 - startup warnings reviewed and understood if any appear
 
-## 13. Optional release-bundle handoff
+## 14. Optional release-bundle handoff
 
 If you want to move a clean snapshot instead of cloning the full repo, create a bundle on the source machine:
 

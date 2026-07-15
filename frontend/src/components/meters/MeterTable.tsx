@@ -10,6 +10,15 @@ type MeterTableProps = {
 };
 
 export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDisable }: MeterTableProps) {
+  if (meters.length === 0) {
+    return (
+      <div className="page-state">
+        <h3>No meters configured yet</h3>
+        <p>Add the first meter or run a scan on the active COM line to populate the meter list.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="table-shell">
       <table className="latest-table latest-table--compact meters-table">
@@ -35,15 +44,22 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDisabl
               <td className="latest-table__parameter">
                 <strong>{meter.meter_name}</strong>
                 <div className="table-subtle">{meter.meter_id}</div>
+                <div className="table-subtle">
+                  {meter.com_port || "COM n/a"} · Slave {meter.slave_id}
+                </div>
                 {!meter.enabled ? <div className="table-subtle table-subtle--danger">Disabled meter</div> : null}
               </td>
               <td>{meter.manufacturer} {meter.model}</td>
               <td>{meter.location}</td>
               <td>
                 <span className={`status-pill status-pill--${meter.status}`}>{meter.status}</span>
+                {meter.status_detail ? <div className="table-subtle">{meter.status_detail}</div> : null}
               </td>
               <td>{meter.seu ? "Yes" : "No"}</td>
-              <td>{meter.enabled ? "Active" : "Disabled"}</td>
+              <td>
+                <strong>{meter.enabled ? "Active" : "Disabled"}</strong>
+                <div className="table-subtle">{meter.enabled ? "Included in polling" : "History preserved only"}</div>
+              </td>
               <td>{formatTimestamp(meter.last_update)}</td>
               <td>
                 <div className="row-actions" onClick={(event) => event.stopPropagation()}>

@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchAlertRules, fetchEmailHealth, fetchEmailSettings, fetchMeters, fetchParameters, fetchReportSchedules } from "../api/energyApi";
+import {
+  fetchAlertRules,
+  fetchEmailHealth,
+  fetchEmailSettings,
+  fetchMeters,
+  fetchParameters,
+  fetchReportSchedules,
+  fetchSystemStatus,
+} from "../api/energyApi";
 
 export function useMetersData() {
   return useQuery({
@@ -57,6 +65,17 @@ export function useEmailHealthData() {
     queryFn: fetchEmailHealth,
     staleTime: 0,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useSystemStatusData() {
+  return useQuery({
+    queryKey: ["system-status"],
+    queryFn: fetchSystemStatus,
+    staleTime: 0,
+    refetchInterval: 15_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });

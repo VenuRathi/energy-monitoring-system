@@ -34,8 +34,15 @@ Use this for the final 4-5 meter pilot readiness review on the plant PC.
 ## Frontend
 
 - [ ] `npm ci` completed
+- [ ] `npm run typecheck` completed
 - [ ] `npm run build` completed
 - [ ] backend serves the built frontend from `frontend/dist`
+
+## Release handoff
+
+- [ ] release bundle created if this pilot will be transferred as a package
+- [ ] release bundle validation passes
+- [ ] installer compiled if software-style install is required for the target PC
 
 ## Runtime
 

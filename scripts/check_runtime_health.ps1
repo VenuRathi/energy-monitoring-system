@@ -30,8 +30,9 @@ catch {
 Write-Host "API Health"
 Write-Host "----------"
 Write-Host ("status              : {0}" -f (Format-Value $health.status))
-Write-Host ("database            : {0}" -f (Format-Value $status.database.status))
+Write-Host ("database            : {0}" -f (Format-Value $status.databaseStatus))
 Write-Host ("overall runtime     : {0}" -f (Format-Value $status.status))
+Write-Host ("timestamp           : {0}" -f (Format-Value $status.timestamp))
 Write-Host ""
 
 Write-Host "Polling"
@@ -44,6 +45,7 @@ Write-Host ("last cycle end      : {0}" -f (Format-Value $status.polling.lastCyc
 Write-Host ("last cycle duration : {0}" -f (Format-Value $status.polling.lastCycleDurationSeconds))
 Write-Host ("uptime seconds      : {0}" -f (Format-Value $status.polling.uptimeSeconds))
 Write-Host ("last polling error  : {0}" -f (Format-Value $status.polling.lastGlobalPollingError))
+Write-Host ("polling check       : {0}" -f (Format-Value $status.checks.polling.message))
 Write-Host ""
 
 Write-Host "Meters"
@@ -51,6 +53,7 @@ Write-Host "------"
 Write-Host ("meter count         : {0}" -f (Format-Value $status.summary.meterCount))
 Write-Host ("enabled meters      : {0}" -f (Format-Value $status.summary.enabledMeterCount))
 Write-Host ("stale meters        : {0}" -f (Format-Value $status.summary.staleMeterCount))
+Write-Host ("meter check         : {0}" -f (Format-Value $status.checks.meters.message))
 Write-Host ""
 
 foreach ($meter in $status.summary.meters) {

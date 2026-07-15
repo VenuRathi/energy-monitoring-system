@@ -22,8 +22,10 @@ New-Item -ItemType Directory -Path $bundleAppRoot -Force | Out-Null
 
 $itemsToCopy = @(
     "main.py",
+    "run_app.bat",
     "requirements.txt",
     "README.md",
+    "LICENSE",
     ".env.example",
     "app",
     "config",
@@ -61,8 +63,9 @@ Recommended first steps on a new PC:
 1. Read energy-monitoring-system\docs\plant-pc-deployment.md
 2. Copy energy-monitoring-system\.env.example to .env and fill real values
 3. Create .venv and run: pip install -r requirements.txt
-4. Confirm PostgreSQL and COM port settings
-5. Run backend once manually, then set up Task Scheduler
+4. Run energy-monitoring-system\scripts\post_install_check.ps1
+5. Confirm PostgreSQL and COM port settings
+6. Launch with energy-monitoring-system\run_app.bat, then set up Task Scheduler
 
 Important:
 - This bundle does not include a Python virtual environment
@@ -79,3 +82,4 @@ Compress-Archive -Path $bundleRoot -DestinationPath $zipPath -Force
 
 Write-Host "Release bundle folder: $bundleRoot"
 Write-Host "Release bundle archive: $zipPath"
+Write-Host "Next check: powershell -ExecutionPolicy Bypass -File .\scripts\validate_release_bundle.ps1 -BundleRoot `"$bundleAppRoot`" -RequireZip"

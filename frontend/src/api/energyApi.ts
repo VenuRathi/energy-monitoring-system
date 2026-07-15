@@ -20,9 +20,14 @@ import type {
   ReportEmailResult,
   ReportSchedule,
   ReportScheduleInput,
+  SystemStatusResponse,
   TrendPoint,
 } from "../types/energy";
 import { requestJson, requestReportDownload } from "./httpClient";
+
+export function fetchSystemStatus(): Promise<SystemStatusResponse> {
+  return requestJson<SystemStatusResponse>("/api/status");
+}
 
 export function fetchMeters(): Promise<MeterRecord[]> {
   return requestJson<MeterRecord[]>("/api/meters");

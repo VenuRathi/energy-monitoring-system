@@ -10,6 +10,7 @@ Check:
 - `python main.py` runs manually
 - `.env` exists
 - PostgreSQL is reachable
+- `logs/backend_runner.log` for startup wrapper failures
 
 ## `/api/health` fails
 
@@ -35,6 +36,7 @@ Check:
 - `totalCyclesCompleted`
 - recent `lastCycleStartTime` / `lastCycleEndTime`
 - backend log file
+- whether the Task Scheduler task is still running/enabled on the plant PC
 
 ## Meter shows warning/offline
 
@@ -141,3 +143,21 @@ This gives a quick operator/support summary of:
 - database state
 - polling heartbeat
 - per-meter status
+
+## Task Scheduler starts but backend is not staying up
+
+Check:
+
+- `logs/backend_runner.log`
+- `logs/energy_monitoring.log`
+- whether `.env` still exists in the installed/project folder
+- whether `.venv` is intact
+- whether PostgreSQL starts before the backend
+
+If needed:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backend.ps1
+```
+
+This safely re-registers the scheduled task with the current settings.

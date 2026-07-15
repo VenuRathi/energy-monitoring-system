@@ -15,6 +15,14 @@ Alternative:
 run_app.bat
 ```
 
+24/7 pilot mode:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backend.ps1
+```
+
+That is the recommended always-on backend startup path for the plant PC.
+
 ## Start frontend
 
 ```powershell
@@ -168,6 +176,7 @@ Check:
 ## Log locations
 
 - backend logs: `logs/`
+- backend runner lifecycle log: `logs/backend_runner.log`
 - PowerShell console output during local run
 
 If running a boss demo, keep one terminal visible for backend status and errors.

@@ -8,6 +8,8 @@ type MeterCardProps = {
 };
 
 export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
+  const tone = !meter.enabled ? "offline" : meter.status === "online" && meter.data_quality === "live" ? "online" : meter.status === "offline" ? "offline" : "warning";
+
   return (
     <button
       type="button"
@@ -18,9 +20,10 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
         <div>
           <p className="meter-card__plant">{meter.meter_id}</p>
           <h5 className="meter-card__name">{meter.meter_name}</h5>
+          <p className="meter-card__detail">{meter.location || "Location not set"}</p>
           {meter.status_detail ? <p className="meter-card__detail">{meter.status_detail}</p> : null}
         </div>
-        <span className={`status-pill status-pill--${meter.status}`}>{meter.status}</span>
+        <span className={`status-pill status-pill--${tone}`}>{!meter.enabled ? "disabled" : meter.status}</span>
       </div>
 
       <dl className="meter-card__metrics">
@@ -43,7 +46,7 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
       </dl>
 
       <div className="meter-card__footer">
-        <span>{meter.location}</span>
+        <span>{meter.com_port || "COM n/a"} · Slave {meter.slave_id}</span>
         <span>{meter.seu ? "SEU" : "Non-SEU"}</span>
         <span>Updated {formatTimestamp(meter.last_update)}</span>
       </div>

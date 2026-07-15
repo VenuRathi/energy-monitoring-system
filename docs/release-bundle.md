@@ -15,6 +15,7 @@ The release bundle script creates:
 
 - a clean application folder copy
 - the built frontend from `frontend/dist`
+- the root launcher `run_app.bat`
 - deployment docs
 - scripts
 - a top-level `START_HERE.txt`
@@ -37,6 +38,7 @@ Before creating a bundle:
 ```powershell
 cd frontend
 npm ci
+npm run typecheck
 npm run build
 cd ..
 ```
@@ -56,11 +58,31 @@ Default output:
 - folder: `release\energy-monitoring-system-pilot_YYYY-MM-DD_HHMMSS\`
 - zip: `release\energy-monitoring-system-pilot_YYYY-MM-DD_HHMMSS.zip`
 
+## Validate the bundle
+
+After creating it, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\validate_release_bundle.ps1 -RequireZip
+```
+
+This verifies that the latest bundle still contains the expected:
+
+- backend entry files
+- launcher
+- frontend build
+- setup scripts
+- deployment docs
+- top-level `START_HERE.txt`
+- matching `.zip` archive
+
 ## What goes into the bundle
 
 - `main.py`
+- `run_app.bat`
 - `requirements.txt`
 - `README.md`
+- `LICENSE`
 - `.env.example`
 - `app/`
 - `config/`
@@ -81,12 +103,13 @@ Use this when:
 
 1. Extract the zip
 2. Read `START_HERE.txt`
-3. Follow [plant-pc-deployment.md](plant-pc-deployment.md)
-4. Create `.env` from `.env.example`
-5. Install Python dependencies
+3. Run `powershell -ExecutionPolicy Bypass -File .\scripts\first_run_setup.ps1`
+4. Follow [plant-pc-deployment.md](plant-pc-deployment.md)
+5. Run `powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1`
 6. Verify PostgreSQL and COM port setup
-7. Run the backend manually once
-8. Register Task Scheduler startup
+7. Run `powershell -ExecutionPolicy Bypass -File .\scripts\post_install_check.ps1`
+8. Launch the app with `run_app.bat` or run the backend manually once
+9. Register Task Scheduler startup
 
 ## Why this exists even before an installer
 

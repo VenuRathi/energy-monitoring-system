@@ -77,6 +77,7 @@ Frontend:
 ```powershell
 cd frontend
 npm ci
+npm run typecheck
 npm run dev
 ```
 
@@ -117,7 +118,7 @@ For full local setup details, see [docs/local-setup.md](docs/local-setup.md).
 ## Repository Layout
 
 - `main.py`: backend runtime entrypoint and polling loop
-- `run_app.bat`: Windows backend launcher
+- `run_app.bat`: Windows local app launcher that starts the backend if needed and opens the UI
 - `app/collectors/`: Modbus client and Schneider decoding
 - `app/services/`: polling orchestration
 - `app/database/`: PostgreSQL connection, schema, repositories

@@ -19,11 +19,25 @@ cd energy-monitoring-system
 
 ## 2. Create the Python virtual environment
 
+Recommended:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1
+```
+
+Manual fallback:
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+If `.venv` exists but is broken, recreate it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1 -Recreate
 ```
 
 ## 3. Create `.env`
@@ -111,6 +125,7 @@ http://127.0.0.1:5000
 ```powershell
 cd frontend
 npm ci
+npm run typecheck
 npm run dev
 ```
 
@@ -124,6 +139,7 @@ http://127.0.0.1:5173
 
 ```powershell
 cd frontend
+npm run typecheck
 npm run build
 ```
 
@@ -148,6 +164,7 @@ Expected healthy live status:
 ## Common setup mistakes
 
 - Wrong Python interpreter instead of `.venv\Scripts\python.exe`
+- `.venv` exists but points to an invalid old Python install
 - PostgreSQL service not started
 - `.env` edited but backend not restarted
 - Wrong `DB_PASSWORD`

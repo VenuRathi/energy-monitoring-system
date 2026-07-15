@@ -23,6 +23,7 @@ It also:
 - creates the `logs/` folder if missing
 - starts Python in unbuffered UTF-8 mode
 - warns if `.env` is missing before launch
+- appends runner start/exit events to `logs\backend_runner.log`
 
 ## Register the task automatically
 
@@ -38,6 +39,14 @@ This registers:
 - task name: `EnergyMonitoringBackend`
 - triggers: startup and logon
 - restart retries enabled
+- default run context: `SYSTEM`
+- long execution time limit so the task is not stopped like a short-lived batch job
+
+If you specifically need the task to run as the current user instead, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backend.ps1 -RunAsCurrentUser
+```
 
 ## Register manually in Task Scheduler
 
@@ -75,13 +84,21 @@ C:\EnergyMonitoring\energy-monitoring-system
 After registration:
 
 1. Run the task manually once
-2. Check `logs/energy_monitoring.log`
-3. Open:
+2. Check `logs/backend_runner.log`
+3. Check `logs/energy_monitoring.log`
+4. Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
+```
+
+5. Open:
    - `http://127.0.0.1:5000/api/health`
    - `http://127.0.0.1:5000/api/status`
 
 Recommended log review after first scheduled run:
 
+- runner invocation timestamps in `backend_runner.log`
 - startup configuration summary
 - detected COM ports
 - validated enabled meter summary

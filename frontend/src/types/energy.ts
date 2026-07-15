@@ -1,6 +1,8 @@
 export type PageKey = "dashboard" | "meters" | "reports" | "help";
 
 export type MeterStatus = "online" | "warning" | "offline";
+export type HealthState = "ok" | "degraded" | "skipped" | "demo" | "live";
+export type RuntimeCommunicationStatus = "online" | "warning" | "offline" | "unknown";
 
 export type MeterRecord = {
   meter_id: string;
@@ -307,4 +309,65 @@ export type EmailTestResult = {
   recipientEmails: string[];
   source: "env" | "database";
   sentAt: string;
+};
+
+export type HealthCheck = {
+  status: HealthState;
+  message: string;
+};
+
+export type SystemStatusMeter = {
+  meterId: string;
+  meterName: string;
+  enabled: boolean;
+  status: RuntimeCommunicationStatus;
+  communicationStatus: RuntimeCommunicationStatus;
+  latestReadingTimestamp: string | null;
+  staleWarning: boolean;
+  lastPollAttemptTime: string;
+  lastSuccessfulReadingTime: string;
+  lastErrorTime: string;
+  lastErrorMessage: string;
+  consecutiveFailureCount: number;
+  comPort: string;
+  slaveId: number | null;
+};
+
+export type PollingStatus = {
+  startedAt: string;
+  uptimeSeconds: number | null;
+  running: boolean;
+  cycleInProgress: boolean;
+  lastCycleStartTime: string;
+  lastCycleEndTime: string;
+  lastCycleDurationSeconds: number | null;
+  totalCyclesCompleted: number;
+  lastGlobalPollingError: string;
+  lastGlobalPollingErrorTime: string;
+};
+
+export type SystemStatusResponse = {
+  status: "ok" | "degraded";
+  apiStatus: HealthState;
+  databaseStatus: HealthState;
+  timestamp: string;
+  mode: {
+    demoMode: boolean;
+    databaseEnabled: boolean;
+  };
+  summary: {
+    meterCount: number;
+    enabledMeterCount: number;
+    staleMeterCount: number;
+    staleMeters: string[];
+    meters: SystemStatusMeter[];
+  };
+  polling: PollingStatus;
+  checks: {
+    api: HealthCheck;
+    dataSource: HealthCheck;
+    database: HealthCheck;
+    meters: HealthCheck;
+    polling: HealthCheck;
+  };
 };

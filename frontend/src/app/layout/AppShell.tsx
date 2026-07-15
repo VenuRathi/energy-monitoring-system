@@ -32,9 +32,9 @@ export function AppShell() {
   }, [activeMeters, selectedMeterId]);
 
   const pageTitle = useMemo(() => {
-    if (page === "dashboard") return "Dashboard";
-    if (page === "meters") return "Meters";
-    if (page === "reports") return "Reports";
+    if (page === "dashboard") return "Live View";
+    if (page === "meters") return "Meter Setup";
+    if (page === "reports") return "Reports & Email";
     return "Help & Guide";
   }, [page]);
 

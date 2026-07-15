@@ -1,7 +1,8 @@
 param(
     [string]$TaskName = "EnergyMonitoringBackend",
     [string]$ProjectRoot = (Resolve-Path "$PSScriptRoot\..").Path,
-    [string]$RunAsUser = $env:USERNAME
+    [string]$RunAsUser = $env:USERNAME,
+    [switch]$RunAsCurrentUser
 )
 
 $runner = Join-Path $ProjectRoot "scripts\run_backend_service.bat"
@@ -19,13 +20,26 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1) `
     -MultipleInstances IgnoreNew `
-    -StartWhenAvailable
+    -StartWhenAvailable `
+    -ExecutionTimeLimit (New-TimeSpan -Days 3650)
+
+$principal = if ($RunAsCurrentUser) {
+    New-ScheduledTaskPrincipal -UserId $RunAsUser -LogonType InteractiveOrPassword -RunLevel Highest
+}
+else {
+    New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+}
 
 Register-ScheduledTask `
     -TaskName $TaskName `
     -Action $action `
     -Trigger @($triggerStartup, $triggerLogin) `
     -Settings $settings `
-    -Description "Runs the Energy Monitoring backend continuously on the plant PC."
+    -Principal $principal `
+    -Description "Runs the Energy Monitoring backend continuously on the plant PC." `
+    -Force
 
+$context = if ($RunAsCurrentUser) { $RunAsUser } else { "SYSTEM" }
 Write-Host "Scheduled task '$TaskName' registered."
+Write-Host "Run context: $context"
+Write-Host "Project root: $ProjectRoot"

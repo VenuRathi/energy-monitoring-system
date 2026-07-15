@@ -4,8 +4,8 @@ import { MeterEditorForm } from "../components/meters/MeterEditorForm";
 import { MeterTable } from "../components/meters/MeterTable";
 import { useMeterMutations, useReportMutations } from "../hooks/useEnergyMutations";
 import { useAlertRulesData, useMetersData, useParameterCatalog } from "../hooks/useMetersData";
-import type { MeterInput, MeterRecord } from "../types/energy";
 import { formatNumber, formatTimestamp } from "../lib/formatters";
+import type { MeterInput, MeterRecord } from "../types/energy";
 
 type MetersPageProps = {
   selectedMeterId: string;
@@ -180,23 +180,26 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
       return;
     }
     setValidationMessage(null);
-    discoverMeters.mutate({
-      com_port: editing.com_port,
-      baud_rate: editing.baud_rate,
-      parity: editing.parity,
-      stop_bits: editing.stop_bits,
-      byte_size: editing.byte_size,
-      timeout: editing.timeout,
-      one_based_map: editing.one_based_map,
-      scanStart: scanRange.scanStart,
-      scanEnd: scanRange.scanEnd,
-    }, {
-      onSuccess: (result) => {
-        if (result.recommendedSlaveId) {
-          setEditing((current) => ({ ...current, slave_id: result.recommendedSlaveId ?? current.slave_id }));
-        }
+    discoverMeters.mutate(
+      {
+        com_port: editing.com_port,
+        baud_rate: editing.baud_rate,
+        parity: editing.parity,
+        stop_bits: editing.stop_bits,
+        byte_size: editing.byte_size,
+        timeout: editing.timeout,
+        one_based_map: editing.one_based_map,
+        scanStart: scanRange.scanStart,
+        scanEnd: scanRange.scanEnd,
       },
-    });
+      {
+        onSuccess: (result) => {
+          if (result.recommendedSlaveId) {
+            setEditing((current) => ({ ...current, slave_id: result.recommendedSlaveId ?? current.slave_id }));
+          }
+        },
+      },
+    );
   };
 
   const runSyncDetected = () => {
@@ -234,6 +237,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
   const onlineCount = meters.filter((meter) => meter.status === "online").length;
   const warningCount = meters.filter((meter) => meter.status === "warning").length;
   const disabledCount = meters.filter((meter) => !meter.enabled).length;
+  const enabledCount = meters.filter((meter) => meter.enabled).length;
   const needsSetup = meters.length === 0 || onlineCount === 0;
   const selectedMeterUpdated = formatTimestamp(selectedMeter?.last_update ?? "");
 
@@ -244,12 +248,13 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
           <p className="section-label">Meter setup</p>
           <h3 className="dashboard__headline">Set up the line and keep the right meters active</h3>
           <p className="dashboard__copy">
-            Enter the serial settings, scan the daisy chain, and keep only the physically connected meters active for polling.
+            Enter the serial settings, scan the daisy chain, and keep only the physically connected meters active for
+            polling.
           </p>
         </div>
 
         <div className="dashboard__hero-actions">
-          <div className="dashboard__summary dashboard__summary--compact">
+          <div className="dashboard__summary dashboard__summary--compact dashboard__summary--meter-setup">
             <div className="summary-card">
               <span className="summary-card__label">Total meters</span>
               <strong>{meters.length}</strong>
@@ -261,6 +266,10 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             <div className="summary-card">
               <span className="summary-card__label">Warning</span>
               <strong>{warningCount}</strong>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Enabled</span>
+              <strong>{enabledCount}</strong>
             </div>
             <div className="summary-card">
               <span className="summary-card__label">Disabled</span>
@@ -284,7 +293,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             </div>
             <p className="page-copy">
               {selectedMeter
-                ? `${selectedMeter.location} • ${selectedMeter.manufacturer} ${selectedMeter.model} • ${selectedMeter.enabled ? "Polling enabled" : "Disabled"}`
+                ? `${selectedMeter.location} · ${selectedMeter.manufacturer} ${selectedMeter.model} · ${selectedMeter.enabled ? "Polling enabled" : "Disabled"}`
                 : "Choose a meter from the table to review or edit it."}
             </p>
           </div>
@@ -382,9 +391,36 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         </div>
         <p className="page-copy">
           {selectedMeter
-            ? `${selectedMeter.location} • ${selectedMeter.manufacturer} ${selectedMeter.model} • ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " • disabled for polling"}`
+            ? `${selectedMeter.location} · ${selectedMeter.manufacturer} ${selectedMeter.model} · ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " · disabled for polling"}`
             : "Choose a meter from the table to review or edit it."}
         </p>
+
+        {selectedMeter ? (
+          <div className="meter-overview">
+            <div className="summary-card">
+              <span className="summary-card__label">Address</span>
+              <strong>{selectedMeter.com_port || "COM n/a"}</strong>
+              <span className="table-subtle">Slave {selectedMeter.slave_id}</span>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Serial settings</span>
+              <strong>{selectedMeter.baud_rate} baud</strong>
+              <span className="table-subtle">
+                {selectedMeter.parity}-{selectedMeter.byte_size}-{selectedMeter.stop_bits} · {selectedMeter.timeout}s timeout
+              </span>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Polling state</span>
+              <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong>
+              <span className="table-subtle">{selectedMeter.one_based_map ? "One-based map" : "Zero-based map"}</span>
+            </div>
+            <div className="summary-card">
+              <span className="summary-card__label">Role</span>
+              <strong>{selectedMeter.seu ? "SEU meter" : "Standard meter"}</strong>
+              <span className="table-subtle">{selectedMeter.driver}</span>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {selectedMeter ? (

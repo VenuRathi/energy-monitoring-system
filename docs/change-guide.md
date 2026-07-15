@@ -33,7 +33,7 @@ Before changing anything, ask:
 ```powershell
 .\.venv\Scripts\python.exe -m compileall app main.py utils
 cd frontend
-npx tsc --noEmit
+npm run typecheck
 npm run build
 ```
 
@@ -115,7 +115,7 @@ If a backend payload changes:
 
 ```powershell
 cd frontend
-npx tsc --noEmit
+npm run typecheck
 npm run build
 ```
 
