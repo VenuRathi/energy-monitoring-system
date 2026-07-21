@@ -8,6 +8,7 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] Virtual environment created
 - [ ] `pip install -r requirements.txt` completed without errors
 - [ ] Backend starts with `.\.venv\Scripts\python.exe main.py`
+- [ ] If Task Scheduler is blocked, user-login startup fallback installed with `scripts\install_user_startup_backend.ps1`
 
 ## 2. Frontend environment
 
@@ -114,3 +115,11 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] `MTR-002` online
 - [ ] `MTR-003` disabled/offline and not counted stale
 - [ ] Boss demo flow rehearsed once from start to finish
+
+## 15. Evidence package
+
+- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\collect_pilot_evidence.ps1 -Label baseline` completed
+- [ ] [pilot-evidence-log.md](pilot-evidence-log.md) filled for the current run
+- [ ] dashboard screenshots saved
+- [ ] one real Excel/Word export sample saved
+- [ ] final go/no-go summary filled

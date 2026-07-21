@@ -30,14 +30,25 @@ else {
     New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 }
 
-Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $action `
-    -Trigger @($triggerStartup, $triggerLogin) `
-    -Settings $settings `
-    -Principal $principal `
-    -Description "Runs the Energy Monitoring backend continuously on the plant PC." `
-    -Force
+try {
+    Register-ScheduledTask `
+        -TaskName $TaskName `
+        -Action $action `
+        -Trigger @($triggerStartup, $triggerLogin) `
+        -Settings $settings `
+        -Principal $principal `
+        -Description "Runs the Energy Monitoring backend continuously on the plant PC." `
+        -Force `
+        -ErrorAction Stop | Out-Null
+}
+catch {
+    throw "Failed to register scheduled task '$TaskName'. Run PowerShell as Administrator or ask IT to register it. $($_.Exception.Message)"
+}
+
+$registeredTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if (-not $registeredTask) {
+    throw "Scheduled task '$TaskName' was not found after registration."
+}
 
 $context = if ($RunAsCurrentUser) { $RunAsUser } else { "SYSTEM" }
 Write-Host "Scheduled task '$TaskName' registered."

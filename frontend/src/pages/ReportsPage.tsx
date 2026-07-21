@@ -66,10 +66,16 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
   const selectedMeterNames = meters
     .filter((meter) => filters.meterIds.includes(meter.meter_id))
     .map((meter) => meter.meter_name);
-  const reportReady = filters.meterIds.length > 0 && filters.parameterKeys.length > 0;
+  const dateRangeInvalid =
+    Boolean(filters.startDateTime && filters.endDateTime) &&
+    new Date(filters.startDateTime).getTime() > new Date(filters.endDateTime).getTime();
+  const reportReady = filters.meterIds.length > 0 && filters.parameterKeys.length > 0 && !dateRangeInvalid;
   const emailReady = Boolean(emailHealth?.configured);
 
   const submitExport = (format: "excel" | "word") => {
+    if (!reportReady) {
+      return;
+    }
     const meterIds = filters.meterIds.length > 0 ? filters.meterIds : filters.meterId ? [filters.meterId] : fallbackMeterId ? [fallbackMeterId] : [];
     const payload = { ...filters, meterId: meterIds[0] ?? "", meterIds };
     if (format === "excel") {
@@ -168,7 +174,9 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className={`report-readiness report-readiness--${reportReady ? "ready" : "pending"}`}>
           <strong>{reportReady ? "Report filters ready" : "Finish filter selection"}</strong>
           <p>
-            {reportReady
+            {dateRangeInvalid
+              ? "Start date/time must be before end date/time."
+              : reportReady
               ? "You can export now or send the same selection through the email flow below."
               : "Choose at least one meter and one parameter before exporting or scheduling reports."}
           </p>
@@ -189,7 +197,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
               type="button"
               className="primary-button"
               onClick={() => submitExport("excel")}
-              disabled={reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
+              disabled={!reportReady || reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
             >
               {reportMutations.excelExport.isPending ? "Generating..." : "Export Excel"}
             </button>
@@ -197,7 +205,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
               type="button"
               className="ghost-button"
               onClick={() => submitExport("word")}
-              disabled={reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
+              disabled={!reportReady || reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
             >
               {reportMutations.wordReport.isPending ? "Generating..." : "Generate Word"}
             </button>

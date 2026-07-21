@@ -45,6 +45,7 @@ function Resolve-PgDumpPath {
     }
 
     $commonRoots = @(
+        "D:\PostGreSQL",
         "C:\Program Files\PostgreSQL",
         "C:\Program Files (x86)\PostgreSQL"
     )
@@ -52,6 +53,11 @@ function Resolve-PgDumpPath {
     foreach ($root in $commonRoots) {
         if (-not (Test-Path $root)) {
             continue
+        }
+
+        $rootBinCandidate = Join-Path $root "bin\pg_dump.exe"
+        if (Test-Path $rootBinCandidate) {
+            return $rootBinCandidate
         }
 
         $candidate = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |

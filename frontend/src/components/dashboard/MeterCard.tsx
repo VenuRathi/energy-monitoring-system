@@ -46,7 +46,7 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
       </dl>
 
       <div className="meter-card__footer">
-        <span>{meter.com_port || "COM n/a"} · Slave {meter.slave_id}</span>
+        <span>{meter.com_port || "COM n/a"} - Slave {meter.slave_id}</span>
         <span>{meter.seu ? "SEU" : "Non-SEU"}</span>
         <span>Updated {formatTimestamp(meter.last_update)}</span>
       </div>

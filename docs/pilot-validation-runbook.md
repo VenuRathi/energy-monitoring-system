@@ -19,6 +19,14 @@ Helpful command:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
 ```
 
+Evidence capture command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\collect_pilot_evidence.ps1 -Label baseline
+```
+
+Use [pilot-evidence-log.md](pilot-evidence-log.md) to record pass/fail notes and link each test to its evidence folder.
+
 ## Validation 1: Baseline healthy state
 
 Goal:
@@ -38,6 +46,7 @@ Record:
 - timestamp
 - screenshot of dashboard
 - output of `check_runtime_health.ps1`
+- evidence folder from `collect_pilot_evidence.ps1`
 
 ## Validation 2: Cold reboot recovery
 
@@ -160,6 +169,8 @@ For a strong internship/final submission, keep:
 - one screenshot after recovery
 - exported Excel/Word samples
 - short notes for each validation result
+- `pilot-evidence\...\summary.txt`
+- `pilot-evidence\...\api-status.json`
 
 ## Suggested result log format
 

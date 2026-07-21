@@ -67,6 +67,11 @@ foreach ($relativePath in $itemsToCopy) {
     Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
 }
 
+Get-ChildItem -Path $bundleAppRoot -Directory -Recurse -Force -Filter "__pycache__" -ErrorAction SilentlyContinue |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Path $bundleAppRoot -File -Recurse -Force -Include "*.pyc", "*.pyo" -ErrorAction SilentlyContinue |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
 $startHerePath = Join-Path $bundleRoot "START_HERE.txt"
 @"
 Energy Monitoring System - Pilot Release Bundle

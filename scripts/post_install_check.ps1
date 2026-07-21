@@ -1,6 +1,8 @@
 param(
     [string]$ProjectRoot = (Resolve-Path "$PSScriptRoot\..").Path,
-    [string]$ApiBaseUrl = "http://127.0.0.1:5000"
+    [string]$ApiBaseUrl = "http://127.0.0.1:5000",
+    [string]$BackendTaskName = "EnergyMonitoringBackend",
+    [string]$BackupTaskName = "EnergyMonitoringDailyBackup"
 )
 
 function Write-Check {
@@ -21,6 +23,7 @@ function Resolve-PgDumpPath {
     }
 
     $commonRoots = @(
+        "D:\PostGreSQL",
         "C:\Program Files\PostgreSQL",
         "C:\Program Files (x86)\PostgreSQL"
     )
@@ -28,6 +31,11 @@ function Resolve-PgDumpPath {
     foreach ($root in $commonRoots) {
         if (-not (Test-Path $root)) {
             continue
+        }
+
+        $rootBinCandidate = Join-Path $root "bin\pg_dump.exe"
+        if (Test-Path $rootBinCandidate) {
+            return $rootBinCandidate
         }
 
         $candidate = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
@@ -49,12 +57,16 @@ $venvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $frontendIndex = Join-Path $ProjectRoot "frontend\dist\index.html"
 $runnerPath = Join-Path $ProjectRoot "scripts\run_backend_service.bat"
 $launcherPath = Join-Path $ProjectRoot "run_app.bat"
+$evidenceScriptPath = Join-Path $ProjectRoot "scripts\collect_pilot_evidence.ps1"
+$startupLauncherPath = Join-Path ([Environment]::GetFolderPath("Startup")) "EnergyMonitoringBackend.cmd"
 
 Write-Check "Project root" (Test-Path $ProjectRoot) $ProjectRoot
 Write-Check ".env" (Test-Path $envPath) $envPath
 Write-Check "Frontend build" (Test-Path $frontendIndex) $frontendIndex
 Write-Check "Backend runner" (Test-Path $runnerPath) $runnerPath
 Write-Check "App launcher" (Test-Path $launcherPath) $launcherPath
+Write-Check "Pilot evidence script" (Test-Path $evidenceScriptPath) $evidenceScriptPath
+Write-Check "User startup fallback" (Test-Path $startupLauncherPath) $startupLauncherPath
 
 if (Test-Path $venvPython) {
     try {
@@ -76,6 +88,22 @@ else {
 
 $pythonOnPath = Get-Command python -ErrorAction SilentlyContinue
 Write-Check "Python on PATH" ($null -ne $pythonOnPath) ($(if ($pythonOnPath) { $pythonOnPath.Source } else { "python not found on PATH" }))
+
+try {
+    $backendTask = Get-ScheduledTask -TaskName $BackendTaskName -ErrorAction SilentlyContinue
+    Write-Check "Backend scheduled task" ($null -ne $backendTask) ($(if ($backendTask) { $backendTask.State } else { "task not found: $BackendTaskName" }))
+}
+catch {
+    Write-Check "Backend scheduled task" $false $_.Exception.Message
+}
+
+try {
+    $backupTask = Get-ScheduledTask -TaskName $BackupTaskName -ErrorAction SilentlyContinue
+    Write-Check "Daily backup scheduled task" ($null -ne $backupTask) ($(if ($backupTask) { $backupTask.State } else { "task not found: $BackupTaskName" }))
+}
+catch {
+    Write-Check "Daily backup scheduled task" $false $_.Exception.Message
+}
 
 $pgDumpPath = Resolve-PgDumpPath
 Write-Check "pg_dump available" ($null -ne $pgDumpPath) ($(if ($pgDumpPath) { $pgDumpPath } else { "pg_dump not found on PATH or standard PostgreSQL locations" }))

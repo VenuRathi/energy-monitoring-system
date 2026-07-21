@@ -1,5 +1,7 @@
 param(
-    [string]$ApiBaseUrl = "http://127.0.0.1:5000"
+    [string]$ApiBaseUrl = "http://127.0.0.1:5000",
+    [int]$MinimumExpectedEnabledMeters = 1,
+    [switch]$FailOnDegraded
 )
 
 function Format-Value {
@@ -67,4 +69,20 @@ foreach ($meter in $status.summary.meters) {
     Write-Host ("  latest reading          : {0}" -f (Format-Value $meter.latestReadingTimestamp))
     Write-Host ("  last error              : {0}" -f (Format-Value $meter.lastErrorMessage))
     Write-Host ""
+}
+
+$hasEnoughEnabledMeters = [int]$status.summary.enabledMeterCount -ge $MinimumExpectedEnabledMeters
+$runtimeOk = [string]$status.status -eq "ok"
+$databaseOk = [string]$status.databaseStatus -eq "ok"
+$pollingRunning = [bool]$status.polling.running
+
+Write-Host "Go/No-Go"
+Write-Host "--------"
+Write-Host ("minimum enabled meters met : {0}" -f $hasEnoughEnabledMeters)
+Write-Host ("runtime ok                 : {0}" -f $runtimeOk)
+Write-Host ("database ok                : {0}" -f $databaseOk)
+Write-Host ("polling running            : {0}" -f $pollingRunning)
+
+if ($FailOnDegraded -and (-not ($hasEnoughEnabledMeters -and $runtimeOk -and $databaseOk -and $pollingRunning))) {
+    throw "Runtime health check did not meet go/no-go criteria."
 }

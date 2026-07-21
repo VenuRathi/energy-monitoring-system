@@ -11,6 +11,13 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 - `DB_NAME`: database name
 - `DB_USER`: database login user
 - `DB_PASSWORD`: database login password
+- `DB_CONNECT_TIMEOUT_SECONDS`: PostgreSQL connection timeout in seconds
+
+### Readings retention
+
+- `READINGS_RETENTION_DAYS`: how many days of readings to keep; `0` disables automatic cleanup
+- `READINGS_CLEANUP_BATCH_SIZE`: maximum old readings deleted in one cleanup pass
+- `READINGS_CLEANUP_INTERVAL_HOURS`: minimum hours between cleanup attempts
 
 ### API
 
@@ -18,13 +25,13 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 - `API_PORT`: Flask/API port
 - `API_DEBUG`: set `true` only when intentionally debugging
 - `API_ALLOWED_ORIGINS`: comma-separated CORS allowlist for the frontend
-- `API_KEY_ENABLED`: enable or disable API key checks for write/control endpoints
+- `API_KEY_ENABLED`: enable or disable API key checks for protected write, control, email, and report download endpoints
 - `API_KEY`: backend secret checked against `X-API-Key`
 
 ### Frontend
 
 - `VITE_API_BASE_URL`: frontend API base URL override
-- `VITE_API_KEY`: frontend API key header value for write/control actions
+- `VITE_API_KEY`: frontend API key header value for protected API actions and report downloads
 
 ### Runtime / polling
 
@@ -64,6 +71,10 @@ DB_PORT=5432
 DB_NAME=energy_monitoring
 DB_USER=postgres
 DB_PASSWORD=replace_me
+DB_CONNECT_TIMEOUT_SECONDS=5
+READINGS_RETENTION_DAYS=1825
+READINGS_CLEANUP_BATCH_SIZE=5000
+READINGS_CLEANUP_INTERVAL_HOURS=1
 ```
 
 ## Boss demo on one laptop
@@ -91,6 +102,10 @@ DB_PORT=5432
 DB_NAME=energy_monitoring
 DB_USER=postgres
 DB_PASSWORD=replace_me
+DB_CONNECT_TIMEOUT_SECONDS=5
+READINGS_RETENTION_DAYS=1825
+READINGS_CLEANUP_BATCH_SIZE=5000
+READINGS_CLEANUP_INTERVAL_HOURS=1
 ```
 
 If you want API key mode enabled for the demo:
@@ -126,14 +141,19 @@ DB_PORT=5432
 DB_NAME=energy_monitoring
 DB_USER=energy_user
 DB_PASSWORD=replace_me
+DB_CONNECT_TIMEOUT_SECONDS=5
+READINGS_RETENTION_DAYS=1825
+READINGS_CLEANUP_BATCH_SIZE=5000
+READINGS_CLEANUP_INTERVAL_HOURS=1
 ```
 
 ## Important warnings
 
-- `VITE_API_KEY` is embedded into the browser build. It is useful for controlled deployments and demos, not as a replacement for real login/auth.
+- `VITE_API_KEY` is embedded into the browser build. It is useful for controlled LAN deployments and demos, not as a replacement for real login/auth.
 - `API_DEBUG` should stay `false` outside active local debugging.
 - Keep `.env` out of source control.
 - Restart the backend after changing `.env`.
+- Rebuild the frontend after changing any `VITE_` variable.
 
 ## SMTP variables
 
@@ -146,3 +166,9 @@ These are also present in `.env.example` and are required if email/report delive
 - `SMTP_FROM_EMAIL`
 - `SMTP_USE_TLS`
 - `SMTP_USE_SSL`
+
+Production recommendation:
+
+- Put the SMTP password in `SMTP_PASSWORD`.
+- When `SMTP_PASSWORD` is set, it overrides any password saved through the UI/database.
+- UI saves will not store a new plaintext password while `SMTP_PASSWORD` is active.

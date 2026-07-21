@@ -27,6 +27,14 @@ Optional daily backup task install:
 powershell -ExecutionPolicy Bypass -File .\scripts\install_daily_backup_task.ps1
 ```
 
+After installing the backup task, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\post_install_check.ps1
+```
+
+The post-install check reports whether the backend and daily backup scheduled tasks are visible.
+
 Optional example with explicit retention:
 
 ```powershell
@@ -66,17 +74,45 @@ GROUP BY meter_id
 ORDER BY meter_id;
 ```
 
-## Retention recommendation
+## Readings retention
 
-Do not auto-delete data during the initial pilot.
+The backend now has automatic readings retention for long-running installations.
 
-Recommended pilot approach:
+Default behavior:
 
-- keep all readings during the pilot
-- review database growth after 2-4 weeks
-- then decide whether to archive old data monthly or quarterly
+- `READINGS_RETENTION_DAYS=1825`
+- `READINGS_CLEANUP_BATCH_SIZE=5000`
+- `READINGS_CLEANUP_INTERVAL_HOURS=1`
 
-At 4-5 meters with 3-minute polling, the current schema should be acceptable for the pilot window.
+This keeps about five years of readings by default. Cleanup runs after normal polling/report work, not during startup, and removes only one bounded batch at a time. This avoids long startup delays and avoids deleting recent plant data.
+
+To disable automatic cleanup during an initial supervised pilot:
+
+```env
+READINGS_RETENTION_DAYS=0
+```
+
+Before reducing retention below five years, confirm the factory/reporting requirement and take a PostgreSQL backup.
+
+## Duplicate reading handling
+
+The backend skips exact duplicate readings before insert using:
+
+- `meter_id`
+- `timestamp`
+- `timestamp_source`
+
+This prevents accidental duplicate rows from distorting dashboards and reports without adding a hard database constraint yet. Before adding a future unique constraint, inspect existing historical rows for duplicates and clean them first.
+
+Suggested duplicate check:
+
+```sql
+SELECT meter_id, timestamp, timestamp_source, COUNT(*) AS duplicates
+FROM readings
+GROUP BY meter_id, timestamp, timestamp_source
+HAVING COUNT(*) > 1
+ORDER BY duplicates DESC, timestamp DESC;
+```
 
 ## Log maintenance
 

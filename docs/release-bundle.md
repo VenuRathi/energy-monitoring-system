@@ -18,6 +18,7 @@ The release bundle script creates:
 - the root launcher `run_app.bat`
 - deployment docs
 - scripts
+- pilot evidence capture script and evidence log template
 - a top-level `START_HERE.txt`
 - a top-level `RELEASE_INFO.txt` with source commit metadata
 - a `.zip` archive for transfer
@@ -92,6 +93,8 @@ This verifies that the latest bundle still contains the expected:
 - `scripts/`
 - `utils/`
 - `frontend/dist/`
+
+The bundle also includes `scripts\collect_pilot_evidence.ps1` and `docs\pilot-evidence-log.md` so the plant-PC validation results can be captured after deployment.
 
 ## Recommended use
 

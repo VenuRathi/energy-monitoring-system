@@ -116,7 +116,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
               </button>
             </div>
             <p className="page-copy">
-              {selectedMeter.location} · {selectedMeter.manufacturer} {selectedMeter.model} ·{" "}
+              {selectedMeter.location} - {selectedMeter.manufacturer} {selectedMeter.model} -{" "}
               {selectedMeter.enabled ? "Polling enabled" : "Disabled"}
             </p>
             <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
@@ -150,7 +150,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
           <span>{selectedMeter.location || "n/a"}</span>
           <span>{selectedMeter.manufacturer || "n/a"}</span>
           <span>{selectedMeter.model || "n/a"}</span>
-          <span>{selectedMeter.com_port || "COM n/a"} · Slave {selectedMeter.slave_id}</span>
+          <span>{selectedMeter.com_port || "COM n/a"} - Slave {selectedMeter.slave_id}</span>
         </div>
         {selectedMeter.status_detail ? (
           <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>

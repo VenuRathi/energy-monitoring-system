@@ -22,11 +22,22 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartInterval (New-TimeSpan -Minutes 5) `
     -StartWhenAvailable
 
-Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $action `
-    -Trigger $trigger `
-    -Settings $settings `
-    -Description "Creates a daily PostgreSQL backup for the Energy Monitoring System."
+try {
+    Register-ScheduledTask `
+        -TaskName $TaskName `
+        -Action $action `
+        -Trigger $trigger `
+        -Settings $settings `
+        -Description "Creates a daily PostgreSQL backup for the Energy Monitoring System." `
+        -ErrorAction Stop | Out-Null
+}
+catch {
+    throw "Failed to register scheduled backup task '$TaskName'. Run PowerShell as Administrator or ask IT to register it. $($_.Exception.Message)"
+}
+
+$registeredTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if (-not $registeredTask) {
+    throw "Scheduled backup task '$TaskName' was not found after registration."
+}
 
 Write-Host "Scheduled backup task '$TaskName' registered for $RunTime."

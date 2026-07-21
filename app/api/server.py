@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import hmac
+import logging
 from functools import wraps
 from pathlib import Path
 
@@ -38,6 +39,7 @@ from config.settings import load_settings
 
 SETTINGS = load_settings()
 FRONTEND_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+logger = logging.getLogger("energy_monitoring.api.server")
 
 
 def _json_error(message: str, status_code: int = 400):
@@ -45,6 +47,18 @@ def _json_error(message: str, status_code: int = 400):
     response = jsonify({"status": status_text, "error": message})
     response.status_code = status_code
     return response
+
+
+def _parse_limited_int(value: str | None, *, default: int, minimum: int, maximum: int, name: str) -> int:
+    if value is None or value.strip() == "":
+        return default
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer between {minimum} and {maximum}.") from exc
+    if parsed < minimum or parsed > maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}.")
+    return parsed
 
 
 def _allowed_origin() -> str | None:
@@ -101,8 +115,9 @@ def _route_json(fn):
             response = jsonify(payload)
         except ValueError as exc:
             response = _json_error(str(exc), 400)
-        except Exception as exc:  # pragma: no cover - defensive API boundary
-            response = _json_error(str(exc), 500)
+        except Exception:  # pragma: no cover - defensive API boundary
+            logger.exception("Unhandled API error in %s.", fn.__name__)
+            response = _json_error("Internal server error.", 500)
         return _corsify(response)
 
     return wrapper
@@ -116,8 +131,9 @@ def _route_no_content(fn):
             response = make_response("", 204)
         except ValueError as exc:
             response = _json_error(str(exc), 400)
-        except Exception as exc:  # pragma: no cover - defensive API boundary
-            response = _json_error(str(exc), 500)
+        except Exception:  # pragma: no cover - defensive API boundary
+            logger.exception("Unhandled API error in %s.", fn.__name__)
+            response = _json_error("Internal server error.", 500)
         return _corsify(response)
 
     return wrapper
@@ -200,7 +216,7 @@ def create_app() -> Flask:
     @_route_json
     def meter_trend(meter_id: str):
         parameter_key = request.args.get("parameterKey", "active_power_total")
-        limit = int(request.args.get("limit", "12"))
+        limit = _parse_limited_int(request.args.get("limit"), default=12, minimum=1, maximum=500, name="limit")
         return get_trend_series(meter_id, parameter_key, limit=limit)
 
     @app.route("/api/meters/<meter_id>/alert-rules", methods=["GET"])
@@ -232,7 +248,7 @@ def create_app() -> Flask:
     @_route_json
     def alert_history():
         meter_id = request.args.get("meterId")
-        limit = int(request.args.get("limit", "50"))
+        limit = _parse_limited_int(request.args.get("limit"), default=50, minimum=1, maximum=500, name="limit")
         return list_alert_history(meter_id, limit=limit)
 
     @app.route("/api/dashboard", methods=["GET"])
@@ -246,6 +262,7 @@ def create_app() -> Flask:
         return get_dashboard_data(meter_id, trend_parameter_key)
 
     @app.route("/api/reports/excel", methods=["POST"])
+    @_require_api_key
     def report_excel():
         try:
             payload = request.get_json(force=True, silent=False) or {}
@@ -263,10 +280,12 @@ def create_app() -> Flask:
             return _corsify(response)
         except ValueError as exc:
             return _corsify(_json_error(str(exc), 400))
-        except Exception as exc:  # pragma: no cover - defensive API boundary
-            return _corsify(_json_error(str(exc), 500))
+        except Exception:  # pragma: no cover - defensive API boundary
+            logger.exception("Unhandled Excel report export error.")
+            return _corsify(_json_error("Internal server error.", 500))
 
     @app.route("/api/reports/word", methods=["POST"])
+    @_require_api_key
     def report_word():
         try:
             payload = request.get_json(force=True, silent=False) or {}
@@ -284,8 +303,9 @@ def create_app() -> Flask:
             return _corsify(response)
         except ValueError as exc:
             return _corsify(_json_error(str(exc), 400))
-        except Exception as exc:  # pragma: no cover - defensive API boundary
-            return _corsify(_json_error(str(exc), 500))
+        except Exception:  # pragma: no cover - defensive API boundary
+            logger.exception("Unhandled Word report export error.")
+            return _corsify(_json_error("Internal server error.", 500))
 
     @app.route("/api/report-schedules", methods=["GET"])
     @_route_json

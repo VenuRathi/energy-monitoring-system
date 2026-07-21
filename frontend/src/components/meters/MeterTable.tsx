@@ -45,7 +45,7 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDisabl
                 <strong>{meter.meter_name}</strong>
                 <div className="table-subtle">{meter.meter_id}</div>
                 <div className="table-subtle">
-                  {meter.com_port || "COM n/a"} · Slave {meter.slave_id}
+                  {meter.com_port || "COM n/a"} - Slave {meter.slave_id}
                 </div>
                 {!meter.enabled ? <div className="table-subtle table-subtle--danger">Disabled meter</div> : null}
               </td>

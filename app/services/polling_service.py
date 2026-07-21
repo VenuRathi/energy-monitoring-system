@@ -6,7 +6,7 @@ if __package__ is None or __package__ == "":
 
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo
 
@@ -23,6 +23,7 @@ from app.runtime_state import (
 
 
 logger = logging.getLogger("energy_monitoring.polling_service")
+PRIMARY_MEASUREMENT_WARNING_INTERVAL = timedelta(minutes=15)
 
 
 class PollingService:
@@ -47,6 +48,7 @@ class PollingService:
         self.parameter_lookup = {
             parameter_name_to_column_name(parameter["name"]): parameter for parameter in meter_config["parameters"]
         }
+        self._last_primary_measurement_warning_at: datetime | None = None
         ensure_meter_runtime_status(
             self.meter_config["meter_id"],
             com_port=self._com_port(),
@@ -72,6 +74,15 @@ class PollingService:
             next_status,
             context,
         )
+
+    def _should_log_primary_measurement_warning(self, warning_at: datetime) -> bool:
+        if self._last_primary_measurement_warning_at is None:
+            self._last_primary_measurement_warning_at = warning_at
+            return True
+        if warning_at - self._last_primary_measurement_warning_at >= PRIMARY_MEASUREMENT_WARNING_INTERVAL:
+            self._last_primary_measurement_warning_at = warning_at
+            return True
+        return False
 
     def _meter_repository_payload(self) -> dict:
         connection = self.meter_config.get("connection", {})
@@ -164,12 +175,13 @@ class PollingService:
                 slave_id=slave_id,
             )
             self._log_status_transition(previous_status, state["communicationStatus"], "meter responded without primary values")
-            logger.warning(
-                "Meter %s on %s slave %s responded, but primary measurements are empty/zero. Persisting available values.",
-                self.meter_config["meter_id"],
-                com_port,
-                slave_id if slave_id is not None else "unknown-slave",
-            )
+            if self._should_log_primary_measurement_warning(collected_at):
+                logger.warning(
+                    "Meter %s on %s slave %s responded, but primary measurements are empty/zero. Persisting available values.",
+                    self.meter_config["meter_id"],
+                    com_port,
+                    slave_id if slave_id is not None else "unknown-slave",
+                )
         else:
             previous_status, state = record_meter_poll_success(
                 self.meter_config["meter_id"],
@@ -258,7 +270,7 @@ class PollingService:
             return
 
         try:
-            self.reading_repository.insert_reading(
+            inserted = self.reading_repository.insert_reading(
                 meter_id=self.meter_config["meter_id"],
                 timestamp=reading_timestamp,
                 readings=readings,
@@ -268,6 +280,13 @@ class PollingService:
                 reading_time=reading_time,
                 timestamp_source=timestamp_source,
             )
+            if not inserted:
+                logger.info(
+                    "Skipped duplicate reading for meter %s at %s from source %s.",
+                    self.meter_config["meter_id"],
+                    reading_timestamp.isoformat(),
+                    timestamp_source,
+                )
         except Exception as exc:
             record_meter_runtime_error(
                 self.meter_config["meter_id"],

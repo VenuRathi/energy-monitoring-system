@@ -35,7 +35,7 @@ Healthy live target state:
 - React frontend with dashboard, trends, reports, and meter pages
 - In-app Help & Guide page for operators and support handover
 - Excel export and Word report generation
-- Optional API key protection for write/control endpoints
+- Optional API key protection for protected write/control/report/email endpoints
 - Runtime heartbeat and per-meter status via `/api/status`
 
 ## Architecture
@@ -85,6 +85,12 @@ For full local setup details, see [docs/local-setup.md](docs/local-setup.md).
 
 ## Documentation package
 
+- Production handover index: [docs/production-handover-index.md](docs/production-handover-index.md)
+- Production deployment checklist: [docs/production-deployment-checklist.md](docs/production-deployment-checklist.md)
+- 24/7 operations SOP: [docs/operations-sop-24x7.md](docs/operations-sop-24x7.md)
+- Backup and restore SOP: [docs/backup-restore-sop.md](docs/backup-restore-sop.md)
+- Incident response guide: [docs/incident-response-guide.md](docs/incident-response-guide.md)
+- Production readiness signoff: [docs/production-readiness-signoff.md](docs/production-readiness-signoff.md)
 - Local setup: [docs/local-setup.md](docs/local-setup.md)
 - Environment variables: [docs/environment-variables.md](docs/environment-variables.md)
 - Meter configuration: [docs/meter-configuration.md](docs/meter-configuration.md)
@@ -99,6 +105,8 @@ For full local setup details, see [docs/local-setup.md](docs/local-setup.md).
 - Backup and maintenance: [docs/backup-and-maintenance.md](docs/backup-and-maintenance.md)
 - Release bundle workflow: [docs/release-bundle.md](docs/release-bundle.md)
 - Pilot validation runbook: [docs/pilot-validation-runbook.md](docs/pilot-validation-runbook.md)
+- Pilot validation results: [docs/pilot-validation-results.md](docs/pilot-validation-results.md)
+- Pilot evidence log: [docs/pilot-evidence-log.md](docs/pilot-evidence-log.md)
 - Windows installer workflow: [docs/windows-installer-workflow.md](docs/windows-installer-workflow.md)
 - Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
@@ -158,7 +166,7 @@ Important limitations:
 - `VITE_API_KEY` is visible in browser builds
 - runtime meter health state is in memory and resets on restart
 - polling is sequential
-- retention/archival/log rotation policies still need operational ownership
+- retention cleanup exists, but archive policy, backup verification, and log rotation still need operational ownership
 
 See [docs/known-limitations.md](docs/known-limitations.md).
 

@@ -146,8 +146,8 @@ class MeterRepository:
 class ReadingRepository:
     def __init__(
         self,
-        connection: Connection | None,
-        parameters: Iterable[dict],
+        connection: Connection | None = None,
+        parameters: Iterable[dict] = (),
         settings: Settings | None = None,
     ) -> None:
         self.connection = connection
@@ -165,7 +165,7 @@ class ReadingRepository:
         reading_date: str = "",
         reading_time: str = "",
         timestamp_source: str = "collector_fallback",
-    ) -> None:
+    ) -> bool:
         column_names = [parameter_name_to_column_name(parameter["name"]) for parameter in self.parameters]
         sql_columns = [
             "meter_id",
@@ -193,8 +193,46 @@ class ReadingRepository:
 
         with _repository_connection(self.connection, self.settings) as connection:
             with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT 1
+                    FROM readings
+                    WHERE meter_id = %s
+                      AND timestamp = %s
+                      AND timestamp_source = %s
+                    LIMIT 1;
+                    """,
+                    (meter_id, timestamp, timestamp_source),
+                )
+                if cursor.fetchone() is not None:
+                    return False
                 cursor.execute(sql, tuple(values))
             connection.commit()
+        return True
+
+    def delete_readings_older_than(self, cutoff: datetime, limit: int) -> int:
+        bounded_limit = max(1, int(limit))
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    WITH expired AS (
+                        SELECT id
+                        FROM readings
+                        WHERE collected_at < %s
+                        ORDER BY collected_at ASC
+                        LIMIT %s
+                    )
+                    DELETE FROM readings
+                    USING expired
+                    WHERE readings.id = expired.id
+                    RETURNING readings.id;
+                    """,
+                    (cutoff, bounded_limit),
+                )
+                deleted_count = len(cursor.fetchall())
+            connection.commit()
+        return deleted_count
 
 
 class AlertRuleRepository:

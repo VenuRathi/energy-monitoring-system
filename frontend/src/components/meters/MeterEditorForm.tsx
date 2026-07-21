@@ -44,8 +44,8 @@ export function MeterEditorForm({
   };
 
   const meterLabel = value.meter_name.trim() || value.meter_id || "New meter";
-  const lineSummary = `${value.com_port || "COM n/a"} · Slave ${value.slave_id}`;
-  const serialSummary = `${value.baud_rate} baud · ${value.parity}-${value.byte_size}-${value.stop_bits} · ${value.timeout}s timeout`;
+  const lineSummary = `${value.com_port || "COM n/a"} - Slave ${value.slave_id}`;
+  const serialSummary = `${value.baud_rate} baud - ${value.parity}-${value.byte_size}-${value.stop_bits} - ${value.timeout}s timeout`;
 
   return (
     <section className="editor">

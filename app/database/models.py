@@ -263,6 +263,18 @@ def create_tables(connection: Connection, parameters: Iterable[dict]) -> None:
         )
         cursor.execute(
             """
+            CREATE INDEX IF NOT EXISTS idx_readings_collected_at
+            ON readings (collected_at);
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_readings_meter_timestamp_source
+            ON readings (meter_id, timestamp, timestamp_source);
+            """
+        )
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_meters_meter_id
             ON meters (meter_id);
             """

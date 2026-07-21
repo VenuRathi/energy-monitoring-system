@@ -47,6 +47,18 @@ Expected:
 curl http://127.0.0.1:5000/api/status
 ```
 
+For a stricter local check that can fail a script or deployment gate:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2 -FailOnDegraded
+```
+
+To capture a timestamped evidence folder for handover or final submission:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\collect_pilot_evidence.ps1 -Label daily-check
+```
+
 Or use the helper script:
 
 ```powershell
@@ -171,7 +183,29 @@ Check:
 3. start is before end
 4. range is not too large
 5. rows are available in the selected time window
-6. backend console for JSON error details
+6. `API_KEY_ENABLED` and `VITE_API_KEY` match if API key mode is enabled
+7. backend console for JSON error details
+
+## Readings retention
+
+The backend keeps readings for `READINGS_RETENTION_DAYS` days. The default is `1825` days.
+
+Cleanup is intentionally small and non-blocking:
+
+- it runs after normal polling/report work
+- it removes at most `READINGS_CLEANUP_BATCH_SIZE` rows per cleanup
+- it waits `READINGS_CLEANUP_INTERVAL_HOURS` between cleanup attempts
+
+Set `READINGS_RETENTION_DAYS=0` only when you intentionally want to keep all readings and monitor database growth manually.
+
+## SMTP password handling
+
+For production, put the SMTP password in `.env` or machine environment as `SMTP_PASSWORD`.
+
+When `SMTP_PASSWORD` is set:
+
+- it is used instead of any password saved in the database
+- saving email settings through the UI will not store a new plaintext SMTP password
 
 ## Log locations
 

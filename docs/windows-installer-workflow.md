@@ -25,6 +25,7 @@ The Inno Setup script:
 - can create a desktop shortcut
 - adds first-run and post-install helper shortcuts
 - adds a startup-registration shortcut for Task Scheduler
+- includes the pilot evidence capture script for validation records
 - opens the deployment guide after install if desired
 
 ## What it does not do yet
@@ -139,6 +140,7 @@ After running the installer on the target PC:
 6. Confirm PostgreSQL and COM port settings
 7. Launch **Plant Energy Monitor** from the Start Menu
 8. Run **Register Backend Startup** so the backend restarts after reboot
+9. Run `scripts\collect_pilot_evidence.ps1 -Label baseline` after the backend is healthy
 
 ## Why this is still useful
 

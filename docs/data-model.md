@@ -23,6 +23,11 @@ Key columns:
 - `timestamp`, `meter_timestamp`, `collected_at`
 - denormalized measurement columns (e.g., `active_power_total`, `current_avg`, etc.)
 
+Operational rules:
+- old rows are cleaned in bounded batches using `collected_at`
+- exact duplicate inserts are skipped by application logic using `meter_id`, `timestamp`, and `timestamp_source`
+- a future hard unique constraint should only be added after existing history is checked for duplicates
+
 ### alert_rules
 Purpose:
 - User-defined threshold rules per meter/parameter.
@@ -50,6 +55,10 @@ Key columns:
 - `smtp_host`, `smtp_port`, `smtp_username`, `smtp_password`
 - `smtp_from_email`, `smtp_use_tls`, `smtp_use_ssl`
 
+Production note:
+- prefer setting `SMTP_PASSWORD` through environment or machine-level secret management
+- when `SMTP_PASSWORD` is configured in the environment, it overrides the database password and UI saves do not store a new plaintext password
+
 ## Relationship Notes
 
 - `meters` -> `readings`: one-to-many by `meter_id`.
@@ -60,3 +69,4 @@ Key columns:
 
 - The schema is created/updated by backend startup (`ensure_schema`).
 - Measurement columns are aligned with parameter keys generated from meter config names.
+- Readings retention is configured with `READINGS_RETENTION_DAYS`, `READINGS_CLEANUP_BATCH_SIZE`, and `READINGS_CLEANUP_INTERVAL_HOURS`.

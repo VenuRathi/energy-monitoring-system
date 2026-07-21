@@ -293,7 +293,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             </div>
             <p className="page-copy">
               {selectedMeter
-                ? `${selectedMeter.location} · ${selectedMeter.manufacturer} ${selectedMeter.model} · ${selectedMeter.enabled ? "Polling enabled" : "Disabled"}`
+                ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${selectedMeter.enabled ? "Polling enabled" : "Disabled"}`
                 : "Choose a meter from the table to review or edit it."}
             </p>
           </div>
@@ -391,7 +391,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         </div>
         <p className="page-copy">
           {selectedMeter
-            ? `${selectedMeter.location} · ${selectedMeter.manufacturer} ${selectedMeter.model} · ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " · disabled for polling"}`
+            ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " - disabled for polling"}`
             : "Choose a meter from the table to review or edit it."}
         </p>
 
@@ -406,7 +406,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
               <span className="summary-card__label">Serial settings</span>
               <strong>{selectedMeter.baud_rate} baud</strong>
               <span className="table-subtle">
-                {selectedMeter.parity}-{selectedMeter.byte_size}-{selectedMeter.stop_bits} · {selectedMeter.timeout}s timeout
+                {selectedMeter.parity}-{selectedMeter.byte_size}-{selectedMeter.stop_bits} - {selectedMeter.timeout}s timeout
               </span>
             </div>
             <div className="summary-card">

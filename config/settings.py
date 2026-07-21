@@ -23,6 +23,10 @@ class Settings:
     db_name: str
     db_user: str
     db_password: str
+    db_connect_timeout_seconds: int
+    readings_retention_days: int
+    readings_cleanup_batch_size: int
+    readings_cleanup_interval_hours: int
     smtp_host: str
     smtp_port: int
     smtp_username: str
@@ -59,6 +63,10 @@ def load_settings() -> Settings:
         db_name=os.getenv("DB_NAME", "energy_monitoring"),
         db_user=os.getenv("DB_USER", "postgres"),
         db_password=os.getenv("DB_PASSWORD", "postgres"),
+        db_connect_timeout_seconds=int(os.getenv("DB_CONNECT_TIMEOUT_SECONDS", "5")),
+        readings_retention_days=int(os.getenv("READINGS_RETENTION_DAYS", "1825")),
+        readings_cleanup_batch_size=int(os.getenv("READINGS_CLEANUP_BATCH_SIZE", "5000")),
+        readings_cleanup_interval_hours=int(os.getenv("READINGS_CLEANUP_INTERVAL_HOURS", "1")),
         smtp_host=os.getenv("SMTP_HOST", "").strip(),
         smtp_port=int(os.getenv("SMTP_PORT", "587")),
         smtp_username=os.getenv("SMTP_USERNAME", "").strip(),

@@ -236,7 +236,6 @@ class ModbusRTUClient:
                     error=f"incomplete register response ({actual_count}/{count})",
                 )
                 return None
-                return None 
 
             self._flush_suppressed_failures()
             return response.registers

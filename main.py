@@ -4,7 +4,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 from typing import Iterable
 from werkzeug.serving import make_server
 from serial.tools import list_ports
@@ -30,6 +30,7 @@ from app.runtime_state import (
     set_shared_modbus_client,
 )
 from app.services.polling_service import PollingService
+from app.services.retention_service import ReadingsRetentionService
 from utils.coercion import coerce_bool
 from utils.logger import setup_logger
 
@@ -484,6 +485,7 @@ def main() -> None:
 
     # Database setup (optional)
     meter_repository = None
+    retention_service = None
     if settings.enable_database:
         all_parameters = _all_config_parameters(meter_config)
         with get_connection(settings) as connection:
@@ -491,6 +493,10 @@ def main() -> None:
                 cursor.execute("SELECT 1;")
             create_tables(connection, all_parameters)
         meter_repository = MeterRepository(connection=None, settings=settings)
+        retention_service = ReadingsRetentionService(
+            settings=settings,
+            reading_repository=ReadingRepository(connection=None, settings=settings),
+        )
         logger.info("PostgreSQL startup preflight succeeded and schema is ready.")
     else:
         logger.info("PostgreSQL logging is disabled.")
@@ -520,6 +526,31 @@ def main() -> None:
 
     polling_services: list[PollingService] = []
     active_signature: tuple = ()
+    stop_event = Event()
+    last_retention_cleanup_monotonic = 0.0
+
+    def wait_for_next_cycle() -> bool:
+        return stop_event.wait(max(1, settings.poll_interval_seconds))
+
+    def maybe_cleanup_old_readings() -> None:
+        nonlocal last_retention_cleanup_monotonic
+        if retention_service is None or settings.readings_retention_days <= 0:
+            return
+
+        now_monotonic = time.monotonic()
+        cleanup_interval_seconds = max(1, settings.readings_cleanup_interval_hours) * 3600
+        if (
+            last_retention_cleanup_monotonic > 0
+            and now_monotonic - last_retention_cleanup_monotonic < cleanup_interval_seconds
+        ):
+            return
+
+        last_retention_cleanup_monotonic = now_monotonic
+        try:
+            retention_service.cleanup_once()
+        except Exception as exc:
+            record_polling_loop_error(f"Readings retention cleanup failed: {exc}", datetime.now(timezone.utc))
+            logger.exception("Readings retention cleanup failed: %s", exc)
 
     def rebuild_polling_services(next_meter_definitions: list[dict]) -> None:
         nonlocal polling_services, active_signature
@@ -585,7 +616,7 @@ def main() -> None:
         sync_polling_services()
         set_polling_loop_running(True)
 
-        while True:
+        while not stop_event.is_set():
             cycle_started_at = datetime.now(timezone.utc)
             cycle_started_monotonic = time.monotonic()
             record_polling_cycle_start(cycle_started_at)
@@ -601,7 +632,8 @@ def main() -> None:
                     cycle_ended_at.isoformat(),
                     cycle_duration_seconds,
                 )
-                time.sleep(settings.poll_interval_seconds)
+                if wait_for_next_cycle():
+                    break
                 continue
             for polling_service in polling_services:
                 connection = polling_service.meter_config.get("connection", {})
@@ -625,6 +657,7 @@ def main() -> None:
                 except Exception as exc:
                     record_polling_loop_error(f"Scheduled report processing failed: {exc}", datetime.now(timezone.utc))
                     logger.exception("Scheduled report processing failed: %s", exc)
+                maybe_cleanup_old_readings()
             cycle_ended_at = datetime.now(timezone.utc)
             cycle_duration_seconds = time.monotonic() - cycle_started_monotonic
             record_polling_cycle_end(cycle_ended_at, cycle_duration_seconds)
@@ -634,8 +667,10 @@ def main() -> None:
                 cycle_duration_seconds,
                 len(polling_services),
             )
-            time.sleep(settings.poll_interval_seconds)
+            if wait_for_next_cycle():
+                break
     finally:
+        stop_event.set()
         set_polling_loop_running(False)
         if api_server is not None:
             api_server.stop()

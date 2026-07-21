@@ -104,6 +104,16 @@ Recommended log review after first scheduled run:
 - validated enabled meter summary
 - any duplicate `slave_id` or serial settings warnings
 
+## User-login fallback
+
+If Windows blocks Task Scheduler registration because the current user does not have permission, use the current-user Startup folder fallback:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_user_startup_backend.ps1
+```
+
+This is weaker than a SYSTEM scheduled task because it starts after user login, not at machine boot. It is still useful for a supervised pilot PC when admin rights are not available.
+
 ## NSSM option
 
 If your team prefers NSSM later, that is also a valid approach.

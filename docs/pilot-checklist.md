@@ -21,7 +21,7 @@ Use this for the final 4-5 meter pilot readiness review on the plant PC.
 - [ ] `API_KEY_ENABLED=true`
 - [ ] `API_KEY` set
 - [ ] `API_ALLOWED_ORIGINS` restricted to the plant frontend URL
-- [ ] `POLL_INTERVAL_SECONDS=180` or other deliberate pilot value
+- [ ] `POLL_INTERVAL_SECONDS=18` or other deliberate pilot value
 
 ## Meter configuration
 
@@ -87,3 +87,4 @@ Use this for the final 4-5 meter pilot readiness review on the plant PC.
 - [ ] one export test done
 - [ ] one `/api/status` review done with operators
 - [ ] [pilot-validation-runbook.md](pilot-validation-runbook.md) completed or reviewed
+- [ ] [pilot-evidence-log.md](pilot-evidence-log.md) filled with evidence folders

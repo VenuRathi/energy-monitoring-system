@@ -191,7 +191,7 @@ export function HelpPage() {
                         <p className="section-label">Meter</p>
                         <h4>{meter.meterName}</h4>
                         <p className="meter-card__detail">
-                          {meter.comPort || "COM n/a"} · Slave {meter.slaveId ?? "n/a"}
+                          {meter.comPort || "COM n/a"} - Slave {meter.slaveId ?? "n/a"}
                         </p>
                       </div>
                       <span className={`status-pill status-pill--${tone}`}>{statusLabel(meter)}</span>

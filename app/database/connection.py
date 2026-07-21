@@ -17,6 +17,8 @@ def get_connection(settings: Settings) -> Connection:
         dbname=settings.db_name,
         user=settings.db_user,
         password=settings.db_password,
+        connect_timeout=max(1, settings.db_connect_timeout_seconds),
+        application_name="energy_monitoring_system",
     )
 
 

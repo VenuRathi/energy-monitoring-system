@@ -2001,11 +2001,12 @@ def _serialize_email_settings(record: dict[str, Any]) -> dict[str, Any]:
 
 def _effective_email_settings() -> dict[str, Any]:
     settings = get_runtime_settings()
+    env_smtp_password = settings.smtp_password
     base = {
         "smtp_host": settings.smtp_host,
         "smtp_port": settings.smtp_port,
         "smtp_username": settings.smtp_username,
-        "smtp_password": settings.smtp_password,
+        "smtp_password": env_smtp_password,
         "smtp_from_email": settings.smtp_from_email,
         "smtp_use_tls": settings.smtp_use_tls,
         "smtp_use_ssl": settings.smtp_use_ssl,
@@ -2028,6 +2029,9 @@ def _effective_email_settings() -> dict[str, Any]:
     if saved.get("smtp_host") or saved.get("smtp_from_email") or saved.get("smtp_username") or saved.get("smtp_password"):
         base.update(saved)
         base["source"] = "database"
+        if env_smtp_password:
+            base["smtp_password"] = env_smtp_password
+            base["source"] = "database+env-secret"
     return base
 
 
@@ -2043,8 +2047,14 @@ def save_email_settings(payload: dict[str, Any]) -> dict[str, Any]:
     repository = EmailSettingsRepository(settings=settings)
     existing = repository.get_settings() or {}
     normalized = _normalize_email_settings_payload(payload, existing)
+    if settings.smtp_password:
+        if normalized.get("smtp_password"):
+            logger.info("Ignoring SMTP password submitted to the API because SMTP_PASSWORD is configured in the environment.")
+        normalized["smtp_password"] = ""
     saved = repository.upsert_settings(normalized)
-    saved["source"] = "database"
+    saved["source"] = "database+env-secret" if settings.smtp_password else "database"
+    if settings.smtp_password:
+        saved["smtp_password"] = settings.smtp_password
     return _serialize_email_settings(saved)
 
 
