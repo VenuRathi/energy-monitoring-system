@@ -261,7 +261,7 @@ Healthy state:
 - `MTR-002` online
 - disabled/fake meters not counted stale
 - logs rotating into `logs/energy_monitoring.log`
-- runner lifecycle visible in `logs/backend_runner.log`
+- watchdog lifecycle visible in `logs/backend_watchdog.log`
 - startup warnings reviewed and understood if any appear
 
 ## 14. Optional release-bundle handoff

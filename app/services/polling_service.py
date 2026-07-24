@@ -20,10 +20,12 @@ from app.runtime_state import (
     record_meter_poll_success,
     record_meter_runtime_error,
 )
+from app.services.reading_spool import QueuedReading, ReadingSpool
 
 
 logger = logging.getLogger("energy_monitoring.polling_service")
 PRIMARY_MEASUREMENT_WARNING_INTERVAL = timedelta(minutes=15)
+METER_CLOCK_WARNING_INTERVAL = timedelta(minutes=15)
 
 
 class PollingService:
@@ -36,6 +38,8 @@ class PollingService:
         reading_repository: Optional[ReadingRepository] = None,
         alert_rule_repository: Optional[AlertRuleRepository] = None,
         app_timezone: str = "Asia/Calcutta",
+        meter_clock_max_drift_seconds: int = 120,
+        reading_spool: ReadingSpool | None = None,
     ) -> None:
         self.meter_config = meter_config
         self.collector = collector
@@ -44,11 +48,14 @@ class PollingService:
         self.reading_repository = reading_repository
         self.alert_rule_repository = alert_rule_repository
         self.app_timezone = ZoneInfo(app_timezone)
+        self.meter_clock_max_drift_seconds = max(0, int(meter_clock_max_drift_seconds))
+        self.reading_spool = reading_spool
         self.headers = ["Timestamp"] + [p["name"] + (f" ({p.get('unit')})" if p.get("unit") else "") for p in meter_config["parameters"]]
         self.parameter_lookup = {
             parameter_name_to_column_name(parameter["name"]): parameter for parameter in meter_config["parameters"]
         }
         self._last_primary_measurement_warning_at: datetime | None = None
+        self._last_meter_clock_warning_at: datetime | None = None
         ensure_meter_runtime_status(
             self.meter_config["meter_id"],
             com_port=self._com_port(),
@@ -147,11 +154,10 @@ class PollingService:
                 exc,
             )
             return
-        meter_timestamp = self._resolve_meter_timestamp(readings, collected_at)
+        meter_timestamp, timestamp_source, raw_meter_timestamp = self._resolve_meter_timestamp(readings, collected_at)
         reading_timestamp = meter_timestamp or collected_at
         reading_date = reading_timestamp.astimezone(self.app_timezone).strftime("%d/%m/%Y")
         reading_time = reading_timestamp.astimezone(self.app_timezone).strftime("%H:%M:%S")
-        timestamp_source = "meter" if meter_timestamp is not None else "collector_fallback"
 
         non_null_count = sum(1 for value in readings.values() if value is not None)
         if non_null_count == 0:
@@ -194,7 +200,15 @@ class PollingService:
             self._log_status_transition(previous_status, state["communicationStatus"], "successful poll")
 
         self._print_readings(reading_timestamp, collected_at, timestamp_source, readings)
-        self._save_database(reading_timestamp, collected_at, reading_date, reading_time, timestamp_source, meter_timestamp, readings)
+        self._save_database(
+            reading_timestamp,
+            collected_at,
+            reading_date,
+            reading_time,
+            timestamp_source,
+            raw_meter_timestamp,
+            readings,
+        )
         self._evaluate_alerts(reading_timestamp, reading_date, reading_time, readings)
         logger.info(
             "Finished polling meter %s with %s populated value(s).",
@@ -302,10 +316,55 @@ class PollingService:
                 self._slave_id() if self._slave_id() is not None else "unknown-slave",
                 exc,
             )
+            if self.reading_spool is not None:
+                try:
+                    self.reading_spool.enqueue(
+                        meter_id=self.meter_config["meter_id"],
+                        timestamp=reading_timestamp,
+                        readings=readings,
+                        meter_timestamp=meter_timestamp,
+                        collected_at=collected_at,
+                        reading_date=reading_date,
+                        reading_time=reading_time,
+                        timestamp_source=timestamp_source,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to queue reading for meter %s after database insert failure.",
+                        self.meter_config["meter_id"],
+                    )
 
-    def _resolve_meter_timestamp(self, readings: Dict[str, Optional[object]], collected_at: datetime) -> datetime | None:
+    def replay_queued_reading(self, queued_reading: QueuedReading) -> bool:
+        if self.reading_repository is None:
+            raise RuntimeError("Database reading repository is not configured.")
+        return self.reading_repository.insert_reading(
+            meter_id=queued_reading.meter_id,
+            timestamp=queued_reading.timestamp,
+            readings=queued_reading.readings,
+            meter_timestamp=queued_reading.meter_timestamp,
+            collected_at=queued_reading.collected_at,
+            reading_date=queued_reading.reading_date,
+            reading_time=queued_reading.reading_time,
+            timestamp_source=queued_reading.timestamp_source,
+        )
+
+    def _should_log_meter_clock_warning(self, warning_at: datetime) -> bool:
+        if self._last_meter_clock_warning_at is None:
+            self._last_meter_clock_warning_at = warning_at
+            return True
+        if warning_at - self._last_meter_clock_warning_at >= METER_CLOCK_WARNING_INTERVAL:
+            self._last_meter_clock_warning_at = warning_at
+            return True
+        return False
+
+    def _resolve_meter_timestamp(
+        self,
+        readings: Dict[str, Optional[object]],
+        collected_at: datetime,
+    ) -> tuple[datetime | None, str, datetime | None]:
         configured_name = str(self.meter_config.get("meter_timestamp_parameter", "")).strip()
         candidate_names: list[str] = []
+        seen_names: set[str] = set()
         if configured_name:
             candidate_names.append(configured_name)
 
@@ -316,28 +375,60 @@ class PollingService:
             if normalized_name in {"meter date/time", "meter datetime", "meter clock", "date/time"}:
                 candidate_names.append(parameter["name"])
 
+        rejected_timestamp: datetime | None = None
+        rejection_reason = ""
         for candidate_name in candidate_names:
+            if candidate_name in seen_names:
+                continue
+            seen_names.add(candidate_name)
+            raw_value = readings.get(candidate_name)
+            if raw_value is None:
+                continue
             decoded = self._decode_datetime4_raw(readings.get(candidate_name))
             if decoded is not None:
-                return decoded
+                drift_seconds = abs((decoded.astimezone(timezone.utc) - collected_at).total_seconds())
+                if drift_seconds <= self.meter_clock_max_drift_seconds:
+                    return decoded, "meter", decoded
+                rejected_timestamp = decoded
+                rejection_reason = f"drift {drift_seconds:.1f}s exceeds {self.meter_clock_max_drift_seconds}s"
+            else:
+                rejection_reason = "invalid meter timestamp"
 
         detected_candidates: list[datetime] = []
         for parameter in self.meter_config.get("parameters", []):
             if str(parameter.get("type", "")).lower() != "datetime4":
                 continue
+            parameter_name = parameter["name"]
+            if parameter_name in seen_names:
+                continue
+            seen_names.add(parameter_name)
             decoded = self._decode_datetime4_raw(readings.get(parameter["name"]))
             if decoded is None:
+                if readings.get(parameter_name) is not None:
+                    rejection_reason = "invalid meter timestamp"
                 continue
             age_seconds = abs((decoded.astimezone(timezone.utc) - collected_at).total_seconds())
-            if age_seconds <= 48 * 3600:
+            if age_seconds <= self.meter_clock_max_drift_seconds:
                 detected_candidates.append(decoded)
+            else:
+                rejected_timestamp = decoded
+                rejection_reason = f"drift {age_seconds:.1f}s exceeds {self.meter_clock_max_drift_seconds}s"
 
         if detected_candidates:
-            return min(
+            selected = min(
                 detected_candidates,
                 key=lambda candidate: abs((candidate.astimezone(timezone.utc) - collected_at).total_seconds()),
             )
-        return None
+            return selected, "meter", selected
+        if rejection_reason and self._should_log_meter_clock_warning(collected_at):
+            logger.warning(
+                "Rejected meter clock for %s: %s. Using collector time.",
+                self.meter_config["meter_id"],
+                rejection_reason,
+            )
+        if rejection_reason:
+            return None, "meter_rejected", rejected_timestamp
+        return None, "collector_fallback", None
 
     def _decode_datetime4_raw(self, raw_value: object) -> datetime | None:
         if not isinstance(raw_value, str):

@@ -8,11 +8,11 @@ This project is now stabilized for demo and controlled deployment preparation, b
 - `VITE_API_KEY` is visible in the frontend build and should only be used in controlled environments
 - runtime polling status is stored in memory and resets on backend restart
 - polling is sequential, so one slow meter/bus can still lengthen a cycle
-- database retention, archiving, and purge strategy are not fully automated
-- Windows Service / watchdog / auto-restart behavior is not fully implemented in this repository
+- database archiving and long-term purge policy still require plant approval
+- a Task Scheduler watchdog is implemented; a native Windows Service is not
 - deployment still requires controlled network and security boundaries
 - different meter models require verified register maps before live use
-- scheduled reports depend on the backend process staying up
+- scheduled reports depend on the backend process and report worker being restarted successfully
 - frontend and backend are suitable for a supervised local/plant deployment, not open internet exposure
 
 ## What this means in practice
@@ -23,7 +23,7 @@ This project is now stabilized for demo and controlled deployment preparation, b
 ## Recommended next steps after demo readiness
 
 - add real authentication and authorization
-- add service/watchdog packaging
+- consider native Windows Service packaging if Task Scheduler is not sufficient
 - define database retention and backup policy
 - add structured operational logging and log rotation policy
 - validate each meter model/register map before rollout

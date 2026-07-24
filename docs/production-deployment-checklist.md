@@ -113,6 +113,7 @@ ENABLE_DATABASE=true
 DEMO_MODE=false
 POLL_INTERVAL_SECONDS=18
 APP_TIMEZONE=Asia/Calcutta
+METER_CLOCK_MAX_DRIFT_SECONDS=120
 
 API_HOST=0.0.0.0
 API_PORT=5000
@@ -134,6 +135,13 @@ DB_CONNECT_TIMEOUT_SECONDS=5
 READINGS_RETENTION_DAYS=1825
 READINGS_CLEANUP_BATCH_SIZE=5000
 READINGS_CLEANUP_INTERVAL_HOURS=1
+READING_SPOOL_PATH=data/reading_spool.sqlite3
+READING_SPOOL_MAX_ROWS=100000
+READING_SPOOL_MAX_ROWS_PER_METER=50000
+READING_SPOOL_RETENTION_DAYS=30
+READING_SPOOL_REPLAY_BATCH_SIZE=500
+REPORT_WORKER_ENABLED=true
+REPORT_WORKER_INTERVAL_SECONDS=15
 ```
 
 Important:
@@ -189,7 +197,38 @@ Behavior:
 - Saving email settings in the UI will not store a new plaintext password while `SMTP_PASSWORD` is configured.
 - If `SMTP_PASSWORD` is removed later, re-enter the SMTP password through the UI or `.env`.
 
-## 8. Meter / COM Assumptions
+## 8. Startup / Restart Behavior
+
+Register the backend watchdog task:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backend.ps1
+```
+
+Confirm:
+
+- [ ] task name is `EnergyMonitoringBackend`
+- [ ] task triggers at startup
+- [ ] run context is `SYSTEM` unless IT approved another account
+- [ ] `logs\backend_watchdog.log` exists
+- [ ] restart-on-failure is enabled as an outer Task Scheduler fallback
+- [ ] backend health is healthy after a controlled reboot
+
+The watchdog starts `.venv\Scripts\python.exe main.py`, records lifecycle
+events, and restarts the backend after a crash. Do not combine it with a
+second automatic user-login launcher on the same plant PC.
+
+## 9. Database Outage Buffering
+
+- [ ] `data\reading_spool.sqlite3` is on a writable local disk
+- [ ] `/api/status` normally reports `readingSpool.queuedCount = 0`
+- [ ] a controlled PostgreSQL outage test confirms readings queue and replay
+- [ ] spool size limits are appropriate for the plant disk capacity
+
+A non-zero spool queue means the database needs attention even if meter
+communication remains online.
+
+## 10. Meter / COM Assumptions
 
 - [ ] Meters are Schneider PM5000 / EM6400-style Modbus RTU meters.
 - [ ] USB-to-RS485 adapter is stable and visible in Device Manager.
@@ -199,10 +238,10 @@ Behavior:
 - [ ] No other software is holding the COM port.
 - [ ] Termination and wiring are checked by plant electrical/maintenance staff.
 
-Current validated pilot pattern:
+Current validated pilot pattern on this plant PC:
 
-- `MTR-001`: online, `COM6`, slave `1`
-- `MTR-002`: online, `COM6`, slave `2`
+- `MTR-001`: online, `COM5`, slave `1`
+- `MTR-002`: online, `COM7`, slave `2`
 - `MTR-003`: disabled/offline until physically connected
 
 ## 9. Firewall And Ports
@@ -232,7 +271,7 @@ Default behavior:
 
 - task name: `EnergyMonitoringBackend`
 - run context: `SYSTEM`
-- triggers: startup and logon
+- trigger: startup
 - restart retries: 3 attempts, 1 minute apart
 - multiple instances: ignore new
 - execution limit: 3650 days
@@ -259,7 +298,7 @@ Expected behavior after power returns:
 - Backend checks `.env`, database, frontend build, COM ports, and meter definitions.
 - Backend begins polling enabled valid meters.
 - Logs are written to `logs\energy_monitoring.log`.
-- Runner lifecycle is written to `logs\backend_runner.log`.
+- Watchdog lifecycle is written to `logs\backend_watchdog.log`.
 
 Verify after restart:
 

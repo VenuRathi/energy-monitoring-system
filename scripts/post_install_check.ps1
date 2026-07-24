@@ -56,6 +56,7 @@ $envPath = Join-Path $ProjectRoot ".env"
 $venvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $frontendIndex = Join-Path $ProjectRoot "frontend\dist\index.html"
 $runnerPath = Join-Path $ProjectRoot "scripts\run_backend_service.bat"
+$watchdogPath = Join-Path $ProjectRoot "scripts\run_backend_watchdog.ps1"
 $launcherPath = Join-Path $ProjectRoot "run_app.bat"
 $evidenceScriptPath = Join-Path $ProjectRoot "scripts\collect_pilot_evidence.ps1"
 $startupLauncherPath = Join-Path ([Environment]::GetFolderPath("Startup")) "EnergyMonitoringBackend.cmd"
@@ -64,6 +65,7 @@ Write-Check "Project root" (Test-Path $ProjectRoot) $ProjectRoot
 Write-Check ".env" (Test-Path $envPath) $envPath
 Write-Check "Frontend build" (Test-Path $frontendIndex) $frontendIndex
 Write-Check "Backend runner" (Test-Path $runnerPath) $runnerPath
+Write-Check "Backend watchdog" (Test-Path $watchdogPath) $watchdogPath
 Write-Check "App launcher" (Test-Path $launcherPath) $launcherPath
 Write-Check "Pilot evidence script" (Test-Path $evidenceScriptPath) $evidenceScriptPath
 Write-Check "User startup fallback" (Test-Path $startupLauncherPath) $startupLauncherPath

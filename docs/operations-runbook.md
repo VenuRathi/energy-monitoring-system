@@ -2,26 +2,24 @@
 
 This runbook is for day-to-day starting, checking, and troubleshooting the current system.
 
-## Start backend
+## Production backend startup
+
+Register once from an Administrator PowerShell:
 
 ```powershell
 cd D:\FFPL\energy-monitoring-system
-.\.venv\Scripts\python.exe main.py
-```
-
-Alternative:
-
-```powershell
-run_app.bat
-```
-
-24/7 pilot mode:
-
-```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backend.ps1
 ```
 
-That is the recommended always-on backend startup path for the plant PC.
+After registration, start or stop it with:
+
+```powershell
+Start-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
+```
+
+Do not start a second backend manually while the scheduled task is running.
+The watchdog lifecycle log is `logs\backend_watchdog.log`.
 
 ## Start frontend
 
@@ -74,6 +72,8 @@ Look for:
 - `polling.lastCycleStartTime`
 - `polling.lastCycleEndTime`
 - `polling.totalCyclesCompleted`
+- `readingSpool.queuedCount`
+- `readingSpool.lastReplayError`
 
 Healthy live example:
 
@@ -137,7 +137,8 @@ Actions:
 1. Start the PostgreSQL service
 2. Confirm `.env` DB settings are correct
 3. Test connection with `psql`
-4. Restart backend if needed
+4. Check `readingSpool.queuedCount`; queued readings replay when the database is healthy
+5. Restart backend only if the health check does not recover
 
 ## If the dashboard shows no readings
 
@@ -210,7 +211,7 @@ When `SMTP_PASSWORD` is set:
 ## Log locations
 
 - backend logs: `logs/`
-- backend runner lifecycle log: `logs/backend_runner.log`
+- backend watchdog lifecycle log: `logs/backend_watchdog.log`
 - PowerShell console output during local run
 
 If running a boss demo, keep one terminal visible for backend status and errors.

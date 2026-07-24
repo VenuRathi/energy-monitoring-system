@@ -98,6 +98,7 @@ Recommended 24/7 run approach today:
 
 - Task Scheduler using:
   - `scripts/run_backend_service.bat`
+  - `scripts/run_backend_watchdog.ps1`
   - `scripts/install_task_scheduler_backend.ps1`
 
 ## Important docs to read next

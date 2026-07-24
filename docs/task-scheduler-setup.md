@@ -10,20 +10,25 @@ This is the recommended 24/7 Windows run method for the pilot if you do not want
 - can restart after failure
 - practical for a pilot plant PC
 
-## Backend runner used
+## One production startup path
 
-Use:
+Use the Task Scheduler watchdog:
 
-- [scripts/run_backend_service.bat](../scripts/run_backend_service.bat)
+- [scripts/run_backend_watchdog.ps1](../scripts/run_backend_watchdog.ps1)
 
-This runner is non-interactive and intended for scheduled-task/service use.
+The watchdog starts the project virtual-environment Python process, waits for it,
+records lifecycle events, and restarts it after a non-zero exit. It uses a
+Windows mutex, while `main.py` keeps the existing single-instance lock, so a
+second launcher cannot create a second collector.
 
-It also:
+Lifecycle events are written to:
 
-- creates the `logs/` folder if missing
-- starts Python in unbuffered UTF-8 mode
-- warns if `.env` is missing before launch
-- appends runner start/exit events to `logs\backend_runner.log`
+```text
+D:\FFPL\energy-monitoring-system\logs\backend_watchdog.log
+```
+
+The log rotates at approximately 5 MB and keeps seven backups. It records
+watchdog start/stop, backend start, clean exit, crash exit code, and restart.
 
 ## Register the task automatically
 
@@ -37,10 +42,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install_task_scheduler_backen
 This registers:
 
 - task name: `EnergyMonitoringBackend`
-- triggers: startup and logon
+- trigger: startup
 - restart retries enabled
 - default run context: `SYSTEM`
 - long execution time limit so the task is not stopped like a short-lived batch job
+
+The watchdog performs the normal crash restart. Task Scheduler restart settings
+are an outer fallback if the watchdog process also fails.
 
 If you specifically need the task to run as the current user instead, use:
 
@@ -59,13 +67,12 @@ If you prefer the GUI:
 5. Run with highest privileges
 6. Trigger:
    - At startup
-   - Optional: At log on
 7. Action:
-   - Program/script: `cmd.exe`
+   - Program/script: `powershell.exe`
    - Arguments:
 
 ```text
-/c "C:\EnergyMonitoring\energy-monitoring-system\scripts\run_backend_service.bat"
+-NoProfile -ExecutionPolicy Bypass -File "C:\EnergyMonitoring\energy-monitoring-system\scripts\run_backend_watchdog.ps1"
 ```
 
 8. Start in:
@@ -84,7 +91,7 @@ C:\EnergyMonitoring\energy-monitoring-system
 After registration:
 
 1. Run the task manually once
-2. Check `logs/backend_runner.log`
+2. Check `logs/backend_watchdog.log`
 3. Check `logs/energy_monitoring.log`
 4. Run:
 
@@ -98,7 +105,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
 
 Recommended log review after first scheduled run:
 
-- runner invocation timestamps in `backend_runner.log`
+- watchdog lifecycle events in `backend_watchdog.log`
 - startup configuration summary
 - detected COM ports
 - validated enabled meter summary
@@ -112,7 +119,7 @@ If Windows blocks Task Scheduler registration because the current user does not 
 powershell -ExecutionPolicy Bypass -File .\scripts\install_user_startup_backend.ps1
 ```
 
-This is weaker than a SYSTEM scheduled task because it starts after user login, not at machine boot. It is still useful for a supervised pilot PC when admin rights are not available.
+This is weaker than the production path because it starts after user login, not at machine boot. Use it only for a supervised development or pilot PC when admin rights are not available.
 
 ## NSSM option
 

@@ -13,7 +13,7 @@ Check logs:
 
 ```text
 logs\energy_monitoring.log
-logs\backend_runner.log
+logs\backend_watchdog.log
 ```
 
 ## Meters Stop Updating
@@ -199,7 +199,7 @@ Actions:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2
 ```
 
-3. Check `logs\backend_runner.log` for restart time.
+3. Check `logs\backend_watchdog.log` for start, crash, and restart time.
 4. Check `logs\energy_monitoring.log` for startup warnings.
 5. Confirm COM port did not change.
 6. Confirm latest readings resumed.
@@ -234,7 +234,7 @@ Do not reduce retention settings while time sync is wrong.
 Use these in order:
 
 1. `logs\energy_monitoring.log`
-2. `logs\backend_runner.log`
+2. `logs\backend_watchdog.log`
 3. `.env`
 4. `config\meter_config.json`
 5. `frontend\dist\index.html`

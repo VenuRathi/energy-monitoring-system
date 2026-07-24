@@ -25,6 +25,7 @@ from app.database.models import parameter_name_to_column_name
 from app.database.repositories import AlertRuleRepository, EmailSettingsRepository, MeterRepository, ReportScheduleRepository
 from app.collectors.modbus_client import ModbusRTUClient
 from app.runtime_state import get_all_meter_runtime_statuses, get_polling_loop_state, get_shared_modbus_client
+from app.services.reading_spool import ReadingSpool
 from config.meter_loader import load_meter_config
 from config.settings import Settings, load_settings
 from utils.coercion import coerce_bool
@@ -640,13 +641,14 @@ def _get_demo_dashboard_data(meter_id: str, trend_parameter_key: str) -> dict[st
     )
 
     latest_rows_by_meter = {meter["meter_id"]: _demo_latest_row_for_meter(meter["meter_id"]) for meter in meters}
+    meter_energy_summaries = _meter_energy_summaries(meters, latest_rows_by_meter)
 
     if meter_id == "ALL":
         aggregate_row = _aggregate_latest_row(latest_rows_by_meter, [meter["meter_id"] for meter in meters])
         selected_meter = _build_all_selected_meter(meters, aggregate_row)
-        metrics = _metrics_from_latest_row(aggregate_row, catalog)
-        latest_readings = _latest_readings_from_row(aggregate_row, catalog)
-        trend_series = _aggregate_trend_series([meter["meter_id"] for meter in meters], trend_parameter["key"])
+        metrics = []
+        latest_readings = []
+        trend_series = []
         active_alerts = _demo_active_alerts(None)
     else:
         selected_meter = next((meter for meter in meters if meter["meter_id"] == meter_id), meters[0])
@@ -662,6 +664,7 @@ def _get_demo_dashboard_data(meter_id: str, trend_parameter_key: str) -> dict[st
         "summary": _meter_summary(meters),
         "metrics": metrics,
         "latestReadings": latest_readings,
+        "meterEnergySummaries": meter_energy_summaries,
         "parameterCatalog": catalog,
         "trendParameter": trend_parameter,
         "trendSeries": trend_series,
@@ -699,6 +702,54 @@ def get_system_health() -> dict[str, Any]:
         },
     }
     overall_status = "ok"
+
+    reading_spool_status: dict[str, Any]
+    if settings.enable_database and not demo_mode:
+        try:
+            reading_spool_status = ReadingSpool(
+                settings.reading_spool_path,
+                max_rows=settings.reading_spool_max_rows,
+                max_rows_per_meter=settings.reading_spool_max_rows_per_meter,
+                retention_days=settings.reading_spool_retention_days,
+            ).status()
+            if reading_spool_status["queuedCount"] or reading_spool_status["lastReplayError"]:
+                checks["readingSpool"] = {
+                    "status": "degraded",
+                    "message": (
+                        f"{reading_spool_status['queuedCount']} reading(s) are waiting for database replay."
+                        if reading_spool_status["queuedCount"]
+                        else reading_spool_status["lastReplayError"]
+                    ),
+                }
+                overall_status = "degraded"
+            else:
+                checks["readingSpool"] = {"status": "ok", "message": "Reading spool is empty."}
+        except Exception as exc:
+            reading_spool_status = {
+                "queuedCount": None,
+                "maxQueueSize": settings.reading_spool_max_rows,
+                "maxQueueSizePerMeter": settings.reading_spool_max_rows_per_meter,
+                "retentionDays": settings.reading_spool_retention_days,
+                "oldestQueuedAt": "",
+                "lastReplayAt": "",
+                "lastReplayError": str(exc),
+            }
+            checks["readingSpool"] = {"status": "degraded", "message": f"Reading spool check failed: {exc}"}
+            overall_status = "degraded"
+    else:
+        reading_spool_status = {
+            "queuedCount": 0,
+            "maxQueueSize": 0,
+            "maxQueueSizePerMeter": 0,
+            "retentionDays": 0,
+            "oldestQueuedAt": "",
+            "lastReplayAt": "",
+            "lastReplayError": "",
+        }
+        checks["readingSpool"] = {
+            "status": "skipped",
+            "message": "Reading spool is disabled because live database mode is not enabled.",
+        }
 
     if settings.enable_database and not demo_mode:
         try:
@@ -790,6 +841,7 @@ def get_system_health() -> dict[str, Any]:
         },
         "summary": meter_summary,
         "polling": polling_state,
+        "readingSpool": reading_spool_status,
         "checks": checks,
     }
 
@@ -1194,6 +1246,31 @@ def _latest_readings_from_row(latest_row: dict[str, Any] | None, catalog: list[d
     return rows
 
 
+def _meter_energy_summaries(
+    meters: list[dict[str, Any]],
+    latest_rows: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for meter in meters:
+        latest_row = latest_rows.get(meter["meter_id"])
+        last_update = (latest_row.get("collected_at") or latest_row.get("timestamp")) if latest_row else None
+        summaries.append(
+            {
+                "meter_id": meter["meter_id"],
+                "meter_name": meter["meter_name"],
+                "location": meter.get("location", ""),
+                "status": meter.get("status", "offline"),
+                "data_quality": meter.get("data_quality", "no_readings"),
+                "live_measurements": bool(meter.get("live_measurements")),
+                "last_update": _serialize_timestamp(last_update),
+                "active_energy": _numeric_value(latest_row.get("active_energy_received_out_of_load")) if latest_row else None,
+                "reactive_energy": _numeric_value(latest_row.get("reactive_energy_received")) if latest_row else None,
+                "apparent_energy": _numeric_value(latest_row.get("apparent_energy_received")) if latest_row else None,
+            }
+        )
+    return summaries
+
+
 def _aggregate_latest_row(latest_rows: dict[str, dict[str, Any]], meter_ids: list[str]) -> dict[str, Any] | None:
     selected_rows = [latest_rows[meter_id] for meter_id in meter_ids if meter_id in latest_rows]
     if not selected_rows:
@@ -1465,6 +1542,7 @@ def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_t
             "summary": _meter_summary([]),
             "metrics": [],
             "latestReadings": [],
+            "meterEnergySummaries": [],
             "parameterCatalog": catalog,
             "trendParameter": trend_parameter,
             "trendSeries": [],
@@ -1474,13 +1552,14 @@ def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_t
     selected_meter = next((meter for meter in meters if meter["meter_id"] == meter_id), meters[0])
     with _open_connection() as connection:
         latest_rows_by_meter = _fetch_latest_rows_by_meter(connection)
+    meter_energy_summaries = _meter_energy_summaries(meters, latest_rows_by_meter)
 
     if meter_id == "ALL":
         aggregate_row = _aggregate_latest_row(latest_rows_by_meter, [meter["meter_id"] for meter in meters])
         selected_meter = _build_all_selected_meter(meters, aggregate_row)
-        metrics = _metrics_from_latest_row(aggregate_row, catalog)
-        latest_readings = _latest_readings_from_row(aggregate_row, catalog)
-        trend_series = _aggregate_trend_series([meter["meter_id"] for meter in meters], trend_parameter["key"])
+        metrics = []
+        latest_readings = []
+        trend_series = []
     else:
         selected_latest_row = latest_rows_by_meter.get(selected_meter["meter_id"])
         metrics = _metrics_from_latest_row(selected_latest_row, catalog)
@@ -1495,6 +1574,7 @@ def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_t
         "summary": _meter_summary(meters),
         "metrics": metrics,
         "latestReadings": latest_readings,
+        "meterEnergySummaries": meter_energy_summaries,
         "parameterCatalog": catalog,
         "trendParameter": trend_parameter,
         "trendSeries": trend_series,

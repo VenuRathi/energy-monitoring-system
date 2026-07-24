@@ -17,6 +17,7 @@ class Settings:
     api_key_enabled: bool
     api_key: str
     app_timezone: str
+    meter_clock_max_drift_seconds: int
     api_allowed_origins: tuple[str, ...]
     db_host: str
     db_port: int
@@ -27,6 +28,13 @@ class Settings:
     readings_retention_days: int
     readings_cleanup_batch_size: int
     readings_cleanup_interval_hours: int
+    reading_spool_path: str
+    reading_spool_max_rows: int
+    reading_spool_max_rows_per_meter: int
+    reading_spool_retention_days: int
+    reading_spool_replay_batch_size: int
+    report_worker_enabled: bool
+    report_worker_interval_seconds: int
     smtp_host: str
     smtp_port: int
     smtp_username: str
@@ -57,6 +65,7 @@ def load_settings() -> Settings:
         api_key_enabled=coerce_bool(os.getenv("API_KEY_ENABLED", "false"), False),
         api_key=os.getenv("API_KEY", "").strip(),
         app_timezone=os.getenv("APP_TIMEZONE", "Asia/Calcutta"),
+        meter_clock_max_drift_seconds=int(os.getenv("METER_CLOCK_MAX_DRIFT_SECONDS", "120")),
         api_allowed_origins=allowed_origins or ("http://127.0.0.1:5173", "http://localhost:5173"),
         db_host=os.getenv("DB_HOST", "localhost"),
         db_port=int(os.getenv("DB_PORT", "5432")),
@@ -67,6 +76,13 @@ def load_settings() -> Settings:
         readings_retention_days=int(os.getenv("READINGS_RETENTION_DAYS", "1825")),
         readings_cleanup_batch_size=int(os.getenv("READINGS_CLEANUP_BATCH_SIZE", "5000")),
         readings_cleanup_interval_hours=int(os.getenv("READINGS_CLEANUP_INTERVAL_HOURS", "1")),
+        reading_spool_path=os.getenv("READING_SPOOL_PATH", "data/reading_spool.sqlite3"),
+        reading_spool_max_rows=int(os.getenv("READING_SPOOL_MAX_ROWS", "100000")),
+        reading_spool_max_rows_per_meter=int(os.getenv("READING_SPOOL_MAX_ROWS_PER_METER", "50000")),
+        reading_spool_retention_days=int(os.getenv("READING_SPOOL_RETENTION_DAYS", "30")),
+        reading_spool_replay_batch_size=int(os.getenv("READING_SPOOL_REPLAY_BATCH_SIZE", "500")),
+        report_worker_enabled=coerce_bool(os.getenv("REPORT_WORKER_ENABLED", "true"), True),
+        report_worker_interval_seconds=int(os.getenv("REPORT_WORKER_INTERVAL_SECONDS", "15")),
         smtp_host=os.getenv("SMTP_HOST", "").strip(),
         smtp_port=int(os.getenv("SMTP_PORT", "587")),
         smtp_username=os.getenv("SMTP_USERNAME", "").strip(),

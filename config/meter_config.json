@@ -106,7 +106,7 @@
       "enabled": true,
       "parameter_set": "schneider_pm5000_core",
       "connection": {
-        "port": "COM6",
+        "port": "COM5",
         "slave_id": 1
       }
     },
@@ -117,7 +117,7 @@
       "enabled": true,
       "parameter_set": "schneider_pm5000_core",
       "connection": {
-        "port": "COM6",
+        "port": "COM7",
         "slave_id": 2
       }
     },

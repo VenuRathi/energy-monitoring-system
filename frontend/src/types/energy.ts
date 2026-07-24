@@ -62,6 +62,19 @@ export type MetricCard = {
   unit: string;
 };
 
+export type MeterEnergySummary = {
+  meter_id: string;
+  meter_name: string;
+  location: string;
+  status: MeterStatus;
+  data_quality?: MeterRecord["data_quality"];
+  live_measurements: boolean;
+  last_update: string;
+  active_energy: number | null;
+  reactive_energy: number | null;
+  apparent_energy: number | null;
+};
+
 export type LatestReadingRow = {
   parameterKey: string;
   label: string;
@@ -89,6 +102,7 @@ export type DashboardData = {
   };
   metrics: MetricCard[];
   latestReadings: LatestReadingRow[];
+  meterEnergySummaries: MeterEnergySummary[];
   parameterCatalog: ParameterMeta[];
   trendParameter: ParameterMeta;
   trendSeries: TrendPoint[];
@@ -346,6 +360,16 @@ export type PollingStatus = {
   lastGlobalPollingErrorTime: string;
 };
 
+export type ReadingSpoolStatus = {
+  queuedCount: number | null;
+  maxQueueSize: number;
+  maxQueueSizePerMeter: number;
+  retentionDays: number;
+  oldestQueuedAt: string;
+  lastReplayAt: string;
+  lastReplayError: string;
+};
+
 export type SystemStatusResponse = {
   status: "ok" | "degraded";
   apiStatus: HealthState;
@@ -363,11 +387,13 @@ export type SystemStatusResponse = {
     meters: SystemStatusMeter[];
   };
   polling: PollingStatus;
+  readingSpool: ReadingSpoolStatus;
   checks: {
     api: HealthCheck;
     dataSource: HealthCheck;
     database: HealthCheck;
     meters: HealthCheck;
     polling: HealthCheck;
+    readingSpool: HealthCheck;
   };
 };

@@ -12,7 +12,7 @@ from app.collectors.base.base_meter import BaseMeter
 from app.collectors.modbus_client import ModbusRTUClient
 
 
-MAX_BLOCK_WORDS = 32
+MAX_BLOCK_WORDS = 16
 MAX_GAP_WORDS = 2
 
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActiveAlertsPanel } from "../components/dashboard/ActiveAlertsPanel";
+import { AllMetersEnergyPanel } from "../components/dashboard/AllMetersEnergyPanel";
 import { EnergyChart } from "../components/dashboard/EnergyChart";
 import { LatestReadingsTable } from "../components/dashboard/LatestReadingsTable";
 import { MeterCard } from "../components/dashboard/MeterCard";
@@ -50,11 +51,14 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
   }
 
   const selectedMeter = data.selectedMeter ?? data.meters[0];
-  const noReadingsYet = !selectedMeter?.has_readings || (data.latestReadings?.length ?? 0) === 0;
+  const isAllMetersView = selectedMeterId === "ALL" || selectedMeter?.meter_id === "ALL";
+  const noReadingsYet = !isAllMetersView && (!selectedMeter?.has_readings || (data.latestReadings?.length ?? 0) === 0);
   const statusTone = meterTone(selectedMeter);
   const latestUpdateText = formatTimestamp(selectedMeter?.last_update ?? "");
-  const selectedMeterAlerts = data.activeAlerts.filter((alert) => alert.meterId === selectedMeter?.meter_id).length;
   const totalAlerts = data.activeAlerts.length;
+  const selectedMeterAlerts = isAllMetersView
+    ? totalAlerts
+    : data.activeAlerts.filter((alert) => alert.meterId === selectedMeter?.meter_id).length;
 
   if (!selectedMeter) {
     return (
@@ -116,8 +120,11 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
               </button>
             </div>
             <p className="page-copy">
-              {selectedMeter.location} - {selectedMeter.manufacturer} {selectedMeter.model} -{" "}
-              {selectedMeter.enabled ? "Polling enabled" : "Disabled"}
+              {isAllMetersView
+                ? `Showing energy totals for ${data.meterEnergySummaries?.length ?? data.meters.length} meter(s).`
+                : `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${
+                    selectedMeter.enabled ? "Polling enabled" : "Disabled"
+                  }`}
             </p>
             <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
           </div>
@@ -139,7 +146,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         <div className="section-heading">
           <div>
             <p className="section-label">Selected meter</p>
-            <h4>{selectedMeter.meter_name}</h4>
+            <h4>{isAllMetersView ? "All meters energy summary" : selectedMeter.meter_name}</h4>
           </div>
           <div className="dashboard__meter-aside">
             <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
@@ -147,10 +154,21 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
           </div>
         </div>
         <div className="dashboard__meter-meta">
-          <span>{selectedMeter.location || "n/a"}</span>
-          <span>{selectedMeter.manufacturer || "n/a"}</span>
-          <span>{selectedMeter.model || "n/a"}</span>
-          <span>{selectedMeter.com_port || "COM n/a"} - Slave {selectedMeter.slave_id}</span>
+          {isAllMetersView ? (
+            <>
+              <span>{data.meterEnergySummaries?.length ?? data.meters.length} meter(s)</span>
+              <span>Per-meter energy totals</span>
+              <span>No aggregate values</span>
+              <span>kWh / kVARh / kVAh</span>
+            </>
+          ) : (
+            <>
+              <span>{selectedMeter.location || "n/a"}</span>
+              <span>{selectedMeter.manufacturer || "n/a"}</span>
+              <span>{selectedMeter.model || "n/a"}</span>
+              <span>{selectedMeter.com_port || "COM n/a"} - Slave {selectedMeter.slave_id}</span>
+            </>
+          )}
         </div>
         {selectedMeter.status_detail ? (
           <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>
@@ -162,67 +180,79 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
             No readings available yet for this meter.
           </div>
         ) : null}
-        <div className="dashboard__overview">
-          <div className="summary-card">
-            <span className="summary-card__label">Data quality</span>
-            <strong>{selectedMeter.data_quality?.replaceAll("_", " ") ?? "n/a"}</strong>
-            <span className="table-subtle">{selectedMeter.live_measurements ? "Live values available" : "Waiting for live values"}</span>
-          </div>
-          <div className="summary-card">
-            <span className="summary-card__label">Current alert load</span>
-            <strong>{selectedMeterAlerts}</strong>
-            <span className="table-subtle">{selectedMeterAlerts > 0 ? "Needs operator review" : "No active alerts"}</span>
-          </div>
-          <div className="summary-card">
-            <span className="summary-card__label">Polling state</span>
-            <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong>
-            <span className="table-subtle">{selectedMeter.one_based_map ? "One-based map" : "Zero-based map"}</span>
-          </div>
-          <div className="summary-card">
-            <span className="summary-card__label">Role</span>
-            <strong>{selectedMeter.seu ? "SEU meter" : "Standard meter"}</strong>
-            <span className="table-subtle">{selectedMeter.driver}</span>
-          </div>
-        </div>
-        <MetricStrip metrics={data.metrics} />
-      </section>
-
-      <section className="dashboard__split">
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="section-label">Trend</p>
-              <h4>{selectedTrendLabel}</h4>
+        {isAllMetersView ? (
+          <AllMetersEnergyPanel meters={data.meterEnergySummaries ?? []} />
+        ) : (
+          <>
+            <div className="dashboard__overview">
+              <div className="summary-card">
+                <span className="summary-card__label">Data quality</span>
+                <strong>{selectedMeter.data_quality?.replaceAll("_", " ") ?? "n/a"}</strong>
+                <span className="table-subtle">
+                  {selectedMeter.live_measurements ? "Live values available" : "Waiting for live values"}
+                </span>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Current alert load</span>
+                <strong>{selectedMeterAlerts}</strong>
+                <span className="table-subtle">{selectedMeterAlerts > 0 ? "Needs operator review" : "No active alerts"}</span>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Polling state</span>
+                <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong>
+                <span className="table-subtle">{selectedMeter.one_based_map ? "One-based map" : "Zero-based map"}</span>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Role</span>
+                <strong>{selectedMeter.seu ? "SEU meter" : "Standard meter"}</strong>
+                <span className="table-subtle">{selectedMeter.driver}</span>
+              </div>
             </div>
-          </div>
-          <EnergyChart data={data.trendSeries ?? []} label={selectedTrendLabel} unit={data.trendParameter?.unit ?? ""} />
-        </div>
+            <MetricStrip metrics={data.metrics} />
+          </>
+        )}
+      </section>
 
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="section-label">Latest readings</p>
-              <h4>Main values</h4>
+      {!isAllMetersView ? (
+        <>
+          <section className="dashboard__split">
+            <div className="panel">
+              <div className="section-heading">
+                <div>
+                  <p className="section-label">Trend</p>
+                  <h4>{selectedTrendLabel}</h4>
+                </div>
+              </div>
+              <EnergyChart data={data.trendSeries ?? []} label={selectedTrendLabel} unit={data.trendParameter?.unit ?? ""} />
             </div>
-          </div>
-          <LatestReadingsTable rows={data.latestReadings ?? []} />
-        </div>
-      </section>
 
-      <section className="dashboard__section">
-        <div className="section-heading">
-          <div>
-            <p className="section-label">Parameter explorer</p>
-            <h4>All available meter parameters</h4>
-          </div>
-        </div>
-        <ParameterExplorer
-          parameters={data.parameterCatalog ?? []}
-          latestReadings={data.latestReadings ?? []}
-          selectedKey={trendParameterKey}
-          onSelect={(parameterKey) => setTrendParameterKey(parameterKey)}
-        />
-      </section>
+            <div className="panel">
+              <div className="section-heading">
+                <div>
+                  <p className="section-label">Latest readings</p>
+                  <h4>Main values</h4>
+                </div>
+              </div>
+              <LatestReadingsTable rows={data.latestReadings ?? []} />
+            </div>
+          </section>
+
+          <section className="dashboard__section">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">Parameter explorer</p>
+                <h4>All available meter parameters</h4>
+              </div>
+            </div>
+            <ParameterExplorer
+              parameters={data.parameterCatalog ?? []}
+              latestReadings={data.latestReadings ?? []}
+              selectedKey={trendParameterKey}
+              onSelect={(parameterKey) => setTrendParameterKey(parameterKey)}
+            />
+          </section>
+        </>
+      ) : null}
 
       <section className="dashboard__section">
         <div className="section-heading">

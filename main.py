@@ -1,6 +1,5 @@
 import logging
 import os
-import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,7 +9,6 @@ from werkzeug.serving import make_server
 from serial.tools import list_ports
 
 from app.api import app as api_app
-from app.api.service import process_due_report_schedules
 from config.meter_loader import load_meter_config
 from config.settings import Settings, load_settings
 from app.collectors.modbus_client import ModbusRTUClient
@@ -30,6 +28,8 @@ from app.runtime_state import (
     set_shared_modbus_client,
 )
 from app.services.polling_service import PollingService
+from app.services.reading_spool import ReadingSpool
+from app.services.report_worker import ReportWorker
 from app.services.retention_service import ReadingsRetentionService
 from utils.coercion import coerce_bool
 from utils.logger import setup_logger
@@ -46,7 +46,7 @@ except ImportError:  # pragma: no cover - Windows path
 
 
 _INSTANCE_LOCK_HANDLE = None
-_INSTANCE_LOCK_PATH = Path(tempfile.gettempdir()) / "energy-monitoring-system-main.lock"
+_INSTANCE_LOCK_PATH = Path(__file__).resolve().parent / "data" / "energy-monitoring-system-main.lock"
 
 
 class SingleInstanceError(RuntimeError):
@@ -59,6 +59,7 @@ def acquire_instance_lock() -> None:
     if _INSTANCE_LOCK_HANDLE is not None:
         return
 
+    _INSTANCE_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     _INSTANCE_LOCK_PATH.touch(exist_ok=True)
     lock_handle = _INSTANCE_LOCK_PATH.open("r+", encoding="utf-8")
     try:
@@ -453,6 +454,7 @@ def build_polling_service(
     settings,
     meter_repository: MeterRepository | None,
     modbus_client: ModbusRTUClient,
+    reading_spool: ReadingSpool | None = None,
 ) -> PollingService:
     collector = build_collector(meter_definition, modbus_client)
     scoped_reading_repository = None
@@ -472,6 +474,8 @@ def build_polling_service(
         reading_repository=scoped_reading_repository,
         alert_rule_repository=alert_rule_repository,
         app_timezone=settings.app_timezone,
+        meter_clock_max_drift_seconds=settings.meter_clock_max_drift_seconds,
+        reading_spool=reading_spool,
     )
 
 
@@ -501,6 +505,19 @@ def main() -> None:
     else:
         logger.info("PostgreSQL logging is disabled.")
 
+    reading_spool: ReadingSpool | None = None
+    if settings.enable_database and not settings.demo_mode:
+        try:
+            reading_spool = ReadingSpool(
+                settings.reading_spool_path,
+                max_rows=settings.reading_spool_max_rows,
+                max_rows_per_meter=settings.reading_spool_max_rows_per_meter,
+                retention_days=settings.reading_spool_retention_days,
+            )
+            logger.info("Durable reading spool ready at %s.", settings.reading_spool_path)
+        except Exception:
+            logger.exception("Durable reading spool could not be initialized. Continuing without buffering.")
+
     raw_meter_definitions = load_runtime_meters(settings, meter_config)
     meter_definitions = _validate_shared_bus_settings(raw_meter_definitions, logger)
     _log_meter_startup_summary(
@@ -527,6 +544,12 @@ def main() -> None:
     polling_services: list[PollingService] = []
     active_signature: tuple = ()
     stop_event = Event()
+    report_worker: ReportWorker | None = None
+    if settings.enable_database and not settings.demo_mode and settings.report_worker_enabled:
+        report_worker = ReportWorker(settings, stop_event)
+        report_worker.start()
+    elif settings.enable_database and not settings.demo_mode:
+        logger.info("Scheduled report worker is disabled by configuration.")
     last_retention_cleanup_monotonic = 0.0
 
     def wait_for_next_cycle() -> bool:
@@ -567,6 +590,7 @@ def main() -> None:
                     settings=settings,
                     meter_repository=meter_repository,
                     modbus_client=get_shared_modbus_client(meter_definition),
+                    reading_spool=reading_spool,
                 )
                 polling_service.prepare()
                 next_polling_services.append(polling_service)
@@ -652,11 +676,19 @@ def main() -> None:
                         exc,
                     )
             if settings.enable_database:
-                try:
-                    process_due_report_schedules()
-                except Exception as exc:
-                    record_polling_loop_error(f"Scheduled report processing failed: {exc}", datetime.now(timezone.utc))
-                    logger.exception("Scheduled report processing failed: %s", exc)
+                if reading_spool is not None:
+                    callbacks = {
+                        polling_service.meter_config["meter_id"]: polling_service.replay_queued_reading
+                        for polling_service in polling_services
+                    }
+                    try:
+                        reading_spool.replay(
+                            callbacks,
+                            limit=settings.reading_spool_replay_batch_size,
+                        )
+                    except Exception as exc:
+                        record_polling_loop_error(f"Reading spool replay failed: {exc}", datetime.now(timezone.utc))
+                        logger.exception("Reading spool replay failed: %s", exc)
                 maybe_cleanup_old_readings()
             cycle_ended_at = datetime.now(timezone.utc)
             cycle_duration_seconds = time.monotonic() - cycle_started_monotonic
@@ -672,6 +704,8 @@ def main() -> None:
     finally:
         stop_event.set()
         set_polling_loop_running(False)
+        if report_worker is not None:
+            report_worker.join(timeout=5)
         if api_server is not None:
             api_server.stop()
         _close_modbus_clients(shared_modbus_clients)

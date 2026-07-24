@@ -23,7 +23,11 @@ The code has the major hardening needed for a controlled plant deployment, but f
 - [x] SMTP password can be supplied through `SMTP_PASSWORD`.
 - [x] UI saves do not store a new plaintext SMTP password while env password is active.
 - [x] Backend wait loop is stop-aware between cycles.
-- [x] Task Scheduler startup script exists.
+- [x] Task Scheduler watchdog startup path exists with rotating lifecycle log.
+- [x] PostgreSQL outage readings are buffered in a bounded durable SQLite spool.
+- [x] Spool replay is duplicate-safe and isolated per meter.
+- [x] Meter clock drift is checked before trusting meter timestamps.
+- [x] Scheduled reports/email run in a separate stop-aware worker.
 - [x] Daily backup script exists.
 - [x] Runtime health check script exists.
 - [x] Frontend build is served by backend from `frontend\dist`.
@@ -33,6 +37,8 @@ The code has the major hardening needed for a controlled plant deployment, but f
 These must be completed before full production signoff:
 
 - [ ] Plant soak test evidence.
+- [ ] Watchdog crash/restart test evidence.
+- [ ] Database outage spool/replay test evidence.
 - [ ] Backup/restore proof.
 - [ ] Time-sync discipline.
 - [ ] Duplicate-history cleanup.

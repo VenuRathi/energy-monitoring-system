@@ -19,6 +19,14 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 - `READINGS_CLEANUP_BATCH_SIZE`: maximum old readings deleted in one cleanup pass
 - `READINGS_CLEANUP_INTERVAL_HOURS`: minimum hours between cleanup attempts
 
+### Database outage buffering
+
+- `READING_SPOOL_PATH`: SQLite file used for readings waiting for PostgreSQL
+- `READING_SPOOL_MAX_ROWS`: total maximum queued readings
+- `READING_SPOOL_MAX_ROWS_PER_METER`: maximum queued readings for one meter
+- `READING_SPOOL_RETENTION_DAYS`: maximum age of queued readings; `0` disables age expiry
+- `READING_SPOOL_REPLAY_BATCH_SIZE`: maximum queued readings replayed after one polling cycle
+
 ### API
 
 - `API_HOST`: Flask bind host
@@ -39,6 +47,9 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 - `DEMO_MODE`: serve synthetic data instead of requiring live meters
 - `ENABLE_DATABASE`: toggle PostgreSQL usage
 - `APP_TIMEZONE`: app display/report timezone, current default `Asia/Calcutta`
+- `METER_CLOCK_MAX_DRIFT_SECONDS`: maximum allowed difference between meter time and server collection time
+- `REPORT_WORKER_ENABLED`: enable scheduled report/email processing in its separate worker thread
+- `REPORT_WORKER_INTERVAL_SECONDS`: seconds between scheduled report checks
 
 ## Current frontend API URL behavior
 

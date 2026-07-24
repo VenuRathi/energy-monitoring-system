@@ -10,7 +10,7 @@ Check:
 - `python main.py` runs manually
 - `.env` exists
 - PostgreSQL is reachable
-- `logs/backend_runner.log` for startup wrapper failures
+- `logs/backend_watchdog.log` for startup, crash, and restart events
 
 ## `/api/health` fails
 
@@ -148,7 +148,7 @@ This gives a quick operator/support summary of:
 
 Check:
 
-- `logs/backend_runner.log`
+- `logs/backend_watchdog.log`
 - `logs/energy_monitoring.log`
 - whether `.env` still exists in the installed/project folder
 - whether `.venv` is intact

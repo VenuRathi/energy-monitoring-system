@@ -658,6 +658,61 @@ select {
   font-size: 0.8rem;
 }
 
+.all-meter-energy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.all-meter-energy-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: #fdfefe;
+}
+
+.all-meter-energy-card__header,
+.all-meter-energy-card__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.all-meter-energy-card__header h5 {
+  margin: 4px 0 3px;
+  font-size: 1rem;
+}
+
+.all-meter-energy-card__values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.all-meter-energy-card__value {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.all-meter-energy-card__value span,
+.all-meter-energy-card__value small,
+.all-meter-energy-card__footer {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.all-meter-energy-card__value strong {
+  display: block;
+  margin: 5px 0 2px;
+  font-size: 1.05rem;
+}
+
 .meter-card {
   display: block;
   width: 100%;
@@ -1549,6 +1604,15 @@ select {
   }
 
   .meter-card__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .all-meter-energy-card__header,
+  .all-meter-energy-card__footer {
+    display: grid;
+  }
+
+  .all-meter-energy-card__values {
     grid-template-columns: 1fr;
   }
 

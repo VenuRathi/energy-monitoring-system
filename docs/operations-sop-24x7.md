@@ -54,7 +54,7 @@ Do these weekly:
 
 - [ ] Confirm `EnergyMonitoringBackend` scheduled task exists.
 - [ ] Confirm `EnergyMonitoringDailyBackup` scheduled task exists.
-- [ ] Review `logs\backend_runner.log` for unexpected exits.
+- [ ] Review `logs\backend_watchdog.log` for unexpected exits and restarts.
 - [ ] Review disk free space.
 - [ ] Review PostgreSQL database size.
 - [ ] Confirm backups can be listed with `pg_restore -l`.
@@ -107,7 +107,7 @@ Main log files:
 
 ```text
 D:\FFPL\energy-monitoring-system\logs\energy_monitoring.log
-D:\FFPL\energy-monitoring-system\logs\backend_runner.log
+D:\FFPL\energy-monitoring-system\logs\backend_watchdog.log
 ```
 
 Look for:

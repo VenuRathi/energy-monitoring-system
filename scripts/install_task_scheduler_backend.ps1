@@ -5,15 +5,17 @@ param(
     [switch]$RunAsCurrentUser
 )
 
-$runner = Join-Path $ProjectRoot "scripts\run_backend_service.bat"
+$watchdog = Join-Path $ProjectRoot "scripts\run_backend_watchdog.ps1"
 
-if (-not (Test-Path $runner)) {
-    throw "Backend runner not found: $runner"
+if (-not (Test-Path $watchdog)) {
+    throw "Backend watchdog not found: $watchdog"
 }
 
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$runner`"" -WorkingDirectory $ProjectRoot
+$action = New-ScheduledTaskAction `
+    -Execute "powershell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$watchdog`" -ProjectRoot `"$ProjectRoot`"" `
+    -WorkingDirectory $ProjectRoot
 $triggerStartup = New-ScheduledTaskTrigger -AtStartup
-$triggerLogin = New-ScheduledTaskTrigger -AtLogOn -User $RunAsUser
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
@@ -34,7 +36,7 @@ try {
     Register-ScheduledTask `
         -TaskName $TaskName `
         -Action $action `
-        -Trigger @($triggerStartup, $triggerLogin) `
+        -Trigger $triggerStartup `
         -Settings $settings `
         -Principal $principal `
         -Description "Runs the Energy Monitoring backend continuously on the plant PC." `

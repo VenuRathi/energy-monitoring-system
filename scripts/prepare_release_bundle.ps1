@@ -88,7 +88,7 @@ Recommended first steps on a new PC:
 3. Create .venv and run: pip install -r requirements.txt
 4. Run energy-monitoring-system\scripts\post_install_check.ps1
 5. Confirm PostgreSQL and COM port settings
-6. Launch with energy-monitoring-system\run_app.bat, then set up Task Scheduler
+6. Register the backend watchdog with energy-monitoring-system\scripts\install_task_scheduler_backend.ps1
 
 Important:
 - This bundle does not include a Python virtual environment
