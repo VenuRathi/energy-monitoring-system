@@ -16,6 +16,27 @@ function Write-Check {
     Write-Host ("[{0}] {1}: {2}" -f $status, $Label, $Details)
 }
 
+function Check-ScheduledTask {
+    param(
+        [string]$Label,
+        [string]$TaskName
+    )
+
+    try {
+        $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+        Write-Check $Label ($null -ne $task) ($(if ($task) { $task.State } else { "task not found: $TaskName" }))
+    }
+    catch {
+        $message = $_.Exception.Message
+        if ($message -match "(?i)access is denied|requires elevation") {
+            Write-Check $Label $false "unable to inspect '$TaskName'; run this check as Administrator"
+        }
+        else {
+            Write-Check $Label $false $message
+        }
+    }
+}
+
 function Resolve-PgDumpPath {
     $command = Get-Command pg_dump -ErrorAction SilentlyContinue
     if ($command) {
@@ -91,21 +112,8 @@ else {
 $pythonOnPath = Get-Command python -ErrorAction SilentlyContinue
 Write-Check "Python on PATH" ($null -ne $pythonOnPath) ($(if ($pythonOnPath) { $pythonOnPath.Source } else { "python not found on PATH" }))
 
-try {
-    $backendTask = Get-ScheduledTask -TaskName $BackendTaskName -ErrorAction SilentlyContinue
-    Write-Check "Backend scheduled task" ($null -ne $backendTask) ($(if ($backendTask) { $backendTask.State } else { "task not found: $BackendTaskName" }))
-}
-catch {
-    Write-Check "Backend scheduled task" $false $_.Exception.Message
-}
-
-try {
-    $backupTask = Get-ScheduledTask -TaskName $BackupTaskName -ErrorAction SilentlyContinue
-    Write-Check "Daily backup scheduled task" ($null -ne $backupTask) ($(if ($backupTask) { $backupTask.State } else { "task not found: $BackupTaskName" }))
-}
-catch {
-    Write-Check "Daily backup scheduled task" $false $_.Exception.Message
-}
+Check-ScheduledTask "Backend scheduled task" $BackendTaskName
+Check-ScheduledTask "Daily backup scheduled task" $BackupTaskName
 
 $pgDumpPath = Resolve-PgDumpPath
 Write-Check "pg_dump available" ($null -ne $pgDumpPath) ($(if ($pgDumpPath) { $pgDumpPath } else { "pg_dump not found on PATH or standard PostgreSQL locations" }))
