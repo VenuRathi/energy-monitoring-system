@@ -16,8 +16,10 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 ### Readings retention
 
 - `READINGS_RETENTION_DAYS`: how many days of readings to keep; `0` disables automatic cleanup
-- `READINGS_CLEANUP_BATCH_SIZE`: maximum old readings deleted in one cleanup pass
+- `READINGS_CLEANUP_BATCH_SIZE`: maximum old readings deleted in one cleanup pass before partition migration
 - `READINGS_CLEANUP_INTERVAL_HOURS`: minimum hours between cleanup attempts
+- `READINGS_INSERT_BUFFER_ROWS`: maximum readings held in memory before a bulk insert flush
+- `READINGS_INSERT_BUFFER_SECONDS`: maximum seconds readings are held in memory before a bulk insert flush
 
 ### Database outage buffering
 
@@ -43,7 +45,7 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 
 ### Runtime / polling
 
-- `POLL_INTERVAL_SECONDS`: polling loop interval in seconds
+- `POLL_INTERVAL_SECONDS`: startup/default polling interval in seconds. When PostgreSQL is enabled, operators can change the live interval from Help > Reading interval; that saved value persists across restarts.
 - `DEMO_MODE`: serve synthetic data instead of requiring live meters
 - `ENABLE_DATABASE`: toggle PostgreSQL usage
 - `APP_TIMEZONE`: app display/report timezone, current default `Asia/Calcutta`
@@ -64,7 +66,7 @@ This project reads runtime settings from `.env` through `config/settings.py`.
 ```dotenv
 ENABLE_DATABASE=true
 DEMO_MODE=false
-POLL_INTERVAL_SECONDS=18
+POLL_INTERVAL_SECONDS=180
 APP_TIMEZONE=Asia/Calcutta
 
 API_HOST=127.0.0.1
@@ -86,6 +88,8 @@ DB_CONNECT_TIMEOUT_SECONDS=5
 READINGS_RETENTION_DAYS=1825
 READINGS_CLEANUP_BATCH_SIZE=5000
 READINGS_CLEANUP_INTERVAL_HOURS=1
+READINGS_INSERT_BUFFER_ROWS=100
+READINGS_INSERT_BUFFER_SECONDS=10
 ```
 
 ## Boss demo on one laptop
@@ -117,6 +121,8 @@ DB_CONNECT_TIMEOUT_SECONDS=5
 READINGS_RETENTION_DAYS=1825
 READINGS_CLEANUP_BATCH_SIZE=5000
 READINGS_CLEANUP_INTERVAL_HOURS=1
+READINGS_INSERT_BUFFER_ROWS=100
+READINGS_INSERT_BUFFER_SECONDS=10
 ```
 
 If you want API key mode enabled for the demo:
@@ -134,7 +140,7 @@ Example:
 ```dotenv
 ENABLE_DATABASE=true
 DEMO_MODE=false
-POLL_INTERVAL_SECONDS=18
+POLL_INTERVAL_SECONDS=180
 APP_TIMEZONE=Asia/Calcutta
 
 API_HOST=0.0.0.0
@@ -156,6 +162,8 @@ DB_CONNECT_TIMEOUT_SECONDS=5
 READINGS_RETENTION_DAYS=1825
 READINGS_CLEANUP_BATCH_SIZE=5000
 READINGS_CLEANUP_INTERVAL_HOURS=1
+READINGS_INSERT_BUFFER_ROWS=100
+READINGS_INSERT_BUFFER_SECONDS=10
 ```
 
 ## Important warnings
@@ -163,8 +171,9 @@ READINGS_CLEANUP_INTERVAL_HOURS=1
 - `VITE_API_KEY` is embedded into the browser build. It is useful for controlled LAN deployments and demos, not as a replacement for real login/auth.
 - `API_DEBUG` should stay `false` outside active local debugging.
 - Keep `.env` out of source control.
-- Restart the backend after changing `.env`.
+- Restart the backend after changing `.env`. Changes made through Help > Reading interval are saved immediately and apply before the next polling cycle.
 - Rebuild the frontend after changing any `VITE_` variable.
+- For 24x7 plant logging, use `POLL_INTERVAL_SECONDS=180` unless faster sampling is deliberately required.
 
 ## SMTP variables
 

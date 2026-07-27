@@ -7,6 +7,7 @@ from threading import Event
 from types import SimpleNamespace
 
 from app.services.polling_service import PollingService
+from app.services.buffered_reading_repository import BufferedReadingRepository
 from app.services.reading_spool import ReadingSpool
 from app.services.report_worker import ReportWorker
 
@@ -80,6 +81,117 @@ class ReadingSpoolTests(unittest.TestCase):
         self.assertEqual(result["failed"], 1)
         self.assertEqual(spool.status()["queuedCount"], 1)
         self.assertIn("MTR-001", spool.status()["lastReplayError"])
+
+    def test_database_insert_failure_queues_reading(self) -> None:
+        class FailingReadingRepository:
+            def insert_reading(self, **kwargs):
+                raise RuntimeError("database unavailable")
+
+        spool = self.make_spool()
+        service = PollingService(
+            meter_config={
+                "meter_id": "MTR-001",
+                "meter_name": "Test Meter",
+                "parameters": [{"name": "Frequency", "type": "float32"}],
+                "connection": {"com_port": "COM5", "slave_id": 1},
+            },
+            collector=None,
+            poll_interval_seconds=18,
+            reading_repository=FailingReadingRepository(),
+            reading_spool=spool,
+        )
+
+        timestamp = self.reading_timestamp(5)
+        service._save_database(
+            reading_timestamp=timestamp,
+            collected_at=timestamp,
+            reading_date="24/07/2026",
+            reading_time="10:00:05",
+            timestamp_source="collector_fallback",
+            meter_timestamp=None,
+            readings={"Frequency": 50.0},
+        )
+
+        self.assertEqual(spool.status()["queuedCount"], 1)
+        replayed = []
+        result = spool.replay({"MTR-001": lambda reading: replayed.append(reading) or True})
+        self.assertEqual(result, {"replayed": 1, "duplicates": 0, "failed": 0})
+        self.assertEqual(replayed[0].readings["Frequency"], 50.0)
+
+    def test_buffered_write_failure_queues_entire_batch(self) -> None:
+        class FailingRepository:
+            def insert_readings(self, payloads):
+                raise RuntimeError("postgres unavailable")
+
+        spool = self.make_spool()
+        buffered = BufferedReadingRepository(
+            FailingRepository(),
+            reading_spool=spool,
+            max_rows=2,
+            max_seconds=60,
+        )
+
+        for second in (6, 7):
+            buffered.insert_reading(
+                meter_id="MTR-001",
+                timestamp=self.reading_timestamp(second),
+                readings={"Frequency": 50.0 + second},
+                timestamp_source="meter",
+            )
+
+        self.assertEqual(spool.status()["queuedCount"], 2)
+
+    def test_spool_replay_uses_immediate_insert_when_available(self) -> None:
+        class BufferedLikeRepository:
+            def __init__(self) -> None:
+                self.buffered_calls = 0
+                self.immediate_calls = 0
+                self.flush_calls = 0
+
+            def insert_reading(self, **kwargs):
+                self.buffered_calls += 1
+                return True
+
+            def insert_reading_immediate(self, **kwargs):
+                self.immediate_calls += 1
+                return True
+
+            def flush(self):
+                self.flush_calls += 1
+                return 0
+
+        repository = BufferedLikeRepository()
+        service = PollingService(
+            meter_config={
+                "meter_id": "MTR-001",
+                "meter_name": "Test Meter",
+                "parameters": [{"name": "Frequency", "type": "float32"}],
+                "connection": {"com_port": "COM5", "slave_id": 1},
+            },
+            collector=None,
+            poll_interval_seconds=18,
+            reading_repository=repository,
+        )
+
+        queued = type(
+            "Queued",
+            (),
+            {
+                "meter_id": "MTR-001",
+                "timestamp": self.reading_timestamp(8),
+                "readings": {"Frequency": 50.0},
+                "meter_timestamp": None,
+                "collected_at": self.reading_timestamp(8),
+                "reading_date": "24/07/2026",
+                "reading_time": "10:00:08",
+                "timestamp_source": "meter",
+            },
+        )()
+
+        self.assertTrue(service.replay_queued_reading(queued))
+        self.assertEqual(repository.immediate_calls, 1)
+        self.assertEqual(repository.buffered_calls, 0)
+        self.assertEqual(repository.flush_calls, 0)
 
 
 class MeterClockTests(unittest.TestCase):

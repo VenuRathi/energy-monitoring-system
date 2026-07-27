@@ -11,6 +11,14 @@ import { useDashboardData } from "../hooks/useDashboardData";
 import { formatTimestamp } from "../lib/formatters";
 import type { MeterRecord } from "../types/energy";
 
+const TREND_RANGES = [
+  { label: "Live", hours: undefined },
+  { label: "24h", hours: 24 },
+  { label: "7d", hours: 168 },
+  { label: "30d", hours: 720 },
+  { label: "90d", hours: 2160 },
+];
+
 type DashboardPageProps = {
   selectedMeterId: string;
   onSelectMeter: (meterId: string) => void;
@@ -19,7 +27,8 @@ type DashboardPageProps = {
 
 export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeters }: DashboardPageProps) {
   const [trendParameterKey, setTrendParameterKey] = useState("active_power_total");
-  const { data, isLoading, isError, error, refetch } = useDashboardData(selectedMeterId, trendParameterKey);
+  const [trendHours, setTrendHours] = useState<number | undefined>(undefined);
+  const { data, isLoading, isError, error, refetch } = useDashboardData(selectedMeterId, trendParameterKey, trendHours);
 
   const meterTone = (meter: MeterRecord | null | undefined) => {
     if (!meter?.enabled) return "offline";
@@ -221,6 +230,18 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
                 <div>
                   <p className="section-label">Trend</p>
                   <h4>{selectedTrendLabel}</h4>
+                </div>
+                <div className="trend-range" role="tablist" aria-label="Trend range">
+                  {TREND_RANGES.map((range) => (
+                    <button
+                      key={range.label}
+                      type="button"
+                      className={`trend-range__button ${trendHours === range.hours ? "trend-range__button--active" : ""}`}
+                      onClick={() => setTrendHours(range.hours)}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
                 </div>
               </div>
               <EnergyChart data={data.trendSeries ?? []} label={selectedTrendLabel} unit={data.trendParameter?.unit ?? ""} />

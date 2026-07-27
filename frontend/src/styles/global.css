@@ -505,6 +505,39 @@ select {
   font-size: 0.82rem;
 }
 
+.trend-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.trend-range__button {
+  min-width: 42px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trend-range__button:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--text);
+}
+
+.trend-range__button--active {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
 .chart-tooltip {
   min-width: 160px;
   padding: 10px 12px;

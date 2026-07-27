@@ -28,6 +28,9 @@ class Settings:
     readings_retention_days: int
     readings_cleanup_batch_size: int
     readings_cleanup_interval_hours: int
+    readings_insert_buffer_rows: int
+    readings_insert_buffer_seconds: int
+    hourly_aggregate_refresh_interval_minutes: int
     reading_spool_path: str
     reading_spool_max_rows: int
     reading_spool_max_rows_per_meter: int
@@ -56,7 +59,7 @@ def load_settings() -> Settings:
     )
 
     return Settings(
-        poll_interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", "18")),
+        poll_interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", "180")),
         demo_mode=coerce_bool(os.getenv("DEMO_MODE", "false"), False),
         enable_database=enable_database,
         api_host=os.getenv("API_HOST", "127.0.0.1"),
@@ -76,6 +79,9 @@ def load_settings() -> Settings:
         readings_retention_days=int(os.getenv("READINGS_RETENTION_DAYS", "1825")),
         readings_cleanup_batch_size=int(os.getenv("READINGS_CLEANUP_BATCH_SIZE", "5000")),
         readings_cleanup_interval_hours=int(os.getenv("READINGS_CLEANUP_INTERVAL_HOURS", "1")),
+        readings_insert_buffer_rows=int(os.getenv("READINGS_INSERT_BUFFER_ROWS", "100")),
+        readings_insert_buffer_seconds=int(os.getenv("READINGS_INSERT_BUFFER_SECONDS", "10")),
+        hourly_aggregate_refresh_interval_minutes=int(os.getenv("HOURLY_AGGREGATE_REFRESH_INTERVAL_MINUTES", "15")),
         reading_spool_path=os.getenv("READING_SPOOL_PATH", "data/reading_spool.sqlite3"),
         reading_spool_max_rows=int(os.getenv("READING_SPOOL_MAX_ROWS", "100000")),
         reading_spool_max_rows_per_meter=int(os.getenv("READING_SPOOL_MAX_ROWS_PER_METER", "50000")),

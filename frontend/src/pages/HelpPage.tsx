@@ -1,4 +1,6 @@
 import { APP_META } from "../app/appMeta";
+import { useEffect, useState } from "react";
+import { savePollingSettings } from "../api/energyApi";
 import { useSystemStatusData } from "../hooks/useMetersData";
 import { formatTimestamp } from "../lib/formatters";
 import type { SystemStatusMeter } from "../types/energy";
@@ -32,6 +34,36 @@ function statusLabel(meter: SystemStatusMeter) {
 
 export function HelpPage() {
   const { data: systemStatus, isLoading, isError, error, refetch } = useSystemStatusData();
+  const [pollIntervalSeconds, setPollIntervalSeconds] = useState("");
+  const [savingPollingSettings, setSavingPollingSettings] = useState(false);
+  const [pollingSettingsMessage, setPollingSettingsMessage] = useState("");
+
+  useEffect(() => {
+    if (systemStatus?.polling.pollIntervalSeconds) {
+      setPollIntervalSeconds(String(systemStatus.polling.pollIntervalSeconds));
+    }
+  }, [systemStatus?.polling.pollIntervalSeconds]);
+
+  const savePollingInterval = async () => {
+    const value = Number(pollIntervalSeconds);
+    if (!Number.isInteger(value) || value < 10 || value > 3600) {
+      setPollingSettingsMessage("Enter a whole number from 10 to 3600 seconds.");
+      return;
+    }
+
+    setSavingPollingSettings(true);
+    setPollingSettingsMessage("");
+    try {
+      const saved = await savePollingSettings(value);
+      setPollIntervalSeconds(String(saved.pollIntervalSeconds));
+      setPollingSettingsMessage(`Saved. New interval: ${saved.pollIntervalSeconds} seconds.`);
+      await refetch();
+    } catch (saveError) {
+      setPollingSettingsMessage(saveError instanceof Error ? saveError.message : "Unable to save polling interval.");
+    } finally {
+      setSavingPollingSettings(false);
+    }
+  };
 
   return (
     <section className="page-stack">
@@ -160,6 +192,38 @@ export function HelpPage() {
               <article className="panel help-card">
                 <div className="section-heading">
                   <div>
+                    <p className="section-label">Polling configuration</p>
+                    <h4>Reading interval</h4>
+                  </div>
+                </div>
+                <div className="editor__grid">
+                  <label className="editor__field">
+                    <span>Seconds between cycles</span>
+                    <input
+                      type="number"
+                      min="10"
+                      max="3600"
+                      step="1"
+                      value={pollIntervalSeconds}
+                      onChange={(event) => setPollIntervalSeconds(event.target.value)}
+                    />
+                  </label>
+                </div>
+                <p className="table-subtle">
+                  Current: {systemStatus.polling.pollIntervalSeconds} sec | Source: {systemStatus.polling.source}
+                </p>
+                {systemStatus.polling.updatedAt ? <p className="table-subtle">Updated: {formatTimestamp(systemStatus.polling.updatedAt)}</p> : null}
+                {pollingSettingsMessage ? <p className="table-subtle">{pollingSettingsMessage}</p> : null}
+                <div className="editor__actions">
+                  <button type="button" className="primary-button" onClick={savePollingInterval} disabled={savingPollingSettings}>
+                    {savingPollingSettings ? "Saving..." : "Save interval"}
+                  </button>
+                </div>
+              </article>
+
+              <article className="panel help-card">
+                <div className="section-heading">
+                  <div>
                     <p className="section-label">Health checks</p>
                     <h4>Backend dependencies</h4>
                   </div>
@@ -167,9 +231,36 @@ export function HelpPage() {
                 <ul className="help-list help-list--compact">
                   <li>API: {systemStatus.checks.api.message}</li>
                   <li>Database: {systemStatus.checks.database.message}</li>
+                  <li>DB hardening: {systemStatus.checks.databaseHardening.message}</li>
                   <li>Meter inventory: {systemStatus.checks.meters.message}</li>
                   <li>Polling: {systemStatus.checks.polling.message}</li>
                   <li>Data source: {systemStatus.checks.dataSource.message}</li>
+                </ul>
+              </article>
+
+              <article className="panel help-card">
+                <div className="section-heading">
+                  <div>
+                    <p className="section-label">Database hardening</p>
+                    <h4>Storage health</h4>
+                  </div>
+                  <span
+                    className={`status-pill status-pill--${
+                      systemStatus.checks.databaseHardening.status === "ok" ? "online" : "warning"
+                    }`}
+                  >
+                    {systemStatus.checks.databaseHardening.status}
+                  </span>
+                </div>
+                <ul className="help-list help-list--compact">
+                  <li>Readings partitioned: {systemStatus.databaseHardening.readingsPartitioned ? "Yes" : "No"}</li>
+                  <li>Raw readings: {systemStatus.databaseHardening.readingsCount ?? "n/a"}</li>
+                  <li>Daily partitions: {systemStatus.databaseHardening.partitionCount ?? "n/a"}</li>
+                  <li>ID default: {systemStatus.databaseHardening.readingsIdDefaultPresent ? "Present" : "Missing"}</li>
+                  <li>Duplicate groups: {systemStatus.databaseHardening.duplicateGroups ?? "n/a"}</li>
+                  <li>Hourly aggregate rows: {systemStatus.databaseHardening.hourlyAggregateRows ?? "n/a"}</li>
+                  <li>Pending DB restart settings: {systemStatus.databaseHardening.pendingRestartSettings.length}</li>
+                  <li>Legacy table retained: {systemStatus.databaseHardening.legacyTablePresent ? "Yes" : "No"}</li>
                 </ul>
               </article>
             </div>

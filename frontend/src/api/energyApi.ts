@@ -15,6 +15,7 @@ import type {
   MeterInput,
   MeterRecord,
   ParameterMeta,
+  PollingSettings,
   ReportFilters,
   ReportEmailInput,
   ReportEmailResult,
@@ -27,6 +28,17 @@ import { requestJson, requestReportDownload } from "./httpClient";
 
 export function fetchSystemStatus(): Promise<SystemStatusResponse> {
   return requestJson<SystemStatusResponse>("/api/status");
+}
+
+export function fetchPollingSettings(): Promise<PollingSettings> {
+  return requestJson<PollingSettings>("/api/polling/settings");
+}
+
+export function savePollingSettings(pollIntervalSeconds: number): Promise<PollingSettings> {
+  return requestJson<PollingSettings>("/api/polling/settings", {
+    method: "POST",
+    body: JSON.stringify({ pollIntervalSeconds }),
+  });
 }
 
 export function fetchMeters(): Promise<MeterRecord[]> {
@@ -71,11 +83,18 @@ export function fetchParameters(): Promise<ParameterMeta[]> {
   return requestJson<ParameterMeta[]>("/api/parameters");
 }
 
-export function fetchDashboardData(meterId: string, trendParameterKey = "active_power_total"): Promise<DashboardData> {
+export function fetchDashboardData(
+  meterId: string,
+  trendParameterKey = "active_power_total",
+  trendHours?: number,
+): Promise<DashboardData> {
   const query = new URLSearchParams({
     meterId,
     trendParameterKey,
   });
+  if (trendHours && trendHours > 0) {
+    query.set("trendHours", String(trendHours));
+  }
   return requestJson<DashboardData>(`/api/dashboard?${query.toString()}`);
 }
 
@@ -83,10 +102,13 @@ export function fetchMeterReadings(meterId: string): Promise<LatestReadingRow[]>
   return requestJson<LatestReadingRow[]>(`/api/meters/${encodeURIComponent(meterId)}/readings`);
 }
 
-export function fetchTrendSeries(meterId: string, parameterKey: string): Promise<TrendPoint[]> {
+export function fetchTrendSeries(meterId: string, parameterKey: string, hours?: number): Promise<TrendPoint[]> {
   const query = new URLSearchParams({
     parameterKey,
   });
+  if (hours && hours > 0) {
+    query.set("hours", String(hours));
+  }
   return requestJson<TrendPoint[]>(`/api/meters/${encodeURIComponent(meterId)}/trend?${query.toString()}`);
 }
 

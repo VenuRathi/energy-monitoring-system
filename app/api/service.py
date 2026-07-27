@@ -22,9 +22,15 @@ from psycopg.rows import dict_row
 
 from app.database.connection import get_connection
 from app.database.models import parameter_name_to_column_name
-from app.database.repositories import AlertRuleRepository, EmailSettingsRepository, MeterRepository, ReportScheduleRepository
+from app.database.repositories import AlertRuleRepository, EmailSettingsRepository, MeterRepository, ReportScheduleRepository, RuntimeSettingsRepository
 from app.collectors.modbus_client import ModbusRTUClient
-from app.runtime_state import get_all_meter_runtime_statuses, get_polling_loop_state, get_shared_modbus_client
+from app.runtime_state import (
+    get_all_meter_runtime_statuses,
+    get_polling_loop_state,
+    get_runtime_poll_interval_seconds,
+    get_shared_modbus_client,
+    set_runtime_poll_interval_seconds,
+)
 from app.services.reading_spool import ReadingSpool
 from config.meter_loader import load_meter_config
 from config.settings import Settings, load_settings
@@ -102,6 +108,21 @@ AGGREGATE_AVERAGE_KEYS = {
     "voltage_l_minus_l_avg",
     "frequency",
     "power_factor_total",
+}
+
+
+HOURLY_TREND_COLUMNS = {
+    "voltage_l_minus_n_avg": "voltage_l_minus_n_avg_avg",
+    "voltage_l_minus_l_avg": "voltage_l_minus_l_avg_avg",
+    "current_avg": "current_avg_avg",
+    "active_power_total": "active_power_total_avg",
+    "reactive_power_total": "reactive_power_total_avg",
+    "apparent_power_total": "apparent_power_total_avg",
+    "frequency": "frequency_avg",
+    "power_factor_total": "power_factor_total_avg",
+    "active_energy_received_out_of_load": "active_energy_received_out_of_load_max",
+    "reactive_energy_received": "reactive_energy_received_max",
+    "apparent_energy_received": "apparent_energy_received_max",
 }
 
 logger = logging.getLogger("energy_monitoring.api.service")
@@ -685,7 +706,178 @@ def ensure_schema() -> None:
         parameters.extend(meter.get("parameters", []))
 
     with _open_connection() as connection:
-        create_tables(connection, parameters)
+        create_tables(connection, parameters, get_runtime_settings().poll_interval_seconds)
+
+
+def _serialize_polling_settings(record: dict[str, Any], source: str) -> dict[str, Any]:
+    return {
+        "pollIntervalSeconds": int(record["poll_interval_seconds"]),
+        "updatedAt": _serialize_timestamp(record.get("updated_at")),
+        "source": source,
+    }
+
+
+def get_polling_settings() -> dict[str, Any]:
+    settings = get_runtime_settings()
+    fallback = {"poll_interval_seconds": get_runtime_poll_interval_seconds(settings.poll_interval_seconds), "updated_at": None}
+    if not settings.enable_database:
+        return _serialize_polling_settings(fallback, "environment")
+
+    saved = RuntimeSettingsRepository(settings=settings).get_polling_settings()
+    if saved is None:
+        return _serialize_polling_settings(fallback, "environment")
+
+    set_runtime_poll_interval_seconds(int(saved["poll_interval_seconds"]))
+    return _serialize_polling_settings(saved, "database")
+
+
+def save_polling_settings(payload: dict[str, Any]) -> dict[str, Any]:
+    settings = get_runtime_settings()
+    if not settings.enable_database:
+        raise ValueError("Polling settings can only be saved when the database is enabled.")
+
+    raw_value = payload.get("pollIntervalSeconds", payload.get("poll_interval_seconds"))
+    if isinstance(raw_value, bool):
+        raise ValueError("Polling interval must be a whole number of seconds between 10 and 3600.")
+    try:
+        poll_interval_seconds = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Polling interval must be a whole number of seconds between 10 and 3600.") from exc
+    if poll_interval_seconds < 10 or poll_interval_seconds > 3600:
+        raise ValueError("Polling interval must be between 10 and 3600 seconds.")
+
+    saved = RuntimeSettingsRepository(settings=settings).upsert_poll_interval_seconds(poll_interval_seconds)
+    set_runtime_poll_interval_seconds(poll_interval_seconds)
+    logger.info("Polling interval updated through API: %s seconds.", poll_interval_seconds)
+    return _serialize_polling_settings(saved, "database")
+
+
+def _default_database_hardening_status() -> dict[str, Any]:
+    return {
+        "readingsPartitioned": False,
+        "readingsCount": None,
+        "partitionCount": None,
+        "readingsIdDefaultPresent": False,
+        "duplicateGroups": None,
+        "hourlyAggregateRows": None,
+        "oldestReading": "",
+        "newestReading": "",
+        "oldestHour": "",
+        "newestHour": "",
+        "pendingRestartSettings": [],
+        "legacyTablePresent": False,
+    }
+
+
+def _database_hardening_status(connection: Connection) -> dict[str, Any]:
+    status = _default_database_hardening_status()
+
+    with connection.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            SELECT c.relkind = 'p' AS readings_partitioned
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = current_schema()
+              AND c.relname = 'readings';
+            """
+        )
+        table_row = cursor.fetchone()
+        status["readingsPartitioned"] = bool(table_row and table_row["readings_partitioned"])
+
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS readings_count,
+                MIN(timestamp) AS oldest_reading,
+                MAX(timestamp) AS newest_reading
+            FROM readings;
+            """
+        )
+        readings_row = cursor.fetchone() or {}
+        status["readingsCount"] = int(readings_row.get("readings_count") or 0)
+        status["oldestReading"] = _serialize_timestamp(readings_row.get("oldest_reading"))
+        status["newestReading"] = _serialize_timestamp(readings_row.get("newest_reading"))
+
+        cursor.execute("SELECT COUNT(*) AS partition_count FROM pg_inherits WHERE inhparent = 'readings'::regclass;")
+        status["partitionCount"] = int((cursor.fetchone() or {}).get("partition_count") or 0)
+
+        cursor.execute(
+            """
+            SELECT column_default
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'readings'
+              AND column_name = 'id';
+            """
+        )
+        id_default_row = cursor.fetchone() or {}
+        status["readingsIdDefaultPresent"] = bool(id_default_row.get("column_default"))
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS duplicate_groups
+            FROM (
+                SELECT meter_id, timestamp, timestamp_source
+                FROM readings
+                GROUP BY meter_id, timestamp, timestamp_source
+                HAVING COUNT(*) > 1
+            ) duplicates;
+            """
+        )
+        status["duplicateGroups"] = int((cursor.fetchone() or {}).get("duplicate_groups") or 0)
+
+        cursor.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = current_schema()
+                  AND c.relname = 'readings_legacy'
+            ) AS legacy_table_present;
+            """
+        )
+        status["legacyTablePresent"] = bool((cursor.fetchone() or {}).get("legacy_table_present"))
+
+        cursor.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = current_schema()
+                  AND c.relname = 'hourly_readings'
+            ) AS hourly_table_present;
+            """
+        )
+        hourly_table_present = bool((cursor.fetchone() or {}).get("hourly_table_present"))
+        if hourly_table_present:
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS hourly_rows,
+                    MIN(hour_ts) AS oldest_hour,
+                    MAX(hour_ts) AS newest_hour
+                FROM hourly_readings;
+                """
+            )
+            hourly_row = cursor.fetchone() or {}
+            status["hourlyAggregateRows"] = int(hourly_row.get("hourly_rows") or 0)
+            status["oldestHour"] = _serialize_timestamp(hourly_row.get("oldest_hour"))
+            status["newestHour"] = _serialize_timestamp(hourly_row.get("newest_hour"))
+
+        cursor.execute(
+            """
+            SELECT array_agg(name ORDER BY name) AS pending_restart_settings
+            FROM pg_settings
+            WHERE pending_restart = TRUE;
+            """
+        )
+        pending_row = cursor.fetchone() or {}
+        status["pendingRestartSettings"] = list(pending_row.get("pending_restart_settings") or [])
+
+    return status
 
 
 def get_system_health() -> dict[str, Any]:
@@ -693,6 +885,13 @@ def get_system_health() -> dict[str, Any]:
     demo_mode = _demo_mode_enabled()
     runtime_statuses = _runtime_meter_statuses()
     polling_state = _serialize_polling_loop_state()
+    try:
+        polling_settings = get_polling_settings()
+    except Exception:
+        polling_settings = _serialize_polling_settings(
+            {"poll_interval_seconds": get_runtime_poll_interval_seconds(settings.poll_interval_seconds), "updated_at": None},
+            "environment",
+        )
 
     checks: dict[str, dict[str, Any]] = {
         "api": {"status": "ok", "message": "API is reachable."},
@@ -702,6 +901,7 @@ def get_system_health() -> dict[str, Any]:
         },
     }
     overall_status = "ok"
+    database_hardening_status = _default_database_hardening_status()
 
     reading_spool_status: dict[str, Any]
     if settings.enable_database and not demo_mode:
@@ -756,14 +956,45 @@ def get_system_health() -> dict[str, Any]:
             with _open_connection() as connection, connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
+                database_hardening_status = _database_hardening_status(connection)
             checks["database"] = {"status": "ok", "message": "Database connection healthy."}
+            hardening_messages = []
+            if not database_hardening_status["readingsPartitioned"]:
+                hardening_messages.append("readings table is not partitioned")
+            if database_hardening_status["duplicateGroups"]:
+                hardening_messages.append(f"{database_hardening_status['duplicateGroups']} duplicate group(s)")
+            if not database_hardening_status["readingsIdDefaultPresent"]:
+                hardening_messages.append("readings.id has no default sequence")
+            if database_hardening_status["hourlyAggregateRows"] in (None, 0):
+                hardening_messages.append("hourly aggregate table is empty")
+            if database_hardening_status["pendingRestartSettings"]:
+                hardening_messages.append(
+                    f"{len(database_hardening_status['pendingRestartSettings'])} PostgreSQL setting(s) need restart"
+                )
+
+            if hardening_messages:
+                checks["databaseHardening"] = {
+                    "status": "degraded",
+                    "message": "; ".join(hardening_messages) + ".",
+                }
+                overall_status = "degraded"
+            else:
+                checks["databaseHardening"] = {
+                    "status": "ok",
+                    "message": "Readings partitioning, duplicate protection, hourly aggregates, and PostgreSQL tuning look healthy.",
+                }
         except Exception as exc:
             checks["database"] = {"status": "degraded", "message": f"Database check failed: {exc}"}
+            checks["databaseHardening"] = {"status": "degraded", "message": f"Database hardening check failed: {exc}"}
             overall_status = "degraded"
     else:
         checks["database"] = {
             "status": "skipped",
             "message": "Database check skipped because database is disabled or demo mode is enabled.",
+        }
+        checks["databaseHardening"] = {
+            "status": "skipped",
+            "message": "Database hardening check skipped because database is disabled or demo mode is enabled.",
         }
 
     meter_summary = {
@@ -840,8 +1071,9 @@ def get_system_health() -> dict[str, Any]:
             "databaseEnabled": settings.enable_database,
         },
         "summary": meter_summary,
-        "polling": polling_state,
+        "polling": {**polling_state, **polling_settings},
         "readingSpool": reading_spool_status,
+        "databaseHardening": database_hardening_status,
         "checks": checks,
     }
 
@@ -1471,7 +1703,38 @@ def get_latest_readings(meter_id: str) -> list[dict[str, Any]]:
     return _latest_readings_from_row(latest_row, catalog)
 
 
-def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12) -> list[dict[str, Any]]:
+def _fetch_hourly_trend_series(meter_id: str, parameter_key: str, hours: int, limit: int) -> list[dict[str, Any]]:
+    hourly_column = HOURLY_TREND_COLUMNS.get(parameter_key)
+    if hourly_column is None:
+        return []
+
+    query = sql.SQL(
+        """
+        SELECT hour_ts, {column}
+        FROM hourly_readings
+        WHERE meter_id = %s
+          AND hour_ts >= now() - (%s * interval '1 hour')
+        ORDER BY hour_ts DESC
+        LIMIT %s
+        """
+    ).format(column=sql.Identifier(hourly_column))
+
+    with _open_connection() as connection, connection.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(query, (meter_id, max(1, int(hours)), limit))
+        rows = cursor.fetchall()
+
+    rows.reverse()
+    return [
+        {
+            "timestamp": _serialize_timestamp(row["hour_ts"]),
+            "value": row[hourly_column],
+        }
+        for row in rows
+        if row.get(hourly_column) is not None
+    ]
+
+
+def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12, hours: int | None = None) -> list[dict[str, Any]]:
     catalog_map = get_parameter_map()
     if parameter_key not in catalog_map:
         raise ValueError(f"Unknown parameter key '{parameter_key}'.")
@@ -1482,6 +1745,11 @@ def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12) -> list
 
     if _demo_mode_enabled():
         return _demo_trend_series_for_meter(meter_id, parameter_key, limit)
+
+    if hours is not None and hours > 6:
+        hourly_series = _fetch_hourly_trend_series(meter_id, parameter_key, hours, limit)
+        if hourly_series:
+            return hourly_series
 
     column_name = parameter["key"]
     query = sql.SQL(
@@ -1509,7 +1777,11 @@ def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12) -> list
     ]
 
 
-def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_total") -> dict[str, Any]:
+def get_dashboard_data(
+    meter_id: str,
+    trend_parameter_key: str = "active_power_total",
+    trend_hours: int | None = None,
+) -> dict[str, Any]:
     if _demo_mode_enabled():
         return _get_demo_dashboard_data(meter_id, trend_parameter_key)
 
@@ -1564,7 +1836,7 @@ def get_dashboard_data(meter_id: str, trend_parameter_key: str = "active_power_t
         selected_latest_row = latest_rows_by_meter.get(selected_meter["meter_id"])
         metrics = _metrics_from_latest_row(selected_latest_row, catalog)
         latest_readings = _latest_readings_from_row(selected_latest_row, catalog)
-        trend_series = get_trend_series(selected_meter["meter_id"], trend_parameter["key"])
+        trend_series = get_trend_series(selected_meter["meter_id"], trend_parameter["key"], hours=trend_hours)
 
     active_alerts = list_active_alerts(None if meter_id == "ALL" else selected_meter["meter_id"])
 

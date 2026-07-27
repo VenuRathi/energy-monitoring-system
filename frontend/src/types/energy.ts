@@ -358,6 +358,15 @@ export type PollingStatus = {
   totalCyclesCompleted: number;
   lastGlobalPollingError: string;
   lastGlobalPollingErrorTime: string;
+  pollIntervalSeconds: number;
+  updatedAt: string;
+  source: "database" | "environment";
+};
+
+export type PollingSettings = {
+  pollIntervalSeconds: number;
+  updatedAt: string;
+  source: "database" | "environment";
 };
 
 export type ReadingSpoolStatus = {
@@ -368,6 +377,21 @@ export type ReadingSpoolStatus = {
   oldestQueuedAt: string;
   lastReplayAt: string;
   lastReplayError: string;
+};
+
+export type DatabaseHardeningStatus = {
+  readingsPartitioned: boolean;
+  readingsCount: number | null;
+  partitionCount: number | null;
+  readingsIdDefaultPresent: boolean;
+  duplicateGroups: number | null;
+  hourlyAggregateRows: number | null;
+  oldestReading: string;
+  newestReading: string;
+  oldestHour: string;
+  newestHour: string;
+  pendingRestartSettings: string[];
+  legacyTablePresent: boolean;
 };
 
 export type SystemStatusResponse = {
@@ -388,10 +412,12 @@ export type SystemStatusResponse = {
   };
   polling: PollingStatus;
   readingSpool: ReadingSpoolStatus;
+  databaseHardening: DatabaseHardeningStatus;
   checks: {
     api: HealthCheck;
     dataSource: HealthCheck;
     database: HealthCheck;
+    databaseHardening: HealthCheck;
     meters: HealthCheck;
     polling: HealthCheck;
     readingSpool: HealthCheck;

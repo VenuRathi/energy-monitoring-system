@@ -15,7 +15,7 @@ from app.collectors.modbus_client import ModbusRTUClient
 from app.collectors.schneider.pm5000 import PM5000Collector
 from app.database.connection import get_connection
 from app.database.models import create_tables
-from app.database.repositories import AlertRuleRepository, MeterRepository, ReadingRepository
+from app.database.repositories import AlertRuleRepository, MeterRepository, ReadingRepository, RuntimeSettingsRepository
 from app.runtime_state import get_shared_modbus_client as get_registered_modbus_client
 from app.runtime_state import (
     pop_all_shared_modbus_clients,
@@ -24,10 +24,13 @@ from app.runtime_state import (
     record_polling_cycle_end,
     record_polling_cycle_start,
     record_polling_loop_error,
+    get_runtime_poll_interval_seconds,
     set_polling_loop_running,
+    set_runtime_poll_interval_seconds,
     set_shared_modbus_client,
 )
 from app.services.polling_service import PollingService
+from app.services.buffered_reading_repository import BufferedReadingRepository
 from app.services.reading_spool import ReadingSpool
 from app.services.report_worker import ReportWorker
 from app.services.retention_service import ReadingsRetentionService
@@ -350,6 +353,13 @@ def _log_startup_context(settings: Settings, logger: logging.Logger) -> None:
             "API_KEY_ENABLED is true but API_KEY is blank. Protected write/control endpoints will reject requests until a key is configured."
         )
 
+    if not settings.demo_mode and settings.poll_interval_seconds < 60:
+        logger.warning(
+            "POLL_INTERVAL_SECONDS=%s is below the recommended production minimum. "
+            "Use 180 seconds for standard 24x7 plant logging unless faster polling is intentional.",
+            settings.poll_interval_seconds,
+        )
+
 
 def _log_meter_startup_summary(
     meter_definitions: list[dict],
@@ -459,10 +469,16 @@ def build_polling_service(
     collector = build_collector(meter_definition, modbus_client)
     scoped_reading_repository = None
     if settings.enable_database:
-        scoped_reading_repository = ReadingRepository(
+        base_reading_repository = ReadingRepository(
             connection=None,
             parameters=meter_definition["parameters"],
             settings=settings,
+        )
+        scoped_reading_repository = BufferedReadingRepository(
+            base_reading_repository,
+            reading_spool=reading_spool,
+            max_rows=settings.readings_insert_buffer_rows,
+            max_seconds=settings.readings_insert_buffer_seconds,
         )
     alert_rule_repository = AlertRuleRepository(connection=None, settings=settings) if settings.enable_database else None
 
@@ -490,17 +506,22 @@ def main() -> None:
     # Database setup (optional)
     meter_repository = None
     retention_service = None
+    aggregate_repository = None
     if settings.enable_database:
         all_parameters = _all_config_parameters(meter_config)
         with get_connection(settings) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1;")
-            create_tables(connection, all_parameters)
+            create_tables(connection, all_parameters, settings.poll_interval_seconds)
         meter_repository = MeterRepository(connection=None, settings=settings)
+        saved_polling_settings = RuntimeSettingsRepository(settings=settings).get_polling_settings()
+        if saved_polling_settings is not None:
+            set_runtime_poll_interval_seconds(int(saved_polling_settings["poll_interval_seconds"]))
         retention_service = ReadingsRetentionService(
             settings=settings,
             reading_repository=ReadingRepository(connection=None, settings=settings),
         )
+        aggregate_repository = ReadingRepository(connection=None, settings=settings)
         logger.info("PostgreSQL startup preflight succeeded and schema is ready.")
     else:
         logger.info("PostgreSQL logging is disabled.")
@@ -551,9 +572,23 @@ def main() -> None:
     elif settings.enable_database and not settings.demo_mode:
         logger.info("Scheduled report worker is disabled by configuration.")
     last_retention_cleanup_monotonic = 0.0
+    last_hourly_aggregate_refresh_monotonic = 0.0
 
     def wait_for_next_cycle() -> bool:
-        return stop_event.wait(max(1, settings.poll_interval_seconds))
+        interval_seconds = max(1, get_runtime_poll_interval_seconds(settings.poll_interval_seconds))
+        deadline = time.monotonic() + interval_seconds
+        while not stop_event.is_set():
+            remaining_seconds = deadline - time.monotonic()
+            if remaining_seconds <= 0:
+                return False
+            if stop_event.wait(min(1.0, remaining_seconds)):
+                return True
+            updated_interval_seconds = max(1, get_runtime_poll_interval_seconds(settings.poll_interval_seconds))
+            if updated_interval_seconds != interval_seconds:
+                interval_seconds = updated_interval_seconds
+                deadline = time.monotonic() + interval_seconds
+                logger.info("Polling interval changed to %s seconds; applying it before the next cycle.", interval_seconds)
+        return True
 
     def maybe_cleanup_old_readings() -> None:
         nonlocal last_retention_cleanup_monotonic
@@ -574,6 +609,28 @@ def main() -> None:
         except Exception as exc:
             record_polling_loop_error(f"Readings retention cleanup failed: {exc}", datetime.now(timezone.utc))
             logger.exception("Readings retention cleanup failed: %s", exc)
+
+    def maybe_refresh_hourly_aggregates() -> None:
+        nonlocal last_hourly_aggregate_refresh_monotonic
+        if aggregate_repository is None or settings.hourly_aggregate_refresh_interval_minutes <= 0:
+            return
+
+        now_monotonic = time.monotonic()
+        refresh_interval_seconds = max(1, settings.hourly_aggregate_refresh_interval_minutes) * 60
+        if (
+            last_hourly_aggregate_refresh_monotonic > 0
+            and now_monotonic - last_hourly_aggregate_refresh_monotonic < refresh_interval_seconds
+        ):
+            return
+
+        last_hourly_aggregate_refresh_monotonic = now_monotonic
+        try:
+            refreshed_count = aggregate_repository.refresh_hourly_readings(2)
+            if refreshed_count > 0:
+                logger.info("Hourly readings aggregate refreshed %s row(s).", refreshed_count)
+        except Exception as exc:
+            record_polling_loop_error(f"Hourly readings aggregate refresh failed: {exc}", datetime.now(timezone.utc))
+            logger.exception("Hourly readings aggregate refresh failed: %s", exc)
 
     def rebuild_polling_services(next_meter_definitions: list[dict]) -> None:
         nonlocal polling_services, active_signature
@@ -676,6 +733,12 @@ def main() -> None:
                         exc,
                     )
             if settings.enable_database:
+                for polling_service in polling_services:
+                    try:
+                        polling_service.flush_database_writes()
+                    except Exception as exc:
+                        record_polling_loop_error(f"Buffered reading flush failed: {exc}", datetime.now(timezone.utc))
+                        logger.exception("Buffered reading flush failed: %s", exc)
                 if reading_spool is not None:
                     callbacks = {
                         polling_service.meter_config["meter_id"]: polling_service.replay_queued_reading
@@ -690,6 +753,7 @@ def main() -> None:
                         record_polling_loop_error(f"Reading spool replay failed: {exc}", datetime.now(timezone.utc))
                         logger.exception("Reading spool replay failed: %s", exc)
                 maybe_cleanup_old_readings()
+                maybe_refresh_hourly_aggregates()
             cycle_ended_at = datetime.now(timezone.utc)
             cycle_duration_seconds = time.monotonic() - cycle_started_monotonic
             record_polling_cycle_end(cycle_ended_at, cycle_duration_seconds)
@@ -706,6 +770,11 @@ def main() -> None:
         set_polling_loop_running(False)
         if report_worker is not None:
             report_worker.join(timeout=5)
+        for polling_service in polling_services:
+            try:
+                polling_service.flush_database_writes()
+            except Exception:
+                logger.exception("Final buffered reading flush failed.")
         if api_server is not None:
             api_server.stop()
         _close_modbus_clients(shared_modbus_clients)

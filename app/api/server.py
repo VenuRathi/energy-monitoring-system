@@ -17,6 +17,7 @@ from app.api.service import (
     ensure_schema,
     get_email_health,
     get_email_settings,
+    get_polling_settings,
     get_system_health,
     get_dashboard_data,
     get_latest_readings,
@@ -28,6 +29,7 @@ from app.api.service import (
     list_meters,
     list_report_schedules,
     save_email_settings,
+    save_polling_settings,
     save_alert_rule,
     save_meter,
     save_report_schedule,
@@ -217,7 +219,9 @@ def create_app() -> Flask:
     def meter_trend(meter_id: str):
         parameter_key = request.args.get("parameterKey", "active_power_total")
         limit = _parse_limited_int(request.args.get("limit"), default=12, minimum=1, maximum=500, name="limit")
-        return get_trend_series(meter_id, parameter_key, limit=limit)
+        hours = request.args.get("hours")
+        hours_value = int(hours) if hours and hours.isdigit() else None
+        return get_trend_series(meter_id, parameter_key, limit=limit, hours=hours_value)
 
     @app.route("/api/meters/<meter_id>/alert-rules", methods=["GET"])
     @_route_json
@@ -256,10 +260,12 @@ def create_app() -> Flask:
     def dashboard():
         meter_id = request.args.get("meterId")
         trend_parameter_key = request.args.get("trendParameterKey", "active_power_total")
+        trend_hours = request.args.get("trendHours")
+        trend_hours_value = int(trend_hours) if trend_hours and trend_hours.isdigit() else None
         if not meter_id:
             meters = list_meters()
             meter_id = meters[0]["meter_id"] if meters else ""
-        return get_dashboard_data(meter_id, trend_parameter_key)
+        return get_dashboard_data(meter_id, trend_parameter_key, trend_hours=trend_hours_value)
 
     @app.route("/api/reports/excel", methods=["POST"])
     @_require_api_key
@@ -344,6 +350,18 @@ def create_app() -> Flask:
     def update_email_settings():
         payload = request.get_json(force=True, silent=False) or {}
         return save_email_settings(payload)
+
+    @app.route("/api/polling/settings", methods=["GET"])
+    @_route_json
+    def polling_settings():
+        return get_polling_settings()
+
+    @app.route("/api/polling/settings", methods=["POST"])
+    @_require_api_key
+    @_route_json
+    def update_polling_settings():
+        payload = request.get_json(force=True, silent=False) or {}
+        return save_polling_settings(payload)
 
     @app.route("/api/email/health", methods=["GET"])
     @_route_json

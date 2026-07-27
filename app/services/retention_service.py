@@ -25,14 +25,26 @@ class ReadingsRetentionService:
             current_time = current_time.replace(tzinfo=timezone.utc)
 
         cutoff = current_time.astimezone(timezone.utc) - timedelta(days=retention_days)
-        deleted_count = self.reading_repository.delete_readings_older_than(
-            cutoff=cutoff,
-            limit=max(1, int(self.settings.readings_cleanup_batch_size)),
-        )
-        if deleted_count > 0:
+        if (
+            hasattr(self.reading_repository, "readings_table_is_partitioned")
+            and self.reading_repository.readings_table_is_partitioned()
+        ):
+            if hasattr(self.reading_repository, "ensure_daily_reading_partitions"):
+                self.reading_repository.ensure_daily_reading_partitions(days_back=1, days_ahead=7)
+            removed_count = self.reading_repository.drop_old_daily_reading_partitions(retention_days)
+            removal_unit = "partition(s)"
+        else:
+            removed_count = self.reading_repository.delete_readings_older_than(
+                cutoff=cutoff,
+                limit=max(1, int(self.settings.readings_cleanup_batch_size)),
+            )
+            removal_unit = "row(s)"
+
+        if removed_count > 0:
             logger.info(
-                "Readings retention removed %s row(s) older than %s.",
-                deleted_count,
+                "Readings retention removed %s %s older than %s.",
+                removed_count,
+                removal_unit,
                 cutoff.isoformat(),
             )
-        return deleted_count
+        return removed_count

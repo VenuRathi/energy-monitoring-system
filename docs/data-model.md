@@ -24,9 +24,30 @@ Key columns:
 - denormalized measurement columns (e.g., `active_power_total`, `current_avg`, etc.)
 
 Operational rules:
-- old rows are cleaned in bounded batches using `collected_at`
-- exact duplicate inserts are skipped by application logic using `meter_id`, `timestamp`, and `timestamp_source`
-- a future hard unique constraint should only be added after existing history is checked for duplicates
+- new installations create `readings` as a PostgreSQL range-partitioned table on `timestamp`
+- production retention should drop old daily partitions instead of deleting rows
+- exact duplicate inserts are enforced by PostgreSQL using `meter_id`, `timestamp`, and `timestamp_source`
+- existing non-partitioned installations must run `sql/migrate_readings_to_daily_partitions.sql` after duplicate cleanup
+
+Primary indexes:
+- `(meter_id, timestamp DESC)` for latest readings and short trends
+- `(meter_id, collected_at DESC)` for operational checks
+- unique `(meter_id, timestamp, timestamp_source)` for duplicate protection
+
+### hourly_readings
+Purpose:
+- Stores Central PC hourly aggregates for long-range dashboard and report queries.
+
+Key columns:
+- `hour_ts`, `meter_id`
+- `*_avg`, `*_min`, and `*_max` columns for common dashboard measurements
+- energy counter min/max columns for consumption calculations
+- `sample_count`, `first_sample_ts`, `last_sample_ts`
+
+Operational rules:
+- create using `sql/hourly_readings.sql`
+- refresh recent hours with `SELECT refresh_hourly_readings(2);`
+- dashboards should use this table for long ranges instead of scanning raw `readings`
 
 ### alert_rules
 Purpose:
@@ -67,6 +88,7 @@ Production note:
 
 ## Operational Notes
 
-- The schema is created/updated by backend startup (`ensure_schema`).
+- The schema is created/updated by backend startup (`create_tables`).
 - Measurement columns are aligned with parameter keys generated from meter config names.
-- Readings retention is configured with `READINGS_RETENTION_DAYS`, `READINGS_CLEANUP_BATCH_SIZE`, and `READINGS_CLEANUP_INTERVAL_HOURS`.
+- Partitioned readings retention is configured with `READINGS_RETENTION_DAYS` and `READINGS_CLEANUP_INTERVAL_HOURS`.
+- `READINGS_CLEANUP_BATCH_SIZE` is now only used by the pre-migration bounded-delete fallback.

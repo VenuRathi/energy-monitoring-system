@@ -23,6 +23,7 @@ _polling_loop_state: dict[str, object] = {
     "lastGlobalPollingError": "",
     "lastGlobalPollingErrorTime": None,
 }
+_runtime_poll_interval_seconds: int | None = None
 
 
 def get_shared_modbus_client(client_key: tuple) -> "ModbusRTUClient | None":
@@ -198,3 +199,14 @@ def record_polling_loop_error(error_message: str, error_at: datetime) -> dict:
 def get_polling_loop_state() -> dict:
     with _registry_lock:
         return deepcopy(_polling_loop_state)
+
+
+def set_runtime_poll_interval_seconds(value: int) -> None:
+    with _registry_lock:
+        global _runtime_poll_interval_seconds
+        _runtime_poll_interval_seconds = value
+
+
+def get_runtime_poll_interval_seconds(default: int) -> int:
+    with _registry_lock:
+        return _runtime_poll_interval_seconds if _runtime_poll_interval_seconds is not None else default

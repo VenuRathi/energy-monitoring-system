@@ -97,7 +97,7 @@ Recommended pilot values:
 ```dotenv
 ENABLE_DATABASE=true
 DEMO_MODE=false
-POLL_INTERVAL_SECONDS=18
+POLL_INTERVAL_SECONDS=180
 APP_TIMEZONE=Asia/Calcutta
 
 API_HOST=0.0.0.0
@@ -121,7 +121,7 @@ Notes:
 
 - With the backend serving the built frontend, keeping `VITE_API_BASE_URL=` is correct.
 - Same-origin `/api` behavior is the simplest pilot deployment model.
-- `POLL_INTERVAL_SECONDS=18` matches the current validated default. Use a larger value such as `180` only if the plant deliberately wants slower long-term logging.
+- `POLL_INTERVAL_SECONDS=180` is the recommended 24x7 plant logging interval. Use faster polling only when it is deliberate.
 
 ## 6. Verify COM port
 

@@ -337,7 +337,13 @@ class PollingService:
     def replay_queued_reading(self, queued_reading: QueuedReading) -> bool:
         if self.reading_repository is None:
             raise RuntimeError("Database reading repository is not configured.")
-        return self.reading_repository.insert_reading(
+        use_immediate_insert = hasattr(self.reading_repository, "insert_reading_immediate")
+        insert_method = (
+            self.reading_repository.insert_reading_immediate
+            if use_immediate_insert
+            else self.reading_repository.insert_reading
+        )
+        inserted = insert_method(
             meter_id=queued_reading.meter_id,
             timestamp=queued_reading.timestamp,
             readings=queued_reading.readings,
@@ -347,6 +353,14 @@ class PollingService:
             reading_time=queued_reading.reading_time,
             timestamp_source=queued_reading.timestamp_source,
         )
+        if not use_immediate_insert:
+            self.flush_database_writes()
+        return inserted
+
+    def flush_database_writes(self) -> int:
+        if self.reading_repository is None or not hasattr(self.reading_repository, "flush"):
+            return 0
+        return int(self.reading_repository.flush())
 
     def _should_log_meter_clock_warning(self, warning_at: datetime) -> bool:
         if self._last_meter_clock_warning_at is None:

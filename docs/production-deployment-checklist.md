@@ -111,7 +111,7 @@ Minimum production values:
 ```env
 ENABLE_DATABASE=true
 DEMO_MODE=false
-POLL_INTERVAL_SECONDS=18
+POLL_INTERVAL_SECONDS=180
 APP_TIMEZONE=Asia/Calcutta
 METER_CLOCK_MAX_DRIFT_SECONDS=120
 
@@ -215,8 +215,8 @@ Confirm:
 - [ ] backend health is healthy after a controlled reboot
 
 The watchdog starts `.venv\Scripts\python.exe main.py`, records lifecycle
-events, and restarts the backend after a crash. Do not combine it with a
-second automatic user-login launcher on the same plant PC.
+events with the backend PID, and restarts the backend after a crash. Do not
+combine it with a second automatic user-login launcher on the same plant PC.
 
 ## 9. Database Outage Buffering
 

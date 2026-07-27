@@ -54,6 +54,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\backup_postgres.ps1 -Retentio
 SELECT pg_size_pretty(pg_database_size(current_database())) AS database_size;
 ```
 
+## Database hardening verification
+
+After partition migration, hourly aggregate setup, or PostgreSQL tuning changes, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_database_hardening.ps1
+```
+
+This checks:
+
+- `readings` is partitioned
+- raw reading row count and time range
+- partition count
+- duplicate groups
+- hourly aggregate row count and time range
+- important PostgreSQL tuning values
+- whether restart-level settings are applied
+
 ## Latest readings check
 
 ```sql
@@ -76,7 +94,14 @@ ORDER BY meter_id;
 
 ## Readings retention
 
-The backend now has automatic readings retention for long-running installations.
+The backend supports automatic readings retention for long-running installations.
+
+Production behavior after `readings` is migrated to daily partitions:
+
+- old daily partitions are dropped
+- PostgreSQL immediately releases the partition table and index files
+- no row-by-row `DELETE` is needed
+- table and index bloat from retention cleanup is avoided
 
 Default behavior:
 
@@ -84,7 +109,7 @@ Default behavior:
 - `READINGS_CLEANUP_BATCH_SIZE=5000`
 - `READINGS_CLEANUP_INTERVAL_HOURS=1`
 
-This keeps about five years of readings by default. Cleanup runs after normal polling/report work, not during startup, and removes only one bounded batch at a time. This avoids long startup delays and avoids deleting recent plant data.
+This keeps about five years of readings by default. Cleanup runs after normal polling/report work, not during startup. On partitioned databases it drops old partitions. On pre-migration databases it falls back to the older bounded-delete behavior.
 
 To disable automatic cleanup during an initial supervised pilot:
 
@@ -94,15 +119,39 @@ READINGS_RETENTION_DAYS=0
 
 Before reducing retention below five years, confirm the factory/reporting requirement and take a PostgreSQL backup.
 
+## Partition migration
+
+Existing databases created before partitioning must be migrated once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\backup_postgres.ps1
+```
+
+Then run the duplicate check below. If it returns no rows, stop the backend service and run:
+
+```sql
+\i sql/migrate_readings_to_daily_partitions.sql
+```
+
+Keep `readings_legacy` for supervised validation, then drop it manually after confirming row counts, latest readings, dashboards, and reports.
+
+After several days of clean operation, take a fresh backup and remove the legacy table with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\drop_readings_legacy_after_validation.ps1 -ConfirmDrop
+```
+
+The script refuses to run unless `-ConfirmDrop` is passed, and it checks that `readings_legacy` and `readings` have matching row counts before dropping the legacy table.
+
 ## Duplicate reading handling
 
-The backend skips exact duplicate readings before insert using:
+The backend now relies on PostgreSQL duplicate protection using:
 
 - `meter_id`
 - `timestamp`
 - `timestamp_source`
 
-This prevents accidental duplicate rows from distorting dashboards and reports without adding a hard database constraint yet. Before adding a future unique constraint, inspect existing historical rows for duplicates and clean them first.
+New inserts use `ON CONFLICT DO NOTHING`. Before migration or before adding the unique index to an existing legacy table, inspect historical rows for duplicates and clean them first.
 
 Suggested duplicate check:
 

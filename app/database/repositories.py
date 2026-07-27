@@ -7,7 +7,7 @@ if __package__ is None or __package__ == "":
 from contextlib import contextmanager
 from datetime import date, datetime
 import json
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -153,6 +153,7 @@ class ReadingRepository:
         self.connection = connection
         self.parameters = list(parameters)
         self.settings = settings
+        self._unique_conflict_target_available: bool | None = None
 
     def insert_reading(
         self,
@@ -166,8 +167,24 @@ class ReadingRepository:
         reading_time: str = "",
         timestamp_source: str = "collector_fallback",
     ) -> bool:
+        return self.insert_readings(
+            [
+                {
+                    "meter_id": meter_id,
+                    "timestamp": timestamp,
+                    "readings": readings,
+                    "meter_timestamp": meter_timestamp,
+                    "collected_at": collected_at,
+                    "reading_date": reading_date,
+                    "reading_time": reading_time,
+                    "timestamp_source": timestamp_source,
+                }
+            ]
+        )
+
+    def _insert_columns(self) -> list[str]:
         column_names = [parameter_name_to_column_name(parameter["name"]) for parameter in self.parameters]
-        sql_columns = [
+        return [
             "meter_id",
             "timestamp",
             "meter_timestamp",
@@ -176,39 +193,151 @@ class ReadingRepository:
             "reading_time",
             "timestamp_source",
         ] + column_names
-        placeholders = ", ".join(["%s"] * len(sql_columns))
-        sql = f"INSERT INTO readings ({', '.join(sql_columns)}) VALUES ({placeholders});"
 
+    def _insert_values(self, payload: dict) -> list[object]:
         values = [
-            meter_id,
-            timestamp,
-            meter_timestamp,
-            collected_at or timestamp,
-            reading_date,
-            reading_time,
-            timestamp_source,
+            payload["meter_id"],
+            payload["timestamp"],
+            payload.get("meter_timestamp"),
+            payload.get("collected_at") or payload["timestamp"],
+            payload.get("reading_date", ""),
+            payload.get("reading_time", ""),
+            payload.get("timestamp_source", "collector_fallback"),
         ]
+        readings = payload.get("readings") or {}
         for parameter in self.parameters:
             values.append(readings.get(parameter["name"]))
+        return values
+
+    def insert_readings(self, reading_payloads: Sequence[dict]) -> bool:
+        if not reading_payloads:
+            return True
+
+        if not self.unique_conflict_target_available():
+            return self._insert_readings_with_legacy_duplicate_check(reading_payloads)
+
+        sql_columns = self._insert_columns()
+        row_placeholder = "(" + ", ".join(["%s"] * len(sql_columns)) + ")"
+        placeholders = ", ".join([row_placeholder] * len(reading_payloads))
+        insert_sql = (
+            f"INSERT INTO readings ({', '.join(sql_columns)}) "
+            f"VALUES {placeholders} "
+            "ON CONFLICT (meter_id, timestamp, timestamp_source) DO NOTHING;"
+        )
+        values = [
+            value
+            for payload in reading_payloads
+            for value in self._insert_values(payload)
+        ]
+
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(insert_sql, tuple(values))
+                inserted_count = cursor.rowcount if cursor.rowcount >= 0 else 0
+            connection.commit()
+        return inserted_count == len(reading_payloads)
+
+    def _insert_readings_with_legacy_duplicate_check(self, reading_payloads: Sequence[dict]) -> bool:
+        sql_columns = self._insert_columns()
+        placeholders = ", ".join(["%s"] * len(sql_columns))
+        insert_sql = f"INSERT INTO readings ({', '.join(sql_columns)}) VALUES ({placeholders});"
+        inserted_count = 0
+
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                for payload in reading_payloads:
+                    cursor.execute(
+                        """
+                        SELECT 1
+                        FROM readings
+                        WHERE meter_id = %s
+                          AND timestamp = %s
+                          AND timestamp_source = %s
+                        LIMIT 1;
+                        """,
+                        (
+                            payload["meter_id"],
+                            payload["timestamp"],
+                            payload.get("timestamp_source", "collector_fallback"),
+                        ),
+                    )
+                    if cursor.fetchone() is not None:
+                        continue
+                    cursor.execute(insert_sql, tuple(self._insert_values(payload)))
+                    inserted_count += 1
+            connection.commit()
+        return inserted_count == len(reading_payloads)
+
+    def unique_conflict_target_available(self) -> bool:
+        if self._unique_conflict_target_available is not None:
+            return self._unique_conflict_target_available
 
         with _repository_connection(self.connection, self.settings) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT 1
-                    FROM readings
-                    WHERE meter_id = %s
-                      AND timestamp = %s
-                      AND timestamp_source = %s
-                    LIMIT 1;
-                    """,
-                    (meter_id, timestamp, timestamp_source),
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM pg_index i
+                        JOIN pg_class t ON t.oid = i.indrelid
+                        JOIN pg_namespace n ON n.oid = t.relnamespace
+                        WHERE n.nspname = current_schema()
+                          AND t.relname = 'readings'
+                          AND i.indisunique
+                          AND (
+                              SELECT array_agg(a.attname ORDER BY key_position)
+                              FROM unnest(i.indkey) WITH ORDINALITY AS keys(attnum, key_position)
+                              JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = keys.attnum
+                          ) = ARRAY['meter_id', 'timestamp', 'timestamp_source']
+                    );
+                    """
                 )
-                if cursor.fetchone() is not None:
-                    return False
-                cursor.execute(sql, tuple(values))
+                self._unique_conflict_target_available = bool(cursor.fetchone()[0])
+        return self._unique_conflict_target_available
+
+    def readings_table_is_partitioned(self) -> bool:
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT COALESCE((
+                        SELECT c.relkind = 'p'
+                        FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE n.nspname = current_schema()
+                          AND c.relname = 'readings'
+                    ), FALSE);
+                    """
+                )
+                return bool(cursor.fetchone()[0])
+
+    def drop_old_daily_reading_partitions(self, keep_days: int) -> int:
+        bounded_keep_days = max(1, int(keep_days))
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM drop_old_daily_reading_partitions(%s, FALSE);", (bounded_keep_days,))
+                dropped_count = len(cursor.fetchall())
             connection.commit()
-        return True
+        return dropped_count
+
+    def ensure_daily_reading_partitions(self, days_back: int = 1, days_ahead: int = 7) -> int:
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT ensure_daily_reading_partitions(%s, %s);",
+                    (max(0, int(days_back)), max(0, int(days_ahead))),
+                )
+                ensured_count = int(cursor.fetchone()[0])
+            connection.commit()
+        return ensured_count
+
+    def refresh_hourly_readings(self, hours_back: int = 2) -> int:
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT refresh_hourly_readings(%s);", (max(1, int(hours_back)),))
+                refreshed_count = int(cursor.fetchone()[0])
+            connection.commit()
+        return refreshed_count
 
     def delete_readings_older_than(self, cutoff: datetime, limit: int) -> int:
         bounded_limit = max(1, int(limit))
@@ -619,6 +748,41 @@ class EmailSettingsRepository:
                         payload.get("smtp_use_tls", True),
                         payload.get("smtp_use_ssl", False),
                     ),
+                )
+                saved = cursor.fetchone()
+            connection.commit()
+        return saved
+
+
+class RuntimeSettingsRepository:
+    def __init__(self, connection: Connection | None = None, settings: Settings | None = None) -> None:
+        self.connection = connection
+        self.settings = settings
+
+    def get_polling_settings(self) -> dict | None:
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT poll_interval_seconds, updated_at
+                    FROM runtime_settings
+                    WHERE id = 1;
+                    """
+                )
+                return cursor.fetchone()
+
+    def upsert_poll_interval_seconds(self, poll_interval_seconds: int) -> dict:
+        with _repository_connection(self.connection, self.settings) as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO runtime_settings (id, poll_interval_seconds, updated_at)
+                    VALUES (1, %s, NOW())
+                    ON CONFLICT (id)
+                    DO UPDATE SET poll_interval_seconds = EXCLUDED.poll_interval_seconds, updated_at = NOW()
+                    RETURNING poll_interval_seconds, updated_at;
+                    """,
+                    (poll_interval_seconds,),
                 )
                 saved = cursor.fetchone()
             connection.commit()

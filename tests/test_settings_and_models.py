@@ -2,9 +2,10 @@ import os
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from app.database.connection import get_connection
-from app.database.models import validate_parameter_columns
+from app.database.models import build_readings_table_sql, validate_parameter_columns
 from app.database.repositories import ReadingRepository
 from app.services.retention_service import ReadingsRetentionService
 from app.services.polling_service import PollingService
@@ -31,6 +32,32 @@ class SettingsAndModelsTests(unittest.TestCase):
         )
         self.assertFalse(settings.api_debug)
 
+    def test_polling_interval_defaults_to_production_value(self) -> None:
+        with patch.dict(os.environ, {"POLL_INTERVAL_SECONDS": ""}, clear=False):
+            os.environ.pop("POLL_INTERVAL_SECONDS", None)
+            settings = load_settings()
+
+        self.assertEqual(settings.poll_interval_seconds, 180)
+
+    def test_polling_settings_api_validation_and_save(self) -> None:
+        class FakeRuntimeSettingsRepository:
+            def __init__(self, settings) -> None:
+                self.settings = settings
+
+            def upsert_poll_interval_seconds(self, value):
+                return {"poll_interval_seconds": value, "updated_at": None}
+
+        runtime_settings = SimpleNamespace(enable_database=True, poll_interval_seconds=180)
+        with patch("app.api.service.get_runtime_settings", return_value=runtime_settings), patch(
+            "app.api.service.RuntimeSettingsRepository", FakeRuntimeSettingsRepository
+        ):
+            saved = api_service.save_polling_settings({"pollIntervalSeconds": 18})
+            self.assertEqual(saved["pollIntervalSeconds"], 18)
+            with self.assertRaises(ValueError):
+                api_service.save_polling_settings({"pollIntervalSeconds": 9})
+            with self.assertRaises(ValueError):
+                api_service.save_polling_settings({"pollIntervalSeconds": "18.5"})
+
     def test_validate_parameter_columns_rejects_collisions(self) -> None:
         parameters = [
             {"name": "Power Factor (Total)", "type": "float32"},
@@ -39,6 +66,14 @@ class SettingsAndModelsTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             validate_parameter_columns(parameters)
+
+    def test_readings_table_ddl_is_partitioned_and_database_deduplicated(self) -> None:
+        ddl = build_readings_table_sql([{"name": "Frequency", "type": "float32"}])
+
+        self.assertIn("PARTITION BY RANGE (timestamp)", ddl)
+        self.assertIn("PRIMARY KEY (timestamp, id)", ddl)
+        self.assertIn("UNIQUE (meter_id, timestamp, timestamp_source)", ddl)
+        self.assertIn("frequency DOUBLE PRECISION", ddl)
 
     def test_datetime4_decode_matches_sheet_layout(self) -> None:
         service = PollingService(
@@ -84,6 +119,9 @@ class SettingsAndModelsTests(unittest.TestCase):
                 "READINGS_RETENTION_DAYS": "365",
                 "READINGS_CLEANUP_BATCH_SIZE": "123",
                 "READINGS_CLEANUP_INTERVAL_HOURS": "6",
+                "READINGS_INSERT_BUFFER_ROWS": "77",
+                "READINGS_INSERT_BUFFER_SECONDS": "8",
+                "HOURLY_AGGREGATE_REFRESH_INTERVAL_MINUTES": "11",
                 "API_DEBUG": "false",
             },
             clear=False,
@@ -93,12 +131,55 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertEqual(settings.readings_retention_days, 365)
         self.assertEqual(settings.readings_cleanup_batch_size, 123)
         self.assertEqual(settings.readings_cleanup_interval_hours, 6)
+        self.assertEqual(settings.readings_insert_buffer_rows, 77)
+        self.assertEqual(settings.readings_insert_buffer_seconds, 8)
+        self.assertEqual(settings.hourly_aggregate_refresh_interval_minutes, 11)
 
-    def test_retention_service_uses_configured_cutoff_and_batch(self) -> None:
+    def test_retention_service_uses_partition_drop_when_available(self) -> None:
+        class FakeReadingRepository:
+            def __init__(self) -> None:
+                self.ensured = False
+                self.keep_days = None
+
+            def readings_table_is_partitioned(self):
+                return True
+
+            def ensure_daily_reading_partitions(self, days_back, days_ahead):
+                self.ensured = True
+                return 9
+
+            def drop_old_daily_reading_partitions(self, keep_days):
+                self.keep_days = keep_days
+                return 3
+
+        repository = FakeReadingRepository()
+        with patch.dict(
+            os.environ,
+            {
+                "READINGS_RETENTION_DAYS": "30",
+                "READINGS_CLEANUP_BATCH_SIZE": "250",
+                "API_DEBUG": "false",
+            },
+            clear=False,
+        ):
+            settings = load_settings()
+
+        removed = ReadingsRetentionService(settings, repository).cleanup_once(
+            datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc)
+        )
+
+        self.assertEqual(removed, 3)
+        self.assertTrue(repository.ensured)
+        self.assertEqual(repository.keep_days, 30)
+
+    def test_retention_service_falls_back_to_bounded_delete_before_partition_migration(self) -> None:
         class FakeReadingRepository:
             def __init__(self) -> None:
                 self.cutoff = None
                 self.limit = None
+
+            def readings_table_is_partitioned(self):
+                return False
 
             def delete_readings_older_than(self, cutoff, limit):
                 self.cutoff = cutoff
@@ -125,7 +206,90 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertEqual(repository.limit, 250)
         self.assertEqual(repository.cutoff, datetime(2026, 6, 21, 12, 0, tzinfo=timezone.utc))
 
-    def test_duplicate_reading_is_skipped_before_insert(self) -> None:
+    def test_duplicate_reading_is_skipped_by_on_conflict(self) -> None:
+        class FakeCursor:
+            def __init__(self) -> None:
+                self.executed_sql = []
+                self.rowcount = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def execute(self, query, params=None) -> None:
+                self.executed_sql.append(str(query))
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.cursor_instance = FakeCursor()
+                self.committed = False
+
+            def cursor(self):
+                return self.cursor_instance
+
+            def commit(self) -> None:
+                self.committed = True
+
+        connection = FakeConnection()
+        repository = ReadingRepository(connection=connection, parameters=[])
+        repository.unique_conflict_target_available = lambda: True
+        inserted = repository.insert_reading(
+            meter_id="MTR-001",
+            timestamp=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
+            readings={},
+            timestamp_source="meter",
+        )
+
+        self.assertFalse(inserted)
+        self.assertTrue(connection.committed)
+        self.assertEqual(len(connection.cursor_instance.executed_sql), 1)
+        self.assertIn("INSERT INTO readings", connection.cursor_instance.executed_sql[0])
+        self.assertIn("ON CONFLICT (meter_id, timestamp, timestamp_source) DO NOTHING", connection.cursor_instance.executed_sql[0])
+
+    def test_new_reading_is_inserted_and_committed(self) -> None:
+        class FakeCursor:
+            def __init__(self) -> None:
+                self.executed_sql = []
+                self.rowcount = 1
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def execute(self, query, params=None) -> None:
+                self.executed_sql.append(str(query))
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.cursor_instance = FakeCursor()
+                self.committed = False
+
+            def cursor(self):
+                return self.cursor_instance
+
+            def commit(self) -> None:
+                self.committed = True
+
+        connection = FakeConnection()
+        repository = ReadingRepository(connection=connection, parameters=[])
+        repository.unique_conflict_target_available = lambda: True
+        inserted = repository.insert_reading(
+            meter_id="MTR-001",
+            timestamp=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
+            readings={},
+            timestamp_source="meter",
+        )
+
+        self.assertTrue(inserted)
+        self.assertTrue(connection.committed)
+        self.assertEqual(len(connection.cursor_instance.executed_sql), 1)
+        self.assertIn("INSERT INTO readings", connection.cursor_instance.executed_sql[0])
+
+    def test_legacy_duplicate_check_is_used_when_unique_constraint_is_missing(self) -> None:
         class FakeCursor:
             def __init__(self) -> None:
                 self.executed_sql = []
@@ -154,7 +318,10 @@ class SettingsAndModelsTests(unittest.TestCase):
                 self.committed = True
 
         connection = FakeConnection()
-        inserted = ReadingRepository(connection=connection, parameters=[]).insert_reading(
+        repository = ReadingRepository(connection=connection, parameters=[])
+        repository.unique_conflict_target_available = lambda: False
+
+        inserted = repository.insert_reading(
             meter_id="MTR-001",
             timestamp=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
             readings={},
@@ -162,50 +329,9 @@ class SettingsAndModelsTests(unittest.TestCase):
         )
 
         self.assertFalse(inserted)
-        self.assertFalse(connection.committed)
+        self.assertTrue(connection.committed)
         self.assertEqual(len(connection.cursor_instance.executed_sql), 1)
         self.assertIn("SELECT 1", connection.cursor_instance.executed_sql[0])
-
-    def test_new_reading_is_inserted_and_committed(self) -> None:
-        class FakeCursor:
-            def __init__(self) -> None:
-                self.executed_sql = []
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, exc_type, exc, traceback) -> None:
-                return None
-
-            def execute(self, query, params=None) -> None:
-                self.executed_sql.append(str(query))
-
-            def fetchone(self):
-                return None
-
-        class FakeConnection:
-            def __init__(self) -> None:
-                self.cursor_instance = FakeCursor()
-                self.committed = False
-
-            def cursor(self):
-                return self.cursor_instance
-
-            def commit(self) -> None:
-                self.committed = True
-
-        connection = FakeConnection()
-        inserted = ReadingRepository(connection=connection, parameters=[]).insert_reading(
-            meter_id="MTR-001",
-            timestamp=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
-            readings={},
-            timestamp_source="meter",
-        )
-
-        self.assertTrue(inserted)
-        self.assertTrue(connection.committed)
-        self.assertEqual(len(connection.cursor_instance.executed_sql), 2)
-        self.assertIn("INSERT INTO readings", connection.cursor_instance.executed_sql[1])
 
     def test_report_exports_require_api_key_when_enabled(self) -> None:
         original_enabled = api_server.SETTINGS.api_key_enabled
