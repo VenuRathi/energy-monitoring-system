@@ -14,7 +14,7 @@ from config.settings import Settings, load_settings
 from app.collectors.modbus_client import ModbusRTUClient
 from app.collectors.schneider.pm5000 import PM5000Collector
 from app.database.connection import get_connection
-from app.database.models import create_tables
+from app.database.models import create_tables, parameter_name_to_column_name
 from app.database.repositories import AlertRuleRepository, MeterRepository, ReadingRepository, RuntimeSettingsRepository
 from app.runtime_state import get_shared_modbus_client as get_registered_modbus_client
 from app.runtime_state import (
@@ -309,10 +309,20 @@ def _available_com_ports() -> set[str]:
 
 
 def _all_config_parameters(meter_config: dict) -> list[dict]:
-    all_parameters: list[dict] = []
+    unique_parameters: list[dict] = []
+    seen_columns: set[str] = set()
+
     for meter in meter_config.get("meters", []):
-        all_parameters.extend(meter.get("parameters", []))
-    return all_parameters
+        for parameter in meter.get("parameters", []):
+            column_name = parameter_name_to_column_name(parameter["name"])
+
+            if column_name in seen_columns:
+                continue
+
+            seen_columns.add(column_name)
+            unique_parameters.append(parameter)
+
+    return unique_parameters
 
 
 def _log_startup_context(settings: Settings, logger: logging.Logger) -> None:
