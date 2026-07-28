@@ -6,10 +6,11 @@ type MeterTableProps = {
   selectedMeterId: string;
   onSelect: (meterId: string) => void;
   onEdit: (meter: MeterRecord) => void;
+  onEnable: (meter: MeterRecord) => void;
   onDisable: (meterId: string) => void;
 };
 
-export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDisable }: MeterTableProps) {
+export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable, onDisable }: MeterTableProps) {
   if (meters.length === 0) {
     return (
       <div className="page-state">
@@ -66,14 +67,19 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onDisabl
                   <button type="button" className="ghost-button" onClick={() => onEdit(meter)}>
                     Edit
                   </button>
-                  <button
-                    type="button"
-                    className="ghost-button ghost-button--danger"
-                    onClick={() => onDisable(meter.meter_id)}
-                    disabled={!meter.enabled}
-                  >
-                    Disable Meter
-                  </button>
+                  {meter.enabled ? (
+                    <button
+                      type="button"
+                      className="ghost-button ghost-button--danger"
+                      onClick={() => onDisable(meter.meter_id)}
+                    >
+                      Disable Meter
+                    </button>
+                  ) : (
+                    <button type="button" className="ghost-button" onClick={() => onEnable(meter)}>
+                      Enable Meter
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

@@ -170,6 +170,35 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
     });
   };
 
+  const enableMeter = (meter: MeterRecord) => {
+    saveMeter.mutate(
+      {
+        meter_id: meter.meter_id,
+        meter_name: meter.meter_name,
+        location: meter.location,
+        manufacturer: meter.manufacturer,
+        model: meter.model,
+        protocol: meter.protocol,
+        enabled: true,
+        seu: meter.seu,
+        driver: meter.driver,
+        com_port: meter.com_port,
+        slave_id: meter.slave_id,
+        baud_rate: meter.baud_rate,
+        parity: meter.parity,
+        stop_bits: meter.stop_bits,
+        byte_size: meter.byte_size,
+        timeout: meter.timeout,
+        one_based_map: meter.one_based_map,
+      },
+      {
+        onSuccess: (savedMeter) => {
+          onSelectMeter(savedMeter.meter_id);
+        },
+      },
+    );
+  };
+
   const runDiscovery = () => {
     if (!editing.com_port.trim()) {
       setValidationMessage("COM port is required before discovery.");
@@ -340,6 +369,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             selectedMeterId={selectedMeterId}
             onSelect={onSelectMeter}
             onEdit={startEdit}
+            onEnable={enableMeter}
             onDisable={disableMeter}
           />
         </div>
