@@ -388,9 +388,13 @@ def create_tables(connection: Connection, parameters: Iterable[dict], poll_inter
             """,
             (poll_interval_seconds,),
         )
-        hourly_sql_path = Path(__file__).resolve().parents[2] / "sql" / "hourly_readings.sql"
+        sql_dir = Path(__file__).resolve().parents[2] / "sql"
+        hourly_sql_path = sql_dir / "hourly_readings.sql"
+        schema_views_sql_path = sql_dir / "schema_views.sql"
         if hourly_sql_path.exists():
             cursor.execute(hourly_sql_path.read_text(encoding="utf-8"))
+        if schema_views_sql_path.exists():
+            cursor.execute(schema_views_sql_path.read_text(encoding="utf-8"))
 
         if not readings_is_partitioned:
             cursor.execute(

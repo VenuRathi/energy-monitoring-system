@@ -1,11 +1,12 @@
 import os
 import unittest
+from pathlib import Path
 from datetime import datetime, timezone
 from unittest.mock import patch
 from types import SimpleNamespace
 
 from app.database.connection import get_connection
-from app.database.models import build_readings_table_sql, validate_parameter_columns
+from app.database.models import build_readings_table_sql, create_tables, validate_parameter_columns
 from app.database.repositories import ReadingRepository
 from app.services.retention_service import ReadingsRetentionService
 from app.services.polling_service import PollingService
@@ -74,6 +75,56 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertIn("PRIMARY KEY (timestamp, id)", ddl)
         self.assertIn("UNIQUE (meter_id, timestamp, timestamp_source)", ddl)
         self.assertIn("frequency DOUBLE PRECISION", ddl)
+
+    def test_create_tables_applies_hourly_and_schema_views_sql(self) -> None:
+        class FakeCursor:
+            def __init__(self) -> None:
+                self.executed_sql = []
+                self.fetchone_values = [(True,), (1,)]
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def execute(self, query, params=None) -> None:
+                self.executed_sql.append(str(query))
+
+            def fetchone(self):
+                return self.fetchone_values.pop(0)
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.cursor_instance = FakeCursor()
+                self.committed = False
+
+            def cursor(self):
+                return self.cursor_instance
+
+            def commit(self) -> None:
+                self.committed = True
+
+        original_exists = Path.exists
+        original_read_text = Path.read_text
+
+        def fake_exists(self):
+            return self.name in {"hourly_readings.sql", "schema_views.sql"}
+
+        def fake_read_text(self, encoding="utf-8"):
+            if self.name == "hourly_readings.sql":
+                return "CREATE TABLE IF NOT EXISTS hourly_readings (id integer);"
+            if self.name == "schema_views.sql":
+                return "CREATE OR REPLACE VIEW meter_latest_readings AS SELECT 1;"
+            return original_read_text(self, encoding=encoding)
+
+        connection = FakeConnection()
+        with patch.object(Path, "exists", fake_exists), patch.object(Path, "read_text", fake_read_text):
+            create_tables(connection, [{"name": "Frequency", "type": "float32"}], poll_interval_seconds=180)
+
+        self.assertTrue(connection.committed)
+        self.assertTrue(any("hourly_readings" in statement for statement in connection.cursor_instance.executed_sql))
+        self.assertTrue(any("meter_latest_readings" in statement for statement in connection.cursor_instance.executed_sql))
 
     def test_datetime4_decode_matches_sheet_layout(self) -> None:
         service = PollingService(
@@ -247,6 +298,39 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertEqual(len(connection.cursor_instance.executed_sql), 1)
         self.assertIn("INSERT INTO readings", connection.cursor_instance.executed_sql[0])
         self.assertIn("ON CONFLICT (meter_id, timestamp, timestamp_source) DO NOTHING", connection.cursor_instance.executed_sql[0])
+
+    def test_unique_conflict_target_check_compares_matching_postgres_array_types(self) -> None:
+        class FakeCursor:
+            def __init__(self) -> None:
+                self.executed_sql = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def execute(self, query, params=None) -> None:
+                self.executed_sql.append(str(query))
+
+            def fetchone(self):
+                return (True,)
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.cursor_instance = FakeCursor()
+
+            def cursor(self):
+                return self.cursor_instance
+
+        connection = FakeConnection()
+        repository = ReadingRepository(connection=connection, parameters=[])
+
+        self.assertTrue(repository.unique_conflict_target_available())
+        self.assertIn(
+            "ARRAY['meter_id', 'timestamp', 'timestamp_source']::name[]",
+            connection.cursor_instance.executed_sql[0],
+        )
 
     def test_new_reading_is_inserted_and_committed(self) -> None:
         class FakeCursor:

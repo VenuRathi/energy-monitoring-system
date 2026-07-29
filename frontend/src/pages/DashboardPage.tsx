@@ -8,8 +8,9 @@ import { MeterSelector } from "../components/dashboard/MeterSelector";
 import { MetricStrip } from "../components/dashboard/MetricStrip";
 import { ParameterExplorer } from "../components/dashboard/ParameterExplorer";
 import { useDashboardData } from "../hooks/useDashboardData";
+import { useSystemStatusData } from "../hooks/useMetersData";
 import { formatTimestamp } from "../lib/formatters";
-import type { MeterRecord } from "../types/energy";
+import type { MeterRecord, SystemStatusMeter } from "../types/energy";
 
 const TREND_RANGES = [
   { label: "Live", hours: undefined },
@@ -18,6 +19,16 @@ const TREND_RANGES = [
   { label: "30d", hours: 720 },
   { label: "90d", hours: 2160 },
 ];
+
+function connectionTone(meter: SystemStatusMeter) {
+  if (!meter.enabled) return "offline";
+  return meter.communicationStatus;
+}
+
+function connectionLabel(meter: SystemStatusMeter) {
+  if (!meter.enabled) return "disabled";
+  return meter.communicationStatus;
+}
 
 type DashboardPageProps = {
   selectedMeterId: string;
@@ -29,6 +40,13 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
   const [trendParameterKey, setTrendParameterKey] = useState("active_power_total");
   const [trendHours, setTrendHours] = useState<number | undefined>(undefined);
   const { data, isLoading, isError, error, refetch } = useDashboardData(selectedMeterId, trendParameterKey, trendHours);
+  const {
+    data: systemStatus,
+    isLoading: isSystemStatusLoading,
+    isError: isSystemStatusError,
+    error: systemStatusError,
+    refetch: refetchSystemStatus,
+  } = useSystemStatusData();
 
   const meterTone = (meter: MeterRecord | null | undefined) => {
     if (!meter?.enabled) return "offline";
@@ -149,6 +167,90 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
             onClick={onSelectMeter}
           />
         ))}
+      </section>
+
+      <section className="dashboard__section">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Live connections</p>
+            <h4>Meter communication state</h4>
+          </div>
+          {systemStatus ? (
+            <span className={`status-pill status-pill--${systemStatus.status === "ok" ? "online" : "warning"}`}>
+              {systemStatus.summary.enabledMeterCount} enabled
+            </span>
+          ) : null}
+        </div>
+
+        {isSystemStatusLoading ? <div className="page-state">Loading live connection status...</div> : null}
+
+        {isSystemStatusError ? (
+          <div className="page-state page-state--error">
+            <h3>Live connections unavailable</h3>
+            <p>{systemStatusError instanceof Error ? systemStatusError.message : "Unable to load /api/status."}</p>
+            <button type="button" className="ghost-button" onClick={() => refetchSystemStatus()}>
+              Retry live connections
+            </button>
+          </div>
+        ) : null}
+
+        {systemStatus ? (
+          <div className="status-stack">
+            <div className="dashboard__summary dashboard__summary--compact">
+              <div className="summary-card">
+                <span className="summary-card__label">Online</span>
+                <strong>{systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "online").length}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Warning</span>
+                <strong>{systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "warning").length}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Offline</span>
+                <strong>{systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "offline").length}</strong>
+              </div>
+              <div className="summary-card">
+                <span className="summary-card__label">Stale</span>
+                <strong>{systemStatus.summary.staleMeterCount}</strong>
+              </div>
+            </div>
+
+            <div className="status-meter-grid">
+              {systemStatus.summary.meters.map((meter) => (
+                <article key={meter.meterId} className="status-meter-card">
+                  <div className="status-meter-card__top">
+                    <div>
+                      <p className="section-label">{meter.comPort || "COM n/a"} / Slave {meter.slaveId ?? "n/a"}</p>
+                      <h4>{meter.meterName}</h4>
+                    </div>
+                    <span className={`status-pill status-pill--${connectionTone(meter)}`}>{connectionLabel(meter)}</span>
+                  </div>
+
+                  <dl className="status-meter-card__list">
+                    <div>
+                      <dt>Last success</dt>
+                      <dd>{formatTimestamp(meter.lastSuccessfulReadingTime)}</dd>
+                    </div>
+                    <div>
+                      <dt>Last poll</dt>
+                      <dd>{formatTimestamp(meter.lastPollAttemptTime)}</dd>
+                    </div>
+                    <div>
+                      <dt>Failures</dt>
+                      <dd>{meter.consecutiveFailureCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Live data</dt>
+                      <dd>{meter.staleWarning ? "Stale" : "Fresh"}</dd>
+                    </div>
+                  </dl>
+
+                  {meter.lastErrorMessage ? <p className="dashboard__status-note dashboard__status-note--offline">{meter.lastErrorMessage}</p> : null}
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="dashboard__section">

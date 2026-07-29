@@ -288,7 +288,7 @@ class ReadingRepository:
                               SELECT array_agg(a.attname ORDER BY key_position)
                               FROM unnest(i.indkey) WITH ORDINALITY AS keys(attnum, key_position)
                               JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = keys.attnum
-                          ) = ARRAY['meter_id', 'timestamp', 'timestamp_source']
+                          ) = ARRAY['meter_id', 'timestamp', 'timestamp_source']::name[]
                     );
                     """
                 )
