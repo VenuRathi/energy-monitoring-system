@@ -48,6 +48,7 @@ class ModbusRTUClient:
             pass
         finally:
             self._client = None
+            self._last_connect_attempt_monotonic = 0.0
 
     def _flush_suppressed_failures(self) -> None:
         if self._suppressed_failure_count <= 0 or self._last_failure_signature is None:

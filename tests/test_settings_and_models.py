@@ -6,6 +6,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from app.database.connection import get_connection
+from app.collectors.modbus_client import ModbusRTUClient
 from app.database.models import build_readings_table_sql, create_tables, validate_parameter_columns
 from app.database.repositories import ReadingRepository
 from app.services.retention_service import ReadingsRetentionService
@@ -162,6 +163,27 @@ class SettingsAndModelsTests(unittest.TestCase):
         connect.assert_called_once()
         self.assertEqual(connect.call_args.kwargs["connect_timeout"], 9)
         self.assertEqual(connect.call_args.kwargs["application_name"], "energy_monitoring_system")
+
+    def test_modbus_client_reset_clears_reconnect_cooldown(self) -> None:
+        class FakeClient:
+            def close(self) -> None:
+                return None
+
+        client = ModbusRTUClient(
+            port="COM5",
+            baud_rate=9600,
+            parity="N",
+            stop_bits=1,
+            byte_size=8,
+            slave_id=1,
+        )
+        client._client = FakeClient()
+        client._last_connect_attempt_monotonic = 123.45
+
+        client._reset_client()
+
+        self.assertIsNone(client._client)
+        self.assertEqual(client._last_connect_attempt_monotonic, 0.0)
 
     def test_settings_parse_readings_retention_controls(self) -> None:
         with patch.dict(
