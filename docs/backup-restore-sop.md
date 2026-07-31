@@ -108,37 +108,46 @@ Use when PostgreSQL is available but the database needs to be restored.
 1. Stop backend task:
 
 ```powershell
-Stop-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
 ```
 
-2. Confirm no backend Python process is running.
+2. Confirm the stop script reported the backend PID as stopped.
 
-3. Open `psql` as an admin PostgreSQL user.
+3. Review `logs\backend_watchdog.log` if the stop script did not find or stop the backend PID.
 
-4. Recreate database if needed:
+4. Open `psql` as an admin PostgreSQL user.
+
+5. Recreate database if needed:
 
 ```sql
 DROP DATABASE IF EXISTS energy_monitoring;
 CREATE DATABASE energy_monitoring;
 ```
 
-5. Restore:
+6. Restore:
 
 ```powershell
 pg_restore -h localhost -p 5432 -U postgres -d energy_monitoring -c ".\backups\energy_monitoring_yyyy-MM-dd_HHmmss.dump"
 ```
 
-6. Start backend:
+7. Start backend:
 
 ```powershell
 Start-ScheduledTask -TaskName EnergyMonitoringBackend
 ```
 
-7. Verify:
+8. Verify:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2
 ```
+
+9. Confirm `/api/status` shows:
+
+- `schemaStartup.status=ok`
+- `databaseStatus=ok`
+- expected enabled meter count
+- no unexpected `COM port missing` diagnostics
 
 ## Recovery After PC / Server Replacement
 
@@ -170,6 +179,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install_daily_backup_task.ps1
 ```
 
 10. Confirm COM port and meter slave IDs.
+
+If Windows assigned a different COM number after replacement or reboot:
+
+1. Check Device Manager for the current adapter COM number.
+2. Open Meter Setup.
+3. Update affected enabled meters to the current COM port.
+4. Keep slave IDs and serial settings unchanged unless the wiring/bus changed.
+5. Wait one polling cycle.
 
 11. Run health check:
 

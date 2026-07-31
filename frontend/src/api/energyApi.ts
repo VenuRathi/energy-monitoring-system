@@ -236,7 +236,7 @@ export function upsertMeter(input: MeterInput): Promise<MeterRecord> {
   });
 }
 
-export function removeMeter(meterId: string): Promise<void> {
+export function disableMeter(meterId: string): Promise<void> {
   return requestJson<void>(`/api/meters/${encodeURIComponent(meterId)}`, {
     method: "DELETE",
   });

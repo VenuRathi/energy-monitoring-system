@@ -61,6 +61,7 @@ try {
             -ArgumentList @("-u", "main.py") `
             -WorkingDirectory $ProjectRoot `
             -PassThru
+        Write-WatchdogLog "BACKEND STARTED: pid=$($backendProcess.Id) executable=$pythonPath script=main.py."
 
         $backendProcess.WaitForExit()
         $exitCode = $backendProcess.ExitCode

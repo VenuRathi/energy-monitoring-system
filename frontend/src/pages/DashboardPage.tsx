@@ -30,6 +30,25 @@ function connectionLabel(meter: SystemStatusMeter) {
   return meter.communicationStatus;
 }
 
+function diagnosticLabel(meter: SystemStatusMeter) {
+  switch (meter.diagnosticCode) {
+    case "com_port_missing":
+      return "COM port missing";
+    case "com_port_unavailable":
+      return "COM port unavailable";
+    case "meter_no_response":
+      return "Meter no response";
+    case "meter_no_primary_values":
+      return "Primary values missing";
+    case "duplicate_slave_id":
+      return "Duplicate slave ID";
+    case "serial_settings_conflict":
+      return "Serial settings conflict";
+    default:
+      return "";
+  }
+}
+
 type DashboardPageProps = {
   selectedMeterId: string;
   onSelectMeter: (meterId: string) => void;
@@ -245,7 +264,12 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
                     </div>
                   </dl>
 
-                  {meter.lastErrorMessage ? <p className="dashboard__status-note dashboard__status-note--offline">{meter.lastErrorMessage}</p> : null}
+                  {meter.diagnosticMessage || meter.lastErrorMessage ? (
+                    <p className="dashboard__status-note dashboard__status-note--offline">
+                      {diagnosticLabel(meter) ? <strong>{diagnosticLabel(meter)}: </strong> : null}
+                      {meter.diagnosticMessage || meter.lastErrorMessage}
+                    </p>
+                  ) : null}
                 </article>
               ))}
             </div>

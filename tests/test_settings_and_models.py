@@ -8,11 +8,17 @@ from types import SimpleNamespace
 from app.database.connection import get_connection
 from app.collectors.modbus_client import ModbusRTUClient
 from app.database.models import build_readings_table_sql, create_tables, validate_parameter_columns
-from app.database.repositories import ReadingRepository
+from app.database.repositories import MeterRepository, ReadingRepository
 from app.services.retention_service import ReadingsRetentionService
 from app.services.polling_service import PollingService
 from app.api import server as api_server
 from app.api import service as api_service
+from app.runtime_state import (
+    get_schema_startup_state,
+    record_meter_runtime_error,
+    record_schema_startup_failure,
+    record_schema_startup_success,
+)
 from config.settings import load_settings
 
 
@@ -447,7 +453,8 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.addCleanup(lambda: setattr(api_server.SETTINGS, "api_key_enabled", original_enabled))
         self.addCleanup(lambda: setattr(api_server.SETTINGS, "api_key", original_key))
 
-        app = api_server.create_app()
+        with patch("app.api.server.ensure_schema"):
+            app = api_server.create_app()
         app.testing = True
 
         response = app.test_client().post("/api/reports/excel", json={})
@@ -494,3 +501,232 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertEqual(effective["source"], "database+env-secret")
         self.assertTrue(serialized["hasPassword"])
         self.assertEqual(serialized["source"], "database+env-secret")
+
+    def test_disable_meter_only_marks_meter_disabled_and_preserves_history_tables(self) -> None:
+        class FakeCursor:
+            def __init__(self) -> None:
+                self.executed = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def execute(self, query, params=None) -> None:
+                self.executed.append((str(query), params))
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.cursor_instance = FakeCursor()
+                self.committed = False
+
+            def cursor(self):
+                return self.cursor_instance
+
+            def commit(self) -> None:
+                self.committed = True
+
+        connection = FakeConnection()
+        MeterRepository(connection=connection).disable_meter("MTR-001")
+
+        self.assertTrue(connection.committed)
+        self.assertEqual(len(connection.cursor_instance.executed), 1)
+        executed_sql, params = connection.cursor_instance.executed[0]
+        self.assertIn("UPDATE meters SET enabled = FALSE", executed_sql)
+        self.assertNotIn("readings", executed_sql.lower())
+        self.assertEqual(params, ("MTR-001",))
+
+    def test_enable_meter_preserves_connection_and_serial_settings(self) -> None:
+        saved_payloads = []
+
+        class FakeConnection:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+        class FakeMeterRepository:
+            def __init__(self, connection) -> None:
+                self.connection = connection
+
+            def find_enabled_connection_conflict(self, **kwargs):
+                return None
+
+            def upsert_meter(self, meter):
+                saved_payloads.append(dict(meter))
+
+        payload = {
+            "meter_id": "mtr-901",
+            "meter_name": "Recovered Meter",
+            "location": "Panel A",
+            "manufacturer": "Schneider",
+            "model": "PM5000-EM6400",
+            "protocol": "modbus_rtu",
+            "enabled": True,
+            "seu": False,
+            "driver": "schneider.pm5000",
+            "com_port": " com06 ",
+            "slave_id": 17,
+            "baud_rate": 19200,
+            "parity": "e",
+            "stop_bits": 2,
+            "byte_size": 7,
+            "timeout": 3.5,
+            "one_based_map": False,
+        }
+
+        with patch("app.api.service._open_connection", return_value=FakeConnection()), patch(
+            "app.api.service.MeterRepository",
+            FakeMeterRepository,
+        ):
+            saved = api_service.save_meter(payload)
+
+        self.assertEqual(saved["meter_id"], "MTR-901")
+        self.assertTrue(saved["enabled"])
+        self.assertEqual(saved["com_port"], "COM6")
+        self.assertEqual(saved["slave_id"], 17)
+        self.assertEqual(saved["baud_rate"], 19200)
+        self.assertEqual(saved["parity"], "E")
+        self.assertEqual(saved["stop_bits"], 2)
+        self.assertEqual(saved["byte_size"], 7)
+        self.assertEqual(saved["timeout"], 3.5)
+        self.assertFalse(saved["one_based_map"])
+        self.assertEqual(saved_payloads, [saved])
+
+    def test_disabled_meter_status_ignores_stale_runtime_diagnostic(self) -> None:
+        record_meter_runtime_error(
+            "MTR-PH5-DISABLED",
+            error_at=datetime(2026, 7, 31, 11, 0, tzinfo=timezone.utc),
+            error_message="Old COM failure",
+            diagnostic_code="com_port_missing",
+            diagnostic_message="COM port missing: old adapter issue.",
+            communication_status="warning",
+        )
+
+        meter = api_service._row_to_meter(
+            {
+                "meter_id": "MTR-PH5-DISABLED",
+                "meter_name": "Disabled Meter",
+                "location": "Panel A",
+                "manufacturer": "Schneider",
+                "model": "PM5000-EM6400",
+                "protocol": "modbus_rtu",
+                "enabled": False,
+                "seu": False,
+                "driver": "schneider.pm5000",
+                "com_port": "COM6",
+                "slave_id": 1,
+                "baud_rate": 9600,
+                "parity": "N",
+                "stop_bits": 1,
+                "byte_size": 8,
+                "timeout": 2.0,
+                "one_based_map": True,
+            }
+        )
+
+        self.assertEqual(meter["status"], "offline")
+        self.assertEqual(meter["data_quality"], "disabled")
+        self.assertEqual(meter["status_detail"], "Meter is disabled and not being polled.")
+        self.assertEqual(meter["diagnosticCode"], "")
+        self.assertEqual(meter["diagnosticMessage"], "")
+
+    def test_api_startup_records_and_logs_schema_failure(self) -> None:
+        record_schema_startup_success(datetime.now(timezone.utc))
+        self.addCleanup(lambda: record_schema_startup_success(datetime.now(timezone.utc)))
+
+        with patch("app.api.server.ensure_schema", side_effect=RuntimeError("schema migration failed")), self.assertLogs(
+            "energy_monitoring.api.server", level="ERROR"
+        ) as captured:
+            api_server.create_app()
+
+        schema_state = get_schema_startup_state()
+        self.assertEqual(schema_state["status"], "degraded")
+        self.assertEqual(schema_state["lastErrorType"], "RuntimeError")
+        self.assertEqual(schema_state["lastErrorMessage"], "schema migration failed")
+        self.assertTrue(any("Database schema startup check failed" in message for message in captured.output))
+
+    def test_system_health_reports_schema_startup_failure_as_degraded(self) -> None:
+        failure = RuntimeError("schema migration failed")
+        record_schema_startup_failure(failure, datetime(2026, 7, 31, 10, 30, tzinfo=timezone.utc))
+        self.addCleanup(lambda: record_schema_startup_success(datetime.now(timezone.utc)))
+
+        settings = SimpleNamespace(
+            enable_database=True,
+            demo_mode=False,
+            poll_interval_seconds=180,
+            reading_spool_path=":memory:",
+            reading_spool_max_rows=100,
+            reading_spool_max_rows_per_meter=10,
+            reading_spool_retention_days=30,
+        )
+
+        class FakeReadingSpool:
+            def __init__(self, *args, **kwargs) -> None:
+                return None
+
+            def status(self):
+                return {
+                    "queuedCount": 0,
+                    "maxQueueSize": 100,
+                    "maxQueueSizePerMeter": 10,
+                    "retentionDays": 30,
+                    "oldestQueuedAt": "",
+                    "lastReplayAt": "",
+                    "lastReplayError": "",
+                }
+
+        class FakeCursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def execute(self, query, params=None) -> None:
+                return None
+
+            def fetchone(self):
+                return {"ok": 1}
+
+        class FakeConnection:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def cursor(self):
+                return FakeCursor()
+
+        healthy_hardening = api_service._default_database_hardening_status()
+        healthy_hardening.update(
+            {
+                "readingsPartitioned": True,
+                "readingsIdDefaultPresent": True,
+                "hourlyAggregateRows": 1,
+            }
+        )
+
+        with patch("app.api.service.get_runtime_settings", return_value=settings), patch(
+            "app.api.service.get_polling_settings",
+            return_value={"pollIntervalSeconds": 180, "updatedAt": "", "source": "environment"},
+        ), patch("app.api.service.ReadingSpool", FakeReadingSpool), patch(
+            "app.api.service._open_connection",
+            return_value=FakeConnection(),
+        ), patch(
+            "app.api.service._database_hardening_status",
+            return_value=healthy_hardening,
+        ), patch(
+            "app.api.service.list_meters",
+            return_value=[],
+        ):
+            health = api_service.get_system_health()
+
+        self.assertEqual(health["status"], "degraded")
+        self.assertEqual(health["databaseStatus"], "degraded")
+        self.assertEqual(health["schemaStartup"]["status"], "degraded")
+        self.assertEqual(health["checks"]["schemaStartup"]["status"], "degraded")
+        self.assertIn("schema migration failed", health["checks"]["schemaStartup"]["message"])

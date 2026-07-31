@@ -88,7 +88,7 @@ DB_PASSWORD=...
 6. Restart backend task:
 
 ```powershell
-Stop-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
 Start-ScheduledTask -TaskName EnergyMonitoringBackend
 ```
 

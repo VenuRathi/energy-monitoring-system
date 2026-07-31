@@ -5,7 +5,7 @@ import {
   sendReportEmail,
   createWordReport,
   deleteAlertRule,
-  removeMeter,
+  disableMeter,
   removeReportSchedule,
   saveEmailSettings,
   saveAlertRule,
@@ -22,6 +22,7 @@ export function useMeterMutations() {
   const invalidateMeters = async () => {
     await queryClient.invalidateQueries({ queryKey: ["meters"] });
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    await queryClient.invalidateQueries({ queryKey: ["system-status"] });
   };
 
   return {
@@ -29,8 +30,8 @@ export function useMeterMutations() {
       mutationFn: (input: MeterInput) => upsertMeter(input),
       onSuccess: invalidateMeters,
     }),
-    deleteMeter: useMutation({
-      mutationFn: (meterId: string) => removeMeter(meterId),
+    disableMeter: useMutation({
+      mutationFn: (meterId: string) => disableMeter(meterId),
       onSuccess: invalidateMeters,
     }),
     discoverMeters: useMutation({

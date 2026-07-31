@@ -28,7 +28,8 @@ D:\FFPL\energy-monitoring-system\logs\backend_watchdog.log
 ```
 
 The log rotates at approximately 5 MB and keeps seven backups. It records
-watchdog start/stop, backend start, clean exit, crash exit code, and restart.
+watchdog start/stop, backend start with backend PID, clean exit, crash exit
+code, and restart.
 
 ## Register the task automatically
 
@@ -110,6 +111,36 @@ Recommended log review after first scheduled run:
 - detected COM ports
 - validated enabled meter summary
 - any duplicate `slave_id` or serial settings warnings
+
+## Controlled stop and restart
+
+Use the project stop script instead of raw `Stop-ScheduledTask`. The scheduled
+task owns the watchdog, but the watchdog starts a child `python main.py`
+process. The stop script stops the scheduled task, reads the backend PID from
+`data\energy-monitoring-system-main.pid`, verifies it is this project's
+`.venv\Scripts\python.exe main.py`, and then stops that backend process. It
+falls back to the legacy lock file only for older deployments.
+
+Do not use raw `Stop-ScheduledTask` for normal operations. It can stop the
+watchdog without stopping the child backend process, leaving an orphaned
+`main.py` and causing port conflicts on the next start.
+
+Known-good restart sequence:
+
+```powershell
+cd C:\EnergyMonitoring\energy-monitoring-system
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
+Start-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
+```
+
+Successful stop/start evidence:
+
+- `backend_watchdog.log` shows `STOP REQUESTED`
+- `backend_watchdog.log` shows `BACKEND VERIFY OK`
+- `backend_watchdog.log` shows `BACKEND STOPPED`
+- the next start logs a fresh backend PID
+- `/api/status` reports the expected polling heartbeat
 
 ## User-login fallback
 

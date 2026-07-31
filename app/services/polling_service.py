@@ -9,6 +9,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo
+from serial.tools import list_ports
 
 from app.collectors.base.base_meter import BaseMeter
 from app.database.models import parameter_name_to_column_name
@@ -70,6 +71,44 @@ class PollingService:
         connection = self.meter_config.get("connection", {})
         slave_id = connection.get("slave_id")
         return int(slave_id) if slave_id is not None else None
+
+    def _available_com_ports(self) -> set[str]:
+        try:
+            return {str(port.device).upper() for port in list_ports.comports() if getattr(port, "device", None)}
+        except Exception:
+            return set()
+
+    def _collector_failure_diagnostic(self, exc: Exception, com_port: str, slave_id: int | None) -> tuple[str, str]:
+        normalized_port = com_port.upper()
+        available_ports = self._available_com_ports()
+        if normalized_port not in available_ports:
+            return (
+                "com_port_missing",
+                (
+                    f"COM port missing: {normalized_port} is configured for slave {slave_id if slave_id is not None else 'n/a'}, "
+                    "but Windows does not currently list it. Check Device Manager, reconnect the USB/RS485 adapter, "
+                    "or update the meter COM port if Windows reassigned it."
+                ),
+            )
+
+        error_text = str(exc).lower()
+        if any(marker in error_text for marker in ("access is denied", "permission", "busy", "in use", "could not open port")):
+            return (
+                "com_port_unavailable",
+                (
+                    f"COM port unavailable: {normalized_port} exists, but the backend could not open it. "
+                    "Confirm no other serial tool is holding the port and then retry."
+                ),
+            )
+
+        return (
+            "meter_no_response",
+            (
+                f"Meter no response: {self.meter_config['meter_id']} on {normalized_port} slave "
+                f"{slave_id if slave_id is not None else 'n/a'} did not return usable data. "
+                "Check meter power, RS485 wiring, slave ID, and serial settings."
+            ),
+        )
 
     def _log_status_transition(self, previous_status: str, next_status: str, context: str) -> None:
         if previous_status == next_status:
@@ -138,12 +177,15 @@ class PollingService:
         try:
             readings = self.collector.read_all()
         except Exception as exc:
+            diagnostic_code, diagnostic_message = self._collector_failure_diagnostic(exc, com_port, slave_id)
             previous_status, state = record_meter_poll_failure(
                 self.meter_config["meter_id"],
                 failed_at=attempted_at,
                 error_message=f"Collector read failed: {exc}",
                 com_port=com_port,
                 slave_id=slave_id,
+                diagnostic_code=diagnostic_code,
+                diagnostic_message=diagnostic_message,
             )
             self._log_status_transition(previous_status, state["communicationStatus"], "collector exception")
             logger.exception(
@@ -161,12 +203,19 @@ class PollingService:
 
         non_null_count = sum(1 for value in readings.values() if value is not None)
         if non_null_count == 0:
+            diagnostic_message = (
+                f"Meter no response: {self.meter_config['meter_id']} on {com_port} slave "
+                f"{slave_id if slave_id is not None else 'n/a'} returned no readings in this cycle. "
+                "Check meter power, RS485 wiring, slave ID, and serial settings."
+            )
             previous_status, state = record_meter_poll_failure(
                 self.meter_config["meter_id"],
                 failed_at=attempted_at,
                 error_message="No readings received in this cycle.",
                 com_port=com_port,
                 slave_id=slave_id,
+                diagnostic_code="meter_no_response",
+                diagnostic_message=diagnostic_message,
             )
             self._log_status_transition(previous_status, state["communicationStatus"], "no readings received")
             logger.warning("No readings received in this cycle for meter %s.", self.meter_config["meter_id"])
@@ -179,6 +228,11 @@ class PollingService:
                 communication_status="warning",
                 com_port=com_port,
                 slave_id=slave_id,
+                diagnostic_code="meter_no_primary_values",
+                diagnostic_message=(
+                    f"Meter responded without primary values: {self.meter_config['meter_id']} on {com_port} slave "
+                    f"{slave_id if slave_id is not None else 'n/a'} returned data, but voltage/current/power/frequency were empty or zero."
+                ),
             )
             self._log_status_transition(previous_status, state["communicationStatus"], "meter responded without primary values")
             if self._should_log_primary_measurement_warning(collected_at):

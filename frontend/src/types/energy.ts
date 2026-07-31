@@ -3,6 +3,14 @@ export type PageKey = "dashboard" | "meters" | "reports" | "help";
 export type MeterStatus = "online" | "warning" | "offline";
 export type HealthState = "ok" | "degraded" | "skipped" | "demo" | "live";
 export type RuntimeCommunicationStatus = "online" | "warning" | "offline" | "unknown";
+export type MeterDiagnosticCode =
+  | ""
+  | "com_port_missing"
+  | "com_port_unavailable"
+  | "meter_no_response"
+  | "meter_no_primary_values"
+  | "duplicate_slave_id"
+  | "serial_settings_conflict";
 
 export type MeterRecord = {
   meter_id: string;
@@ -25,6 +33,8 @@ export type MeterRecord = {
   status: MeterStatus;
   data_quality?: "live" | "historical_only" | "zero_primary" | "no_readings" | "stale" | "disabled";
   status_detail?: string;
+  diagnosticCode?: MeterDiagnosticCode;
+  diagnosticMessage?: string;
   has_readings?: boolean;
   live_measurements?: boolean;
   last_update: string;
@@ -336,12 +346,15 @@ export type SystemStatusMeter = {
   enabled: boolean;
   status: RuntimeCommunicationStatus;
   communicationStatus: RuntimeCommunicationStatus;
+  statusDetail?: string;
   latestReadingTimestamp: string | null;
   staleWarning: boolean;
   lastPollAttemptTime: string;
   lastSuccessfulReadingTime: string;
   lastErrorTime: string;
   lastErrorMessage: string;
+  diagnosticCode: MeterDiagnosticCode;
+  diagnosticMessage: string;
   consecutiveFailureCount: number;
   comPort: string;
   slaveId: number | null;

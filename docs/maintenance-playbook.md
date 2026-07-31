@@ -56,7 +56,13 @@ cd D:\FFPL\energy-monitoring-system
 
 If Task Scheduler is used:
 
-- restart the scheduled task or stop/start backend task through Task Scheduler
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
+Start-ScheduledTask -TaskName EnergyMonitoringBackend
+```
+
+Use the stop script rather than raw Task Scheduler stop commands so the child
+`python main.py` process is verified and stopped too.
 
 ## Frontend rebuild steps
 

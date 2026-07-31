@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import hmac
 import logging
+from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
 
@@ -36,6 +37,7 @@ from app.api.service import (
     send_report_email,
     send_test_email,
 )
+from app.runtime_state import record_schema_startup_failure, record_schema_startup_success
 from config.settings import load_settings
 
 
@@ -146,9 +148,14 @@ def create_app() -> Flask:
 
     try:
         ensure_schema()
-    except Exception:
-        # Keep API startup predictable; endpoints will surface connection issues.
-        pass
+    except Exception as exc:
+        record_schema_startup_failure(exc, datetime.now(timezone.utc))
+        logger.exception(
+            "Database schema startup check failed. API will continue in degraded mode; "
+            "/api/status will expose the schema/database failure."
+        )
+    else:
+        record_schema_startup_success(datetime.now(timezone.utc))
 
     @app.after_request
     def add_cors_headers(response):

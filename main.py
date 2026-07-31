@@ -50,6 +50,7 @@ except ImportError:  # pragma: no cover - Windows path
 
 _INSTANCE_LOCK_HANDLE = None
 _INSTANCE_LOCK_PATH = Path(__file__).resolve().parent / "data" / "energy-monitoring-system-main.lock"
+_INSTANCE_PID_PATH = Path(__file__).resolve().parent / "data" / "energy-monitoring-system-main.pid"
 
 
 class SingleInstanceError(RuntimeError):
@@ -89,6 +90,7 @@ def acquire_instance_lock() -> None:
     lock_handle.truncate()
     lock_handle.write(str(os.getpid()))
     lock_handle.flush()
+    _INSTANCE_PID_PATH.write_text(str(os.getpid()), encoding="utf-8")
     _INSTANCE_LOCK_HANDLE = lock_handle
 
 
@@ -109,6 +111,10 @@ def release_instance_lock() -> None:
     finally:
         _INSTANCE_LOCK_HANDLE.close()
         _INSTANCE_LOCK_HANDLE = None
+        try:
+            _INSTANCE_PID_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 class EmbeddedApiServer:
@@ -307,6 +313,11 @@ def _available_com_ports() -> set[str]:
         return set()
 
 
+def _format_serial_settings(serial_settings: tuple[int, str, int, int, float]) -> str:
+    baud_rate, parity, stop_bits, byte_size, timeout = serial_settings
+    return f"baud={baud_rate}, parity={parity}, stop_bits={stop_bits}, byte_size={byte_size}, timeout={timeout}"
+
+
 def _all_config_parameters(meter_config: dict) -> list[dict]:
     unique_parameters: list[dict] = []
     seen_columns: set[str] = set()
@@ -422,6 +433,11 @@ def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging
         )
         existing_settings = serial_settings_by_port.get(com_port)
         if existing_settings is not None and existing_settings != serial_settings:
+            diagnostic_message = (
+                f"Serial settings conflict on {com_port}. This meter uses {_format_serial_settings(serial_settings)}, "
+                f"but another enabled meter on the same COM port uses {_format_serial_settings(existing_settings)}. "
+                "Use one serial setting set per RS485 bus or move the meter to the correct COM port."
+            )
             message = (
                 f"Skipping meter {meter_id} on {com_port} slave {slave_id}: "
                 f"serial settings {serial_settings} conflict with existing bus settings {existing_settings}."
@@ -434,11 +450,17 @@ def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging
                 com_port=com_port,
                 slave_id=int(slave_id) if isinstance(slave_id, int) else None,
                 communication_status="warning",
+                diagnostic_code="serial_settings_conflict",
+                diagnostic_message=diagnostic_message,
             )
             continue
 
         known_slave_ids = slave_ids_by_port.setdefault(com_port, set())
         if slave_id in known_slave_ids:
+            diagnostic_message = (
+                f"Duplicate slave ID on {com_port}. Slave {slave_id} is configured more than once on the same RS485 bus. "
+                "Assign a unique slave ID to each enabled meter on this COM port."
+            )
             message = (
                 f"Skipping meter {meter_id} on {com_port} slave {slave_id}: "
                 f"duplicate slave_id detected on the same RS485 bus."
@@ -451,15 +473,39 @@ def _validate_shared_bus_settings(meter_definitions: list[dict], logger: logging
                 com_port=com_port,
                 slave_id=slave_id,
                 communication_status="warning",
+                diagnostic_code="duplicate_slave_id",
+                diagnostic_message=diagnostic_message,
             )
             continue
 
-        if available_ports and com_port not in available_ports and com_port not in warned_missing_ports:
-            warned_missing_ports.add(com_port)
-            logger.warning(
-                "Configured COM port %s is not currently present on this machine. Polling will keep retrying if the adapter reconnects.",
-                com_port,
+        if com_port not in available_ports:
+            diagnostic_message = (
+                f"COM port missing: {com_port} is configured but Windows does not currently list it. "
+                "Check Device Manager, reconnect the USB/RS485 adapter, or update the meter COM port if Windows reassigned it."
             )
+            record_meter_runtime_error(
+                meter_id,
+                error_at=datetime.now(timezone.utc),
+                error_message=diagnostic_message,
+                com_port=com_port,
+                slave_id=slave_id,
+                communication_status="warning",
+                diagnostic_code="com_port_missing",
+                diagnostic_message=diagnostic_message,
+            )
+            if com_port not in warned_missing_ports:
+                warned_missing_ports.add(com_port)
+                if available_ports:
+                    logger.warning(
+                        "Configured COM port %s is not currently present on this machine. Available ports: %s. Polling will keep retrying if the adapter reconnects.",
+                        com_port,
+                        ", ".join(sorted(available_ports)),
+                    )
+                else:
+                    logger.warning(
+                        "Configured COM port %s is not currently present because Windows reported no COM ports. Polling will keep retrying if the adapter reconnects.",
+                        com_port,
+                    )
 
         serial_settings_by_port[com_port] = serial_settings
         known_slave_ids.add(slave_id)
@@ -641,7 +687,7 @@ def main() -> None:
             record_polling_loop_error(f"Hourly readings aggregate refresh failed: {exc}", datetime.now(timezone.utc))
             logger.exception("Hourly readings aggregate refresh failed: %s", exc)
 
-    def rebuild_polling_services(next_meter_definitions: list[dict]) -> None:
+    def rebuild_polling_services(next_meter_definitions: list[dict], visible_meter_ids: Iterable[str] | None = None) -> None:
         nonlocal polling_services, active_signature
         _close_modbus_clients(shared_modbus_clients)
         next_polling_services: list[PollingService] = []
@@ -677,11 +723,13 @@ def main() -> None:
                     communication_status="warning",
                 )
         polling_services = next_polling_services
-        prune_meter_runtime_statuses(
-            meter_definition.get("meter_id", "")
-            for meter_definition in next_meter_definitions
-            if meter_definition.get("meter_id")
-        )
+        if visible_meter_ids is None:
+            visible_meter_ids = (
+                meter_definition.get("meter_id", "")
+                for meter_definition in next_meter_definitions
+                if meter_definition.get("meter_id")
+            )
+        prune_meter_runtime_statuses(visible_meter_ids)
         active_signature = _meter_set_signature(next_meter_definitions)
         logger.info("Active polling meters refreshed: %s meter(s).", len(polling_services))
 
@@ -700,7 +748,14 @@ def main() -> None:
             return
 
         meter_definitions = validated_meter_definitions
-        rebuild_polling_services(validated_meter_definitions)
+        rebuild_polling_services(
+            validated_meter_definitions,
+            visible_meter_ids=(
+                meter_definition.get("meter_id", "")
+                for meter_definition in next_meter_definitions
+                if meter_definition.get("meter_id")
+            ),
+        )
 
     try:
         sync_polling_services()

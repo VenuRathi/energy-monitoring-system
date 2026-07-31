@@ -7,7 +7,9 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] Python 3.13 installed (or another validated 3.11+ interpreter)
 - [ ] Virtual environment created
 - [ ] `pip install -r requirements.txt` completed without errors
-- [ ] Backend starts with `.\.venv\Scripts\python.exe main.py`
+- [ ] One-time manual backend smoke passes with `.\.venv\Scripts\python.exe main.py`
+- [ ] Production backend startup registered with `scripts\install_task_scheduler_backend.ps1`
+- [ ] Controlled backend stop verified with `scripts\stop_backend_task.ps1`
 - [ ] If Task Scheduler is blocked, user-login startup fallback installed with `scripts\install_user_startup_backend.ps1`
 
 ## 2. Frontend environment
@@ -30,6 +32,7 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] Database created
 - [ ] `.env` DB settings verified
 - [ ] Backend creates/updates tables successfully on startup
+- [ ] `/api/status` shows `schemaStartup.status=ok`
 - [ ] Latest readings can be queried in PostgreSQL
 
 ## 4. `.env` configuration
@@ -60,6 +63,8 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] Correct COM port confirmed in Device Manager
 - [ ] No other application is holding the port
 - [ ] USB-to-RS485 adapter is stable and recognized
+- [ ] If Windows reassigned the adapter after reboot, meter COM settings were updated through Meter Setup
+- [ ] `/api/status` does not show `COM port missing` for enabled meters
 
 ## 8. Meter verification
 
@@ -76,6 +81,7 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 - [ ] Startup logs show the expected validated enabled meter list
 - [ ] `/api/status` shows polling heartbeat
 - [ ] Enabled live meters report `communicationStatus=online`
+- [ ] No enabled meter shows `Meter no response`, `Duplicate slave ID`, or `Serial settings conflict`
 - [ ] `staleMeterCount=0` for the current healthy demo state
 
 ## 10. Dashboard test
@@ -103,9 +109,21 @@ Use this before a boss demo, pilot deployment, or plant-side local-network setup
 ## 13. Logging and backup plan
 
 - [ ] `logs/` folder reviewed
+- [ ] `logs\backend_watchdog.log` records watchdog PID and backend PID
 - [ ] Log cleanup/rotation plan defined
 - [ ] PostgreSQL backup method agreed
 - [ ] Recovery owner identified
+
+## Known-good restart sequence
+
+Use this for deployment restarts and recovery checks:
+
+```powershell
+cd D:\FFPL\energy-monitoring-system
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
+Start-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2
+```
 
 ## 14. Final handover test
 

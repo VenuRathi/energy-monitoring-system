@@ -137,6 +137,10 @@ Make sure:
 - the COM number is known
 - no other tool is holding the port
 
+If the adapter COM number changes after reboot, update the affected enabled
+meters in Meter Setup. Do not disable meters automatically just because the COM
+number changed; fix the COM setting and let polling recover on the next cycle.
+
 ## 7. Verify meter slave IDs
 
 Before enabling all meters:
@@ -167,6 +171,9 @@ The backend will serve `frontend/dist` automatically at `/`.
 
 ## 9. Start backend manually once
 
+This is a smoke test only. Stop it with `Ctrl+C` before registering or starting
+the scheduled task.
+
 ```powershell
 .\.venv\Scripts\python.exe main.py
 ```
@@ -184,8 +191,9 @@ What the backend now checks/logs at startup:
 - current API/polling mode summary
 - COM ports detected on the machine
 - database preflight success if PostgreSQL is enabled
+- schema startup failures exposed through `/api/status`
 - validated enabled meter summary
-- warnings for duplicate slave IDs or serial-setting conflicts
+- warnings for missing COM ports, duplicate slave IDs, or serial-setting conflicts
 
 Optional quick environment check:
 
@@ -227,6 +235,17 @@ Then verify:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
 ```
+
+Known-good restart sequence after registration:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
+Start-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1
+```
+
+Do not use raw `Stop-ScheduledTask` for normal backend stops; use the project
+stop script so the child `python main.py` process is verified and stopped too.
 
 ## 11. Firewall notes
 

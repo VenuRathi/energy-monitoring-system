@@ -315,10 +315,10 @@ export function HelpPage() {
                       </div>
                     </dl>
 
-                    {meter.lastErrorMessage ? (
+                    {meter.diagnosticMessage || meter.lastErrorMessage ? (
                       <div className="help-note help-note--warning">
-                        <strong>Last error</strong>
-                        <p>{meter.lastErrorMessage}</p>
+                        <strong>{meter.diagnosticCode ? meter.diagnosticCode.replace(/_/g, " ") : "Last error"}</strong>
+                        <p>{meter.diagnosticMessage || meter.lastErrorMessage}</p>
                       </div>
                     ) : null}
                   </article>

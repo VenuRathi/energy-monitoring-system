@@ -57,7 +57,7 @@ DB_CONNECT_TIMEOUT_SECONDS=5
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1
 ```
 
-- [ ] Backend starts manually:
+- [ ] One-time backend smoke starts manually:
 
 ```powershell
 .\.venv\Scripts\python.exe main.py
@@ -68,6 +68,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2
 ```
+
+- [ ] `/api/status` shows `schemaStartup.status=ok`.
 
 ## 4. Frontend Build / Setup
 
@@ -155,7 +157,7 @@ Important:
 
 Protected actions include:
 
-- meter create/update/delete
+- meter create/update/disable
 - meter discovery/sync
 - alert rule changes
 - report schedule changes
@@ -218,6 +220,17 @@ The watchdog starts `.venv\Scripts\python.exe main.py`, records lifecycle
 events with the backend PID, and restarts the backend after a crash. Do not
 combine it with a second automatic user-login launcher on the same plant PC.
 
+Controlled restart sequence:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
+Start-ScheduledTask -TaskName EnergyMonitoringBackend
+powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2
+```
+
+Use the stop script for normal operations. Raw `Stop-ScheduledTask` can leave
+the child backend process running.
+
 ## 9. Database Outage Buffering
 
 - [ ] `data\reading_spool.sqlite3` is on a writable local disk
@@ -237,6 +250,15 @@ communication remains online.
 - [ ] Each enabled meter has a unique `slave_id`.
 - [ ] No other software is holding the COM port.
 - [ ] Termination and wiring are checked by plant electrical/maintenance staff.
+- [ ] `/api/status` has no enabled-meter diagnostics for `COM port missing`, `Meter no response`, `Duplicate slave ID`, or `Serial settings conflict`.
+
+COM port changed after reboot checklist:
+
+1. Confirm current adapter COM number in Device Manager.
+2. Update affected enabled meters in Meter Setup.
+3. Preserve slave IDs and serial settings unless the physical bus changed.
+4. Wait one polling cycle.
+5. Run `check_runtime_health.ps1`.
 
 Current validated pilot pattern on this plant PC:
 
@@ -244,7 +266,7 @@ Current validated pilot pattern on this plant PC:
 - `MTR-002`: online, `COM7`, slave `2`
 - `MTR-003`: disabled/offline until physically connected
 
-## 9. Firewall And Ports
+## 11. Firewall And Ports
 
 - [ ] Allow inbound TCP `5000` only from approved plant LAN clients.
 - [ ] Keep PostgreSQL `5432` local-only unless IT approves remote DB access.
@@ -258,7 +280,7 @@ http://127.0.0.1:5000
 http://PLANT_PC_IP:5000
 ```
 
-## 10. Scheduled Startup
+## 12. Scheduled Startup
 
 Register backend scheduled task as Administrator:
 
@@ -288,7 +310,7 @@ Default backup task:
 - time: `23:30`
 - restart retries: 2 attempts, 5 minutes apart
 
-## 11. Restart Behavior After Power Failure
+## 13. Restart Behavior After Power Failure
 
 Expected behavior after power returns:
 
@@ -306,7 +328,7 @@ Verify after restart:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_runtime_health.ps1 -MinimumExpectedEnabledMeters 2 -FailOnDegraded
 ```
 
-## 12. Final Deployment Gate
+## 14. Final Deployment Gate
 
 Before handover, confirm:
 

@@ -5,11 +5,14 @@ from datetime import datetime
 from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
+from unittest.mock import patch
 
+from app.runtime_state import get_all_meter_runtime_statuses
 from app.services.polling_service import PollingService
 from app.services.buffered_reading_repository import BufferedReadingRepository
 from app.services.reading_spool import ReadingSpool
 from app.services.report_worker import ReportWorker
+from main import _validate_shared_bus_settings
 
 
 class ReadingSpoolTests(unittest.TestCase):
@@ -271,3 +274,85 @@ class ReportWorkerTests(unittest.TestCase):
         polling_result = "polling thread remained available"
         self.assertLess(time.monotonic() - polling_start, 0.1)
         self.assertEqual(polling_result, "polling thread remained available")
+
+
+class MeterDiagnosticsTests(unittest.TestCase):
+    @staticmethod
+    def meter_definition(meter_id: str, *, com_port: str = "COM5", slave_id: int = 1, baud_rate: int = 9600) -> dict:
+        return {
+            "meter_id": meter_id,
+            "meter_name": meter_id,
+            "manufacturer": "Schneider",
+            "model": "PM5000-EM6400",
+            "location": "Panel",
+            "protocol": "modbus_rtu",
+            "enabled": True,
+            "parameters": [{"name": "Frequency", "type": "float32"}],
+            "connection": {
+                "com_port": com_port,
+                "port": com_port,
+                "slave_id": slave_id,
+                "baud_rate": baud_rate,
+                "parity": "N",
+                "stop_bits": 1,
+                "byte_size": 8,
+                "timeout": 2.0,
+            },
+        }
+
+    def test_missing_configured_com_port_is_visible_but_meter_still_retries(self) -> None:
+        meters = [self.meter_definition("PH4-MISSING-COM", com_port="COM42")]
+
+        with patch("main._available_com_ports", return_value={"COM5"}):
+            valid = _validate_shared_bus_settings(meters, logger=SimpleNamespace(warning=lambda *args, **kwargs: None))
+
+        self.assertEqual(valid, meters)
+        state = get_all_meter_runtime_statuses()["PH4-MISSING-COM"]
+        self.assertEqual(state["diagnosticCode"], "com_port_missing")
+        self.assertIn("COM port missing", state["diagnosticMessage"])
+        self.assertEqual(state["communicationStatus"], "warning")
+
+    def test_duplicate_slave_id_is_classified_without_blocking_good_meter(self) -> None:
+        meters = [
+            self.meter_definition("PH4-DUP-GOOD", slave_id=1),
+            self.meter_definition("PH4-DUP-BAD", slave_id=1),
+        ]
+
+        with patch("main._available_com_ports", return_value={"COM5"}):
+            valid = _validate_shared_bus_settings(meters, logger=SimpleNamespace(warning=lambda *args, **kwargs: None))
+
+        self.assertEqual([meter["meter_id"] for meter in valid], ["PH4-DUP-GOOD"])
+        state = get_all_meter_runtime_statuses()["PH4-DUP-BAD"]
+        self.assertEqual(state["diagnosticCode"], "duplicate_slave_id")
+        self.assertIn("Duplicate slave ID", state["diagnosticMessage"])
+
+    def test_serial_settings_conflict_is_classified_without_blocking_good_meter(self) -> None:
+        meters = [
+            self.meter_definition("PH4-SERIAL-GOOD", baud_rate=9600),
+            self.meter_definition("PH4-SERIAL-BAD", slave_id=2, baud_rate=19200),
+        ]
+
+        with patch("main._available_com_ports", return_value={"COM5"}):
+            valid = _validate_shared_bus_settings(meters, logger=SimpleNamespace(warning=lambda *args, **kwargs: None))
+
+        self.assertEqual([meter["meter_id"] for meter in valid], ["PH4-SERIAL-GOOD"])
+        state = get_all_meter_runtime_statuses()["PH4-SERIAL-BAD"]
+        self.assertEqual(state["diagnosticCode"], "serial_settings_conflict")
+        self.assertIn("Serial settings conflict", state["diagnosticMessage"])
+
+    def test_no_readings_is_classified_as_meter_no_response(self) -> None:
+        class EmptyCollector:
+            def read_all(self):
+                return {"Frequency": None}
+
+        service = PollingService(
+            meter_config=self.meter_definition("PH4-NO-RESPONSE"),
+            collector=EmptyCollector(),
+            poll_interval_seconds=18,
+        )
+
+        service.poll_once()
+
+        state = get_all_meter_runtime_statuses()["PH4-NO-RESPONSE"]
+        self.assertEqual(state["diagnosticCode"], "meter_no_response")
+        self.assertIn("Meter no response", state["diagnosticMessage"])

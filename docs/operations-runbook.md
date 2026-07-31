@@ -19,7 +19,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop_backend_task.ps1
 ```
 
 Do not start a second backend manually while the scheduled task is running.
-The watchdog lifecycle log is `logs\backend_watchdog.log`.
+Use `scripts\stop_backend_task.ps1` for controlled stops; it stops the task and
+then verifies/stops the child `python main.py` process from the project lock
+file. The watchdog lifecycle log is `logs\backend_watchdog.log`.
 
 ## Start frontend
 

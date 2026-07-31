@@ -28,6 +28,7 @@ from app.runtime_state import (
     get_all_meter_runtime_statuses,
     get_polling_loop_state,
     get_runtime_poll_interval_seconds,
+    get_schema_startup_state,
     get_shared_modbus_client,
     set_runtime_poll_interval_seconds,
 )
@@ -139,6 +140,8 @@ def _serialize_runtime_meter_status(runtime_state: dict[str, Any] | None) -> dic
             "lastSuccessfulReadingTime": "",
             "lastErrorTime": "",
             "lastErrorMessage": "",
+            "diagnosticCode": "",
+            "diagnosticMessage": "",
             "consecutiveFailureCount": 0,
             "communicationStatus": "unknown",
             "comPort": "",
@@ -150,6 +153,8 @@ def _serialize_runtime_meter_status(runtime_state: dict[str, Any] | None) -> dic
         "lastSuccessfulReadingTime": _serialize_timestamp(runtime_state.get("lastSuccessfulReadingTime")),
         "lastErrorTime": _serialize_timestamp(runtime_state.get("lastErrorTime")),
         "lastErrorMessage": str(runtime_state.get("lastErrorMessage") or ""),
+        "diagnosticCode": str(runtime_state.get("diagnosticCode") or ""),
+        "diagnosticMessage": str(runtime_state.get("diagnosticMessage") or ""),
         "consecutiveFailureCount": int(runtime_state.get("consecutiveFailureCount") or 0),
         "communicationStatus": str(runtime_state.get("communicationStatus") or "unknown"),
         "comPort": str(runtime_state.get("comPort") or ""),
@@ -174,6 +179,17 @@ def _serialize_polling_loop_state() -> dict[str, Any]:
         "totalCyclesCompleted": int(state.get("totalCyclesCompleted") or 0),
         "lastGlobalPollingError": str(state.get("lastGlobalPollingError") or ""),
         "lastGlobalPollingErrorTime": _serialize_timestamp(state.get("lastGlobalPollingErrorTime")),
+    }
+
+
+def _serialize_schema_startup_state() -> dict[str, Any]:
+    state = get_schema_startup_state()
+    return {
+        "status": str(state.get("status") or "unknown"),
+        "checkedAt": _serialize_timestamp(state.get("checkedAt")),
+        "lastErrorTime": _serialize_timestamp(state.get("lastErrorTime")),
+        "lastErrorType": str(state.get("lastErrorType") or ""),
+        "lastErrorMessage": str(state.get("lastErrorMessage") or ""),
     }
 
 
@@ -276,6 +292,9 @@ def _build_status_meter_summary_row(
     effective_status = effective_communication_status
     effective_stale_warning = _meter_stale_warning(meter, runtime_state)
     runtime_payload = _serialize_runtime_meter_status(runtime_state)
+    if not enabled:
+        runtime_payload["diagnosticCode"] = ""
+        runtime_payload["diagnosticMessage"] = ""
 
     row = {
         "meterId": meter["meter_id"],
@@ -291,6 +310,8 @@ def _build_status_meter_summary_row(
     row["status"] = effective_status
     row["communicationStatus"] = effective_communication_status
     row["staleWarning"] = effective_stale_warning
+    if enabled and runtime_payload.get("diagnosticMessage"):
+        row["statusDetail"] = runtime_payload["diagnosticMessage"]
 
     if (
         enabled
@@ -885,6 +906,7 @@ def get_system_health() -> dict[str, Any]:
     demo_mode = _demo_mode_enabled()
     runtime_statuses = _runtime_meter_statuses()
     polling_state = _serialize_polling_loop_state()
+    schema_startup_state = _serialize_schema_startup_state()
     try:
         polling_settings = get_polling_settings()
     except Exception:
@@ -901,6 +923,20 @@ def get_system_health() -> dict[str, Any]:
         },
     }
     overall_status = "ok"
+    schema_startup_status = schema_startup_state["status"]
+    if schema_startup_status == "degraded":
+        checks["schemaStartup"] = {
+            "status": "degraded",
+            "message": (
+                "Database schema startup check failed: "
+                f"{schema_startup_state['lastErrorType']}: {schema_startup_state['lastErrorMessage']}"
+            ),
+        }
+        overall_status = "degraded"
+    elif schema_startup_status == "ok":
+        checks["schemaStartup"] = {"status": "ok", "message": "Database schema startup check completed successfully."}
+    else:
+        checks["schemaStartup"] = {"status": "unknown", "message": "Database schema startup check has not run in this process."}
     database_hardening_status = _default_database_hardening_status()
 
     reading_spool_status: dict[str, Any]
@@ -983,6 +1019,12 @@ def get_system_health() -> dict[str, Any]:
                     "status": "ok",
                     "message": "Readings partitioning, duplicate protection, hourly aggregates, and PostgreSQL tuning look healthy.",
                 }
+            if schema_startup_status == "degraded":
+                checks["database"] = {
+                    "status": "degraded",
+                    "message": checks["schemaStartup"]["message"],
+                }
+                overall_status = "degraded"
         except Exception as exc:
             checks["database"] = {"status": "degraded", "message": f"Database check failed: {exc}"}
             checks["databaseHardening"] = {"status": "degraded", "message": f"Database hardening check failed: {exc}"}
@@ -1072,6 +1114,7 @@ def get_system_health() -> dict[str, Any]:
         },
         "summary": meter_summary,
         "polling": {**polling_state, **polling_settings},
+        "schemaStartup": schema_startup_state,
         "readingSpool": reading_spool_status,
         "databaseHardening": database_hardening_status,
         "checks": checks,
@@ -1394,6 +1437,11 @@ def _row_to_meter(record: dict[str, Any], latest_row: dict[str, Any] | None = No
     enabled = coerce_bool(record.get("enabled", True), True)
     health = _assess_meter_health(enabled, last_update, latest_row)
     runtime_state = _runtime_meter_statuses().get(record["meter_id"])
+    runtime_payload = _serialize_runtime_meter_status(runtime_state)
+    if not enabled:
+        runtime_payload["diagnosticCode"] = ""
+        runtime_payload["diagnosticMessage"] = ""
+    status_detail = runtime_payload.get("diagnosticMessage") or health["status_detail"]
     meter = {
         "meter_id": record["meter_id"],
         "meter_name": record["meter_name"],
@@ -1415,7 +1463,7 @@ def _row_to_meter(record: dict[str, Any], latest_row: dict[str, Any] | None = No
         "last_update": _serialize_timestamp(last_update),
         "status": health["status"],
         "data_quality": health["data_quality"],
-        "status_detail": health["status_detail"],
+        "status_detail": status_detail,
         "has_readings": health["has_readings"],
         "live_measurements": health["live_measurements"],
         "base_voltage": snapshot["voltage"],
@@ -1423,7 +1471,7 @@ def _row_to_meter(record: dict[str, Any], latest_row: dict[str, Any] | None = No
         "base_power": snapshot["activePower"],
         "base_energy": snapshot["activeEnergy"],
         "snapshot": snapshot,
-        **_serialize_runtime_meter_status(runtime_state),
+        **runtime_payload,
     }
     return meter
 
@@ -1888,10 +1936,14 @@ def save_meter(payload: dict[str, Any]) -> dict[str, Any]:
     return sanitized
 
 
-def delete_meter(meter_id: str) -> None:
+def disable_meter(meter_id: str) -> None:
     with _open_connection() as connection:
         repository = MeterRepository(connection)
         repository.disable_meter(meter_id)
+
+
+def delete_meter(meter_id: str) -> None:
+    disable_meter(meter_id)
 
 
 def _normalize_optional_float(value: Any) -> float | None:

@@ -24,6 +24,13 @@ _polling_loop_state: dict[str, object] = {
     "lastGlobalPollingErrorTime": None,
 }
 _runtime_poll_interval_seconds: int | None = None
+_schema_startup_state: dict[str, object] = {
+    "status": "unknown",
+    "checkedAt": None,
+    "lastErrorTime": None,
+    "lastErrorType": "",
+    "lastErrorMessage": "",
+}
 
 
 def get_shared_modbus_client(client_key: tuple) -> "ModbusRTUClient | None":
@@ -52,6 +59,8 @@ def _default_meter_runtime_status(meter_id: str) -> dict:
         "lastSuccessfulReadingTime": None,
         "lastErrorTime": None,
         "lastErrorMessage": "",
+        "diagnosticCode": "",
+        "diagnosticMessage": "",
         "consecutiveFailureCount": 0,
         "communicationStatus": "unknown",
     }
@@ -98,6 +107,8 @@ def record_meter_poll_success(
     com_port: str = "",
     slave_id: int | None = None,
     clear_error_message: bool = False,
+    diagnostic_code: str = "",
+    diagnostic_message: str = "",
 ) -> tuple[str, dict]:
     with _registry_lock:
         state = _meter_runtime_statuses.setdefault(meter_id, _default_meter_runtime_status(meter_id))
@@ -111,6 +122,11 @@ def record_meter_poll_success(
             state["slaveId"] = slave_id
         if clear_error_message:
             state["lastErrorMessage"] = ""
+            state["diagnosticCode"] = ""
+            state["diagnosticMessage"] = ""
+        elif diagnostic_code or diagnostic_message:
+            state["diagnosticCode"] = diagnostic_code
+            state["diagnosticMessage"] = diagnostic_message
         return previous_status, deepcopy(state)
 
 
@@ -121,12 +137,16 @@ def record_meter_poll_failure(
     error_message: str,
     com_port: str = "",
     slave_id: int | None = None,
+    diagnostic_code: str = "",
+    diagnostic_message: str = "",
 ) -> tuple[str, dict]:
     with _registry_lock:
         state = _meter_runtime_statuses.setdefault(meter_id, _default_meter_runtime_status(meter_id))
         previous_status = str(state.get("communicationStatus", "unknown"))
         state["lastErrorTime"] = failed_at
         state["lastErrorMessage"] = error_message
+        state["diagnosticCode"] = diagnostic_code
+        state["diagnosticMessage"] = diagnostic_message or error_message
         state["consecutiveFailureCount"] = int(state.get("consecutiveFailureCount", 0)) + 1
         state["communicationStatus"] = "warning" if state["consecutiveFailureCount"] < 3 else "offline"
         if com_port:
@@ -144,12 +164,16 @@ def record_meter_runtime_error(
     com_port: str = "",
     slave_id: int | None = None,
     communication_status: Literal["unknown", "warning", "offline", "online"] | None = None,
+    diagnostic_code: str = "",
+    diagnostic_message: str = "",
 ) -> tuple[str, dict]:
     with _registry_lock:
         state = _meter_runtime_statuses.setdefault(meter_id, _default_meter_runtime_status(meter_id))
         previous_status = str(state.get("communicationStatus", "unknown"))
         state["lastErrorTime"] = error_at
         state["lastErrorMessage"] = error_message
+        state["diagnosticCode"] = diagnostic_code
+        state["diagnosticMessage"] = diagnostic_message or error_message
         if communication_status is not None:
             state["communicationStatus"] = communication_status
         if com_port:
@@ -199,6 +223,31 @@ def record_polling_loop_error(error_message: str, error_at: datetime) -> dict:
 def get_polling_loop_state() -> dict:
     with _registry_lock:
         return deepcopy(_polling_loop_state)
+
+
+def record_schema_startup_success(checked_at: datetime) -> dict:
+    with _registry_lock:
+        _schema_startup_state["status"] = "ok"
+        _schema_startup_state["checkedAt"] = checked_at
+        _schema_startup_state["lastErrorTime"] = None
+        _schema_startup_state["lastErrorType"] = ""
+        _schema_startup_state["lastErrorMessage"] = ""
+        return deepcopy(_schema_startup_state)
+
+
+def record_schema_startup_failure(error: Exception, failed_at: datetime) -> dict:
+    with _registry_lock:
+        _schema_startup_state["status"] = "degraded"
+        _schema_startup_state["checkedAt"] = failed_at
+        _schema_startup_state["lastErrorTime"] = failed_at
+        _schema_startup_state["lastErrorType"] = type(error).__name__
+        _schema_startup_state["lastErrorMessage"] = str(error)
+        return deepcopy(_schema_startup_state)
+
+
+def get_schema_startup_state() -> dict:
+    with _registry_lock:
+        return deepcopy(_schema_startup_state)
 
 
 def set_runtime_poll_interval_seconds(value: int) -> None:

@@ -61,7 +61,7 @@ function validateMeterInput(input: MeterInput): string | null {
 export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) {
   const { data, isLoading, isError, error } = useMetersData();
   const { data: parameters = [] } = useParameterCatalog();
-  const { saveMeter, deleteMeter, discoverMeters, syncDiscoveredMeters } = useMeterMutations();
+  const { saveMeter, disableMeter: disableMeterMutation, discoverMeters, syncDiscoveredMeters } = useMeterMutations();
   const reportMutations = useReportMutations();
   const [editing, setEditing] = useState<MeterInput>(emptyMeter());
   const [mode, setMode] = useState<"add" | "edit">("add");
@@ -157,13 +157,13 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
   };
 
   const disableMeter = (meterId: string) => {
-    deleteMeter.mutate(meterId, {
+    disableMeterMutation.mutate(meterId, {
       onSuccess: () => {
         if (selectedMeterId !== meterId) {
           return;
         }
 
-        const remainingMeters = meters.filter((meter) => meter.meter_id !== meterId);
+        const remainingMeters = meters.map((meter) => (meter.meter_id === meterId ? { ...meter, enabled: false } : meter));
         const nextActiveMeter = remainingMeters.find((meter) => meter.enabled) ?? remainingMeters[0];
         onSelectMeter(nextActiveMeter?.meter_id ?? "");
       },
@@ -343,7 +343,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         <div className="setup-guide__card">
           <span className="setup-guide__step">Step 3</span>
           <h4>Sync active meters</h4>
-          <p>The system will keep detected meters active for polling and turn off missing ones from that scan range.</p>
+          <p>The system will keep detected meters active and report missing configured meters without disabling them automatically.</p>
         </div>
         <div className="setup-guide__card">
           <span className="setup-guide__step">Step 4</span>
@@ -354,8 +354,8 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
 
       <section className="dashboard__split">
         <div className="panel">
-          {deleteMeter.error instanceof Error ? (
-            <div className="page-state page-state--error page-state--padded">{deleteMeter.error.message}</div>
+          {disableMeterMutation.error instanceof Error ? (
+            <div className="page-state page-state--error page-state--padded">{disableMeterMutation.error.message}</div>
           ) : null}
           <div className="section-heading">
             <div>
