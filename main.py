@@ -149,7 +149,6 @@ def start_embedded_api(settings: Settings) -> EmbeddedApiServer:
         logger.exception("Embedded API server failed: %s", exc)
         raise
 
-
 def build_modbus_client(connection_config: dict) -> ModbusRTUClient:
     return ModbusRTUClient(
         port=connection_config.get("com_port") or connection_config.get("port", "COM6"),
