@@ -32,10 +32,13 @@ async function readError(response: Response) {
   }
 }
 
-function friendlyErrorMessage(message: string) {
+function friendlyErrorMessage(message: string, path: string) {
   const normalized = message.trim();
   if (!normalized) {
     return "Request failed. Please try again.";
+  }
+  if (/^internal server error$/i.test(normalized) && /\/api\/(?:email|reports\/email)\b/.test(path)) {
+    return "Email could not be sent. Check SMTP username/password. For Gmail, use a Google app password.";
   }
   if (/failed to fetch|networkerror|network error/i.test(normalized)) {
     return "Cannot reach backend API. Check if the backend is running and CORS/API URL settings are correct.";
@@ -55,7 +58,7 @@ export async function requestJson<T>(path: string, options: RequestInit = {}): P
   });
 
   if (!response.ok) {
-    throw new Error(friendlyErrorMessage(await readError(response)));
+    throw new Error(friendlyErrorMessage(await readError(response), path));
   }
 
   if (response.status === 204) {
@@ -106,7 +109,7 @@ export async function requestReportDownload<T>(path: string, body: unknown, fall
   });
 
   if (!response.ok) {
-    throw new Error(friendlyErrorMessage(await readError(response)));
+    throw new Error(friendlyErrorMessage(await readError(response), path));
   }
 
   const blob = await response.blob();

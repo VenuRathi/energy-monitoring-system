@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import io
 import hmac
+import io
 import logging
+import smtplib
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
@@ -11,35 +12,34 @@ from flask import Flask, jsonify, make_response, request, send_file, send_from_d
 
 from app.api.service import (
     build_export_payload,
-    delete_meter,
     delete_alert_rule,
+    delete_meter,
     delete_report_schedule,
     discover_meters,
     ensure_schema,
+    get_dashboard_data,
     get_email_health,
     get_email_settings,
-    get_polling_settings,
-    get_system_health,
-    get_dashboard_data,
     get_latest_readings,
     get_parameter_catalog,
+    get_polling_settings,
+    get_system_health,
     get_trend_series,
     list_active_alerts,
     list_alert_history,
     list_alert_rules,
     list_meters,
     list_report_schedules,
-    save_email_settings,
-    save_polling_settings,
     save_alert_rule,
+    save_email_settings,
     save_meter,
+    save_polling_settings,
     save_report_schedule,
     send_report_email,
     send_test_email,
 )
 from app.runtime_state import record_schema_startup_failure, record_schema_startup_success
 from config.settings import load_settings
-
 
 SETTINGS = load_settings()
 FRONTEND_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -51,6 +51,21 @@ def _json_error(message: str, status_code: int = 400):
     response = jsonify({"status": status_text, "error": message})
     response.status_code = status_code
     return response
+
+
+def _smtp_error_message(exc: Exception) -> str:
+    if isinstance(exc, smtplib.SMTPAuthenticationError):
+        return (
+            "SMTP authentication failed. Check the SMTP username and password. "
+            "For Gmail, use a Google app password instead of the normal account password."
+        )
+    if isinstance(exc, smtplib.SMTPRecipientsRefused):
+        return "SMTP rejected all recipient addresses. Check the recipient email list."
+    if isinstance(exc, smtplib.SMTPSenderRefused):
+        return "SMTP rejected the sender address. Check the configured From email."
+    if isinstance(exc, smtplib.SMTPConnectError):
+        return "Unable to connect to the SMTP server. Check host, port, TLS/SSL, and network access."
+    return f"SMTP send failed: {exc}"
 
 
 def _parse_limited_int(value: str | None, *, default: int, minimum: int, maximum: int, name: str) -> int:
@@ -119,6 +134,9 @@ def _route_json(fn):
             response = jsonify(payload)
         except ValueError as exc:
             response = _json_error(str(exc), 400)
+        except smtplib.SMTPException as exc:
+            logger.warning("SMTP API error in %s: %s", fn.__name__, exc)
+            response = _json_error(_smtp_error_message(exc), 400)
         except Exception:  # pragma: no cover - defensive API boundary
             logger.exception("Unhandled API error in %s.", fn.__name__)
             response = _json_error("Internal server error.", 500)
@@ -135,6 +153,9 @@ def _route_no_content(fn):
             response = make_response("", 204)
         except ValueError as exc:
             response = _json_error(str(exc), 400)
+        except smtplib.SMTPException as exc:
+            logger.warning("SMTP API error in %s: %s", fn.__name__, exc)
+            response = _json_error(_smtp_error_message(exc), 400)
         except Exception:  # pragma: no cover - defensive API boundary
             logger.exception("Unhandled API error in %s.", fn.__name__)
             response = _json_error("Internal server error.", 500)

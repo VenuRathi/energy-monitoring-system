@@ -1,24 +1,25 @@
 import os
+import smtplib
 import unittest
-from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import patch
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from app.database.connection import get_connection
-from app.collectors.modbus_client import ModbusRTUClient
-from app.database.models import build_readings_table_sql, create_tables, validate_parameter_columns
-from app.database.repositories import MeterRepository, ReadingRepository
-from app.services.retention_service import ReadingsRetentionService
-from app.services.polling_service import PollingService
 from app.api import server as api_server
 from app.api import service as api_service
+from app.collectors.modbus_client import ModbusRTUClient
+from app.database.connection import get_connection
+from app.database.models import build_readings_table_sql, create_tables, validate_parameter_columns
+from app.database.repositories import MeterRepository, ReadingRepository
 from app.runtime_state import (
     get_schema_startup_state,
     record_meter_runtime_error,
     record_schema_startup_failure,
     record_schema_startup_success,
 )
+from app.services.polling_service import PollingService
+from app.services.retention_service import ReadingsRetentionService
 from config.settings import load_settings
 
 
@@ -112,7 +113,6 @@ class SettingsAndModelsTests(unittest.TestCase):
             def commit(self) -> None:
                 self.committed = True
 
-        original_exists = Path.exists
         original_read_text = Path.read_text
 
         def fake_exists(self):
@@ -501,6 +501,120 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertEqual(effective["source"], "database+env-secret")
         self.assertTrue(serialized["hasPassword"])
         self.assertEqual(serialized["source"], "database+env-secret")
+
+    def test_placeholder_smtp_environment_password_does_not_override_database_password(self) -> None:
+        class FakeEmailSettingsRepository:
+            def __init__(self, settings) -> None:
+                self.settings = settings
+
+            def get_settings(self):
+                return {
+                    "smtp_host": "smtp.gmail.com",
+                    "smtp_port": 587,
+                    "smtp_username": "alerts@example.com",
+                    "smtp_password": "db-app-password",
+                    "smtp_from_email": "alerts@example.com",
+                    "smtp_use_tls": True,
+                    "smtp_use_ssl": False,
+                    "updated_at": None,
+                }
+
+        with patch.dict(
+            os.environ,
+            {
+                "ENABLE_DATABASE": "true",
+                "SMTP_PASSWORD": "replace_me",
+                "API_DEBUG": "false",
+            },
+            clear=False,
+        ):
+            settings = load_settings()
+
+        with patch("app.api.service.get_runtime_settings", return_value=settings), patch(
+            "app.api.service.EmailSettingsRepository",
+            FakeEmailSettingsRepository,
+        ):
+            effective = api_service._effective_email_settings()
+            serialized = api_service.get_email_settings()
+
+        self.assertEqual(settings.smtp_password, "")
+        self.assertEqual(effective["smtp_password"], "db-app-password")
+        self.assertEqual(effective["source"], "database")
+        self.assertTrue(serialized["hasPassword"])
+        self.assertEqual(serialized["source"], "database")
+
+    def test_smtp_authentication_error_returns_actionable_message(self) -> None:
+        class FakeSmtpClient:
+            def __init__(self, host, port, timeout=None) -> None:
+                self.host = host
+                self.port = port
+                self.timeout = timeout
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def starttls(self) -> None:
+                return None
+
+            def login(self, username, password) -> None:
+                raise smtplib.SMTPAuthenticationError(535, b"BadCredentials")
+
+            def send_message(self, message) -> None:
+                raise AssertionError("send_message should not be called after failed login.")
+
+        email_settings = {
+            "smtp_host": "smtp.gmail.com",
+            "smtp_port": 587,
+            "smtp_username": "venurathi4@gmail.com",
+            "smtp_password": "bad-password",
+            "smtp_from_email": "venurathi4@gmail.com",
+            "smtp_use_tls": True,
+            "smtp_use_ssl": False,
+        }
+
+        with patch("app.api.service.smtplib.SMTP", FakeSmtpClient):
+            with self.assertRaises(ValueError) as context:
+                api_service._send_email_with_attachment(
+                    recipient_emails=["operator@example.com"],
+                    subject="Test",
+                    body="Body",
+                    attachment_bytes=b"report",
+                    filename="report.txt",
+                    mime_type="text/plain",
+                    email_settings=email_settings,
+                )
+
+        self.assertIn("SMTP authentication failed", str(context.exception))
+        self.assertIn("Google app password", str(context.exception))
+
+    def test_email_route_maps_smtp_auth_failure_without_internal_server_error(self) -> None:
+        with patch("app.api.server.ensure_schema"):
+            app = api_server.create_app()
+        app.testing = True
+
+        with patch(
+            "app.api.server.send_report_email",
+            side_effect=smtplib.SMTPAuthenticationError(535, b"BadCredentials"),
+        ):
+            response = app.test_client().post(
+                "/api/reports/email",
+                json={
+                    "meterIds": ["MTR-001"],
+                    "parameterKeys": ["active_power_total"],
+                    "recipientEmails": ["operator@example.com"],
+                    "startDateTime": "2026-08-02T00:00:00+05:30",
+                    "endDateTime": "2026-08-02T01:00:00+05:30",
+                },
+            )
+
+        body = response.get_json()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(body["status"], "fail")
+        self.assertIn("SMTP authentication failed", body["error"])
+        self.assertNotIn("Internal server error", body["error"])
 
     def test_disable_meter_only_marks_meter_disabled_and_preserves_history_tables(self) -> None:
         class FakeCursor:

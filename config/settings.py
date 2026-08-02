@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 from utils.coercion import coerce_bool
 
+PLACEHOLDER_SECRETS = {"", "replace_me", "change_me", "changeme", "your_password_here"}
+
 
 @dataclass
 class Settings:
@@ -45,6 +47,13 @@ class Settings:
     smtp_from_email: str
     smtp_use_tls: bool
     smtp_use_ssl: bool
+
+
+def _clean_optional_secret(value: str | None) -> str:
+    raw_value = value or ""
+    if raw_value.strip().lower() in PLACEHOLDER_SECRETS:
+        return ""
+    return raw_value
 
 
 def load_settings() -> Settings:
@@ -92,7 +101,7 @@ def load_settings() -> Settings:
         smtp_host=os.getenv("SMTP_HOST", "").strip(),
         smtp_port=int(os.getenv("SMTP_PORT", "587")),
         smtp_username=os.getenv("SMTP_USERNAME", "").strip(),
-        smtp_password=os.getenv("SMTP_PASSWORD", ""),
+        smtp_password=_clean_optional_secret(os.getenv("SMTP_PASSWORD", "")),
         smtp_from_email=os.getenv("SMTP_FROM_EMAIL", os.getenv("SMTP_USERNAME", "")).strip(),
         smtp_use_tls=coerce_bool(os.getenv("SMTP_USE_TLS", "true"), True),
         smtp_use_ssl=coerce_bool(os.getenv("SMTP_USE_SSL", "false"), False),
