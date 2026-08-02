@@ -1,0 +1,191 @@
+﻿
+===== energy_monitoring.log =====
+2026-08-02 12:24:26,435 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:24:26,442 | INFO | Polling cycle ended at 2026-08-02T06:54:26.442402+00:00 after 4.162s across 2 meter(s).
+2026-08-02 12:27:26,452 | INFO | Polling cycle started at 2026-08-02T06:57:26.451714+00:00.
+2026-08-02 12:27:26,543 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:27:26,544 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:27:26,544 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:27:30,585 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:27:30,586 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:27:30,586 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:27:30,587 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:27:30,587 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:27:30,587 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:27:30,588 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:27:30,588 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:27:30,593 | INFO | Polling cycle ended at 2026-08-02T06:57:30.593676+00:00 after 4.142s across 2 meter(s).
+2026-08-02 12:30:30,599 | INFO | Polling cycle started at 2026-08-02T07:00:30.599455+00:00.
+2026-08-02 12:30:30,685 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:30:30,686 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:30:30,686 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:30:34,729 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:30:34,730 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:30:34,730 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:30:34,731 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:30:34,731 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:30:34,731 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:30:34,732 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:30:34,732 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:30:34,859 | INFO | Polling cycle ended at 2026-08-02T07:00:34.859327+00:00 after 4.260s across 2 meter(s).
+2026-08-02 12:32:28,663 | INFO | Energy monitoring startup initiated in PID 13720.
+2026-08-02 12:32:28,669 | INFO | Startup configuration: api=http://127.0.0.1:5000 poll_interval_seconds=180 database=True demo_mode=False timezone=Asia/Calcutta api_key_enabled=False
+2026-08-02 12:32:28,670 | INFO | Primary log file: D:\energy-monitoring-system\logs\energy_monitoring.log
+2026-08-02 12:32:28,671 | INFO | Frontend production build detected at D:\energy-monitoring-system\frontend\dist\index.html.
+2026-08-02 12:32:28,683 | INFO | Detected COM ports at startup: COM1, COM3, COM4, COM5, COM6
+2026-08-02 12:32:28,945 | INFO | PostgreSQL startup preflight succeeded and schema is ready.
+2026-08-02 12:32:28,949 | INFO | Durable reading spool ready at data/reading_spool.sqlite3.
+2026-08-02 12:32:29,047 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:32:29,047 | INFO | Validated 2 enabled meter(s) for polling startup.
+2026-08-02 12:32:29,047 | INFO | Meter ready: MTR-001 (Stratapore Distribution Line Panel meter) on COM5 slave 1 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:32:29,048 | INFO | Meter ready: MTR-002 (TC Oven Meter) on COM7 slave 2 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:32:29,048 | INFO | Starting energy monitoring with 2 enabled valid meter(s).
+2026-08-02 12:32:29,064 | INFO | Embedded Flask API started on http://127.0.0.1:5000 within PID 13720
+2026-08-02 12:32:29,064 | INFO | Scheduled report worker is disabled by configuration.
+2026-08-02 12:32:29,255 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:32:29,466 | INFO | Active polling meters refreshed: 2 meter(s).
+2026-08-02 12:32:29,466 | INFO | Polling cycle started at 2026-08-02T07:02:29.466258+00:00.
+2026-08-02 12:32:29,562 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:32:29,563 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:32:29,563 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:32:33,961 | INFO | Program stopped manually.
+2026-08-02 12:46:37,329 | INFO | Energy monitoring startup initiated in PID 11672.
+2026-08-02 12:46:37,335 | INFO | Startup configuration: api=http://127.0.0.1:5000 poll_interval_seconds=180 database=True demo_mode=False timezone=Asia/Calcutta api_key_enabled=False
+2026-08-02 12:46:37,335 | INFO | Primary log file: D:\energy-monitoring-system\logs\energy_monitoring.log
+2026-08-02 12:46:37,336 | INFO | Frontend production build detected at D:\energy-monitoring-system\frontend\dist\index.html.
+2026-08-02 12:46:37,346 | INFO | Detected COM ports at startup: COM1, COM3, COM4, COM5, COM6
+2026-08-02 12:46:37,562 | INFO | PostgreSQL startup preflight succeeded and schema is ready.
+2026-08-02 12:46:37,574 | INFO | Durable reading spool ready at data/reading_spool.sqlite3.
+2026-08-02 12:46:37,655 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:46:37,655 | INFO | Validated 2 enabled meter(s) for polling startup.
+2026-08-02 12:46:37,656 | INFO | Meter ready: MTR-001 (Stratapore Distribution Line Panel meter) on COM5 slave 1 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:46:37,656 | INFO | Meter ready: MTR-002 (TC Oven Meter) on COM7 slave 2 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:46:37,656 | INFO | Starting energy monitoring with 2 enabled valid meter(s).
+2026-08-02 12:46:37,672 | INFO | Embedded Flask API started on http://127.0.0.1:5000 within PID 11672
+2026-08-02 12:46:37,672 | INFO | Scheduled report worker is disabled by configuration.
+2026-08-02 12:46:37,752 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:46:37,914 | INFO | Active polling meters refreshed: 2 meter(s).
+2026-08-02 12:46:37,915 | INFO | Polling cycle started at 2026-08-02T07:16:37.915134+00:00.
+2026-08-02 12:46:38,003 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM1, COM3, COM4, COM5, COM6. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:46:38,004 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:46:38,004 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:46:42,048 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:46:42,049 | INFO | Meter MTR-001 status changed from unknown to warning (no readings received).
+2026-08-02 12:46:42,049 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:46:42,050 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:46:42,050 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:46:42,052 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:46:42,053 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:46:42,053 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:46:42,421 | INFO | Polling cycle ended at 2026-08-02T07:16:42.421500+00:00 after 4.506s across 2 meter(s).
+2026-08-02 12:48:29,510 | INFO | Program stopped manually.
+2026-08-02 12:48:32,612 | INFO | Energy monitoring startup initiated in PID 20932.
+2026-08-02 12:48:32,618 | INFO | Startup configuration: api=http://127.0.0.1:5000 poll_interval_seconds=180 database=True demo_mode=False timezone=Asia/Calcutta api_key_enabled=False
+2026-08-02 12:48:32,618 | INFO | Primary log file: D:\energy-monitoring-system\logs\energy_monitoring.log
+2026-08-02 12:48:32,619 | INFO | Frontend production build detected at D:\energy-monitoring-system\frontend\dist\index.html.
+2026-08-02 12:48:32,629 | INFO | Detected COM ports at startup: COM1, COM3, COM4, COM5, COM6
+2026-08-02 12:48:32,822 | INFO | PostgreSQL startup preflight succeeded and schema is ready.
+2026-08-02 12:48:32,826 | INFO | Durable reading spool ready at data/reading_spool.sqlite3.
+2026-08-02 12:48:33,010 | INFO | Validated 2 enabled meter(s) for polling startup.
+2026-08-02 12:48:33,010 | INFO | Meter ready: MTR-001 (Stratapore Distribution Line Panel meter) on COM5 slave 1 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:48:33,010 | INFO | Meter ready: MTR-002 (TC Oven Meter) on COM3 slave 2 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:48:33,010 | INFO | Starting energy monitoring with 2 enabled valid meter(s).
+2026-08-02 12:48:33,022 | INFO | Embedded Flask API started on http://127.0.0.1:5000 within PID 20932
+2026-08-02 12:48:33,023 | INFO | Scheduled report worker is disabled by configuration.
+2026-08-02 12:48:33,250 | INFO | Active polling meters refreshed: 2 meter(s).
+2026-08-02 12:48:33,251 | INFO | Polling cycle started at 2026-08-02T07:18:33.251063+00:00.
+2026-08-02 12:48:33,334 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:48:33,335 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:48:37,367 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:48:37,369 | INFO | Meter MTR-001 status changed from unknown to warning (no readings received).
+2026-08-02 12:48:37,369 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:48:37,370 | INFO | Polling meter MTR-002 on COM3 slave 2.
+2026-08-02 12:48:37,370 | INFO | Attempting Modbus connection on COM3 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:48:41,412 | WARNING | Modbus read failed for meter MTR-002 on COM3 slave 2 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:48:41,413 | INFO | Meter MTR-002 status changed from unknown to warning (no readings received).
+2026-08-02 12:48:41,414 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:48:41,750 | INFO | Polling cycle ended at 2026-08-02T07:18:41.750177+00:00 after 8.499s across 2 meter(s).
+2026-08-02 12:48:58,852 | INFO | Program stopped manually.
+2026-08-02 12:50:04,787 | INFO | Energy monitoring startup initiated in PID 24884.
+2026-08-02 12:50:04,794 | INFO | Startup configuration: api=http://127.0.0.1:5000 poll_interval_seconds=180 database=True demo_mode=False timezone=Asia/Calcutta api_key_enabled=False
+2026-08-02 12:50:04,794 | INFO | Primary log file: D:\energy-monitoring-system\logs\energy_monitoring.log
+2026-08-02 12:50:04,795 | INFO | Frontend production build detected at D:\energy-monitoring-system\frontend\dist\index.html.
+2026-08-02 12:50:04,816 | INFO | Detected COM ports at startup: COM1, COM3, COM4, COM5, COM6
+2026-08-02 12:50:05,047 | INFO | PostgreSQL startup preflight succeeded and schema is ready.
+2026-08-02 12:50:05,060 | INFO | Durable reading spool ready at data/reading_spool.sqlite3.
+2026-08-02 12:50:05,153 | INFO | Validated 2 enabled meter(s) for polling startup.
+2026-08-02 12:50:05,153 | INFO | Meter ready: MTR-001 (Stratapore Distribution Line Panel meter) on COM5 slave 1 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:50:05,153 | INFO | Meter ready: MTR-002 (TC Oven Meter) on COM3 slave 2 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:50:05,153 | INFO | Starting energy monitoring with 2 enabled valid meter(s).
+2026-08-02 12:50:05,170 | INFO | Embedded Flask API started on http://127.0.0.1:5000 within PID 24884
+2026-08-02 12:50:05,170 | INFO | Scheduled report worker is disabled by configuration.
+2026-08-02 12:50:05,593 | INFO | Active polling meters refreshed: 2 meter(s).
+2026-08-02 12:50:05,594 | INFO | Polling cycle started at 2026-08-02T07:20:05.594229+00:00.
+2026-08-02 12:50:05,735 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:50:05,736 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:50:09,782 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:50:09,783 | INFO | Meter MTR-001 status changed from unknown to warning (no readings received).
+2026-08-02 12:50:09,783 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:50:09,784 | INFO | Polling meter MTR-002 on COM3 slave 2.
+2026-08-02 12:50:09,784 | INFO | Attempting Modbus connection on COM3 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:50:13,835 | WARNING | Modbus read failed for meter MTR-002 on COM3 slave 2 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:50:13,836 | INFO | Meter MTR-002 status changed from unknown to warning (no readings received).
+2026-08-02 12:50:13,837 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:50:14,265 | INFO | Polling cycle ended at 2026-08-02T07:20:14.264971+00:00 after 8.670s across 2 meter(s).
+2026-08-02 12:50:24,847 | INFO | Program stopped manually.
+2026-08-02 12:50:59,954 | INFO | Energy monitoring startup initiated in PID 21324.
+2026-08-02 12:50:59,963 | INFO | Startup configuration: api=http://127.0.0.1:5000 poll_interval_seconds=180 database=True demo_mode=False timezone=Asia/Calcutta api_key_enabled=False
+2026-08-02 12:50:59,963 | INFO | Primary log file: D:\energy-monitoring-system\logs\energy_monitoring.log
+2026-08-02 12:50:59,964 | INFO | Frontend production build detected at D:\energy-monitoring-system\frontend\dist\index.html.
+2026-08-02 12:50:59,983 | INFO | Detected COM ports at startup: COM1, COM3, COM4, COM5, COM6
+2026-08-02 12:51:00,214 | INFO | PostgreSQL startup preflight succeeded and schema is ready.
+2026-08-02 12:51:00,225 | INFO | Durable reading spool ready at data/reading_spool.sqlite3.
+2026-08-02 12:51:00,416 | INFO | Validated 2 enabled meter(s) for polling startup.
+2026-08-02 12:51:00,416 | INFO | Meter ready: MTR-001 (Stratapore Distribution Line Panel meter) on COM5 slave 1 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:51:00,416 | INFO | Meter ready: MTR-002 (TC Oven Meter) on COM3 slave 2 baud=9600 parity=N stop_bits=1 byte_size=8 timeout=2.0 enabled=True
+2026-08-02 12:51:00,416 | INFO | Starting energy monitoring with 2 enabled valid meter(s).
+2026-08-02 12:51:00,434 | INFO | Embedded Flask API started on http://127.0.0.1:5000 within PID 21324
+2026-08-02 12:51:00,435 | INFO | Scheduled report worker is disabled by configuration.
+2026-08-02 12:51:00,794 | INFO | Active polling meters refreshed: 2 meter(s).
+2026-08-02 12:51:00,794 | INFO | Polling cycle started at 2026-08-02T07:21:00.794664+00:00.
+2026-08-02 12:51:00,880 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:51:00,881 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:51:04,917 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:51:04,917 | INFO | Meter MTR-001 status changed from unknown to warning (no readings received).
+2026-08-02 12:51:04,917 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:51:04,918 | INFO | Polling meter MTR-002 on COM3 slave 2.
+2026-08-02 12:51:04,918 | INFO | Attempting Modbus connection on COM3 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:51:08,952 | WARNING | Modbus read failed for meter MTR-002 on COM3 slave 2 register 1845 count 4: Modbus Error: [Input/Output] Modbus Error: [Invalid Message] No response received, expected at least 4 bytes (0 received)
+2026-08-02 12:51:08,953 | INFO | Meter MTR-002 status changed from unknown to warning (no readings received).
+2026-08-02 12:51:08,953 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:51:09,350 | INFO | Polling cycle ended at 2026-08-02T07:21:09.350860+00:00 after 8.556s across 2 meter(s).
+2026-08-02 12:51:50,846 | INFO | Program stopped manually.
+
+===== backend_watchdog.log =====
+2026-08-02T12:05:50.1565710+05:30 | WATCHDOG STARTED: project=D:\energy-monitoring-system pid=14436.
+2026-08-02T12:05:50.1717026+05:30 | BACKEND STARTING: executable=D:\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-08-02T12:05:50.2533911+05:30 | BACKEND STARTED: pid=25244 executable=D:\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-08-02T12:14:57.2100892+05:30 | BACKEND CRASHED: exit_code=-1073741510. Restarting in 10 second(s).
+2026-08-02T12:15:07.2359705+05:30 | BACKEND RESTARTING after exit_code=-1073741510.
+2026-08-02T12:15:07.2359705+05:30 | BACKEND STARTING: executable=D:\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-08-02T12:15:07.2980311+05:30 | BACKEND STARTED: pid=27740 executable=D:\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-08-02T12:32:17.3754915+05:30 | BACKEND CRASHED: exit_code=-1073741510. Restarting in 10 second(s).
+2026-08-02T12:32:27.4021045+05:30 | BACKEND RESTARTING after exit_code=-1073741510.
+2026-08-02T12:32:27.4080809+05:30 | BACKEND STARTING: executable=D:\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-08-02T12:32:27.4278611+05:30 | BACKEND STARTED: pid=13408 executable=D:\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-08-02T12:32:34.0580796+05:30 | BACKEND STOPPED: exit_code=0. Watchdog will not restart a clean exit.
+2026-08-02T12:32:34.0630665+05:30 | WATCHDOG STOPPED.
+
+===== backend_runner.log =====
+[29/07/2026 11:38:16.18] Runner invoked from D:\energy-monitoring-system
+[29/07/2026 12:00:14.28] Backend process exited with code -1.
+[29/07/2026 12:02:37.49] Runner invoked from D:\energy-monitoring-system
+[29/07/2026 12:04:14.05] Backend process exited with code -1.
+[29/07/2026 12:10:42.75] Runner invoked from D:\energy-monitoring-system
+[29/07/2026 12:13:39.63] Backend process exited with code -1.
+[29/07/2026 12:13:45.95] Runner invoked from D:\energy-monitoring-system
+[29/07/2026 12:23:58.45] Backend process exited with code -1.
+[29/07/2026 12:24:05.46] Runner invoked from D:\energy-monitoring-system
+[29/07/2026 12:29:02.85] Backend process exited with code -1.
+[29/07/2026 12:30:33.72] Runner invoked from D:\energy-monitoring-system
+[29/07/2026 12:40:57.37] Backend process exited with code -1.
