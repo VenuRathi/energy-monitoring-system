@@ -28,9 +28,10 @@ def _connection_value(connection: dict[str, Any], key: str, fallback: Any) -> An
 def run(project_root: Path, output_path: Path) -> int:
     _add_repo_to_path(project_root)
 
+    from serial.tools import list_ports
+
     from app.collectors.modbus_client import ModbusRTUClient
     from config.meter_loader import load_meter_config
-    from serial.tools import list_ports
 
     meter_config = load_meter_config(str(project_root / "config" / "meter_config.json"))
     detected_ports = sorted(str(port.device).upper() for port in list_ports.comports() if getattr(port, "device", None))

@@ -8,8 +8,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.runtime_state import get_all_meter_runtime_statuses
-from app.services.polling_service import PollingService
 from app.services.buffered_reading_repository import BufferedReadingRepository
+from app.services.polling_service import PollingService
 from app.services.reading_spool import ReadingSpool
 from app.services.report_worker import ReportWorker
 from main import _validate_shared_bus_settings

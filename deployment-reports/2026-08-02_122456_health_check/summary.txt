@@ -1,0 +1,17 @@
+﻿Energy Monitoring Deployment Report
+Generated: 2026-08-02 12:24:56
+Project: D:\FFPL\energy-monitoring-system
+
+[INFO] Administrator: False
+[INFO] Project root: D:\FFPL\energy-monitoring-system
+[INFO] Detected COM ports: COM3, COM4
+[FAIL] MTR-001 COM/slave: COM7 slave 1 is configured, but Windows does not detect COM7
+[FAIL] MTR-002 COM/slave: COM8 slave 2 is configured, but Windows does not detect COM8
+[INFO] PostgreSQL service: Name               Status StartType | ----               ------ --------- | postgresql-x64-18 Running Automatic
+[WARN] psql: not found on PATH; service check only
+[PASS] API health: reachable, status=degraded
+[INFO] Runtime status: overall=degraded, database=ok, polling=True
+[INFO] Database hardening: ok: Readings partitioning, duplicate protection, hourly aggregates, and PostgreSQL tuning look healthy.
+[INFO] MTR-001: offline, meter_no_response: Meter no response: MTR-001 on COM5 slave 1 returned no readings in this cycle. Check meter power, RS485 wiring, slave ID, and serial settings.
+[INFO] MTR-002: offline, meter_no_response: Meter no response: MTR-002 on COM7 slave 2 returned no readings in this cycle. Check meter power, RS485 wiring, slave ID, and serial settings.
+[INFO] MTR-003: offline, : 

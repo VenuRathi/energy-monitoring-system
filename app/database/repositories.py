@@ -1,12 +1,12 @@
 if __package__ is None or __package__ == "":
-    from pathlib import Path
     import sys
+    from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import json
 from contextlib import contextmanager
 from datetime import date, datetime
-import json
 from typing import Iterable, Sequence
 
 from psycopg import Connection

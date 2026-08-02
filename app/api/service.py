@@ -20,10 +20,16 @@ from openpyxl.utils import get_column_letter
 from psycopg import Connection, sql
 from psycopg.rows import dict_row
 
+from app.collectors.modbus_client import ModbusRTUClient
 from app.database.connection import get_connection
 from app.database.models import parameter_name_to_column_name
-from app.database.repositories import AlertRuleRepository, EmailSettingsRepository, MeterRepository, ReportScheduleRepository, RuntimeSettingsRepository
-from app.collectors.modbus_client import ModbusRTUClient
+from app.database.repositories import (
+    AlertRuleRepository,
+    EmailSettingsRepository,
+    MeterRepository,
+    ReportScheduleRepository,
+    RuntimeSettingsRepository,
+)
 from app.runtime_state import (
     get_all_meter_runtime_statuses,
     get_polling_loop_state,
@@ -2589,6 +2595,27 @@ def _smtp_is_configured(email_settings: dict[str, Any]) -> bool:
     return bool(email_settings.get("smtp_host") and email_settings.get("smtp_from_email"))
 
 
+def _smtp_failure_message(exc: Exception, settings: dict[str, Any]) -> str:
+    host = settings.get("smtp_host", "configured SMTP server")
+    port = int(settings.get("smtp_port", 587))
+    if isinstance(exc, smtplib.SMTPAuthenticationError):
+        return (
+            "SMTP authentication failed. Check the SMTP username and password. "
+            "For Gmail, use a Google app password instead of the normal account password."
+        )
+    if isinstance(exc, smtplib.SMTPRecipientsRefused):
+        return "SMTP rejected all recipient addresses. Check the recipient email list."
+    if isinstance(exc, smtplib.SMTPSenderRefused):
+        return "SMTP rejected the sender address. Check the configured From email."
+    if isinstance(exc, smtplib.SMTPConnectError):
+        return f"Unable to connect to SMTP server {host}:{port}. Check host, port, TLS/SSL, and network access."
+    if isinstance(exc, smtplib.SMTPException):
+        return f"SMTP send failed: {exc}"
+    if isinstance(exc, OSError):
+        return f"Unable to connect to SMTP server {host}:{port}: {exc}"
+    return "SMTP send failed. Check SMTP settings and try again."
+
+
 def _send_email_with_attachment(
     *,
     recipient_emails: list[str],
@@ -2612,17 +2639,20 @@ def _send_email_with_attachment(
     maintype, subtype = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
     message.add_attachment(attachment_bytes, maintype=maintype, subtype=subtype, filename=filename)
 
-    if coerce_bool(settings.get("smtp_use_ssl", False), False):
-        smtp_client = smtplib.SMTP_SSL(settings["smtp_host"], int(settings.get("smtp_port", 587)), timeout=30)
-    else:
-        smtp_client = smtplib.SMTP(settings["smtp_host"], int(settings.get("smtp_port", 587)), timeout=30)
+    try:
+        if coerce_bool(settings.get("smtp_use_ssl", False), False):
+            smtp_client = smtplib.SMTP_SSL(settings["smtp_host"], int(settings.get("smtp_port", 587)), timeout=30)
+        else:
+            smtp_client = smtplib.SMTP(settings["smtp_host"], int(settings.get("smtp_port", 587)), timeout=30)
 
-    with smtp_client as server:
-        if not coerce_bool(settings.get("smtp_use_ssl", False), False) and coerce_bool(settings.get("smtp_use_tls", True), True):
-            server.starttls()
-        if settings.get("smtp_username"):
-            server.login(settings["smtp_username"], settings.get("smtp_password", ""))
-        server.send_message(message)
+        with smtp_client as server:
+            if not coerce_bool(settings.get("smtp_use_ssl", False), False) and coerce_bool(settings.get("smtp_use_tls", True), True):
+                server.starttls()
+            if settings.get("smtp_username"):
+                server.login(settings["smtp_username"], settings.get("smtp_password", ""))
+            server.send_message(message)
+    except Exception as exc:
+        raise ValueError(_smtp_failure_message(exc, settings)) from exc
 
 
 def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, Any]]:

@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from app.database.repositories import ReadingRepository
 from config.settings import Settings
 
-
 logger = logging.getLogger("energy_monitoring.retention_service")
 
 

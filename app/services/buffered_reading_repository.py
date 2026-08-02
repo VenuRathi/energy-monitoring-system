@@ -9,7 +9,6 @@ from typing import Any
 from app.database.repositories import ReadingRepository
 from app.services.reading_spool import ReadingSpool
 
-
 logger = logging.getLogger("energy_monitoring.buffered_reading_repository")
 
 

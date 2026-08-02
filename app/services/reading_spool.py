@@ -10,7 +10,6 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Callable, Mapping
 
-
 logger = logging.getLogger("energy_monitoring.reading_spool")
 
 

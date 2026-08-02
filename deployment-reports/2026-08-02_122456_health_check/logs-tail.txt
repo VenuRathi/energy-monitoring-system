@@ -1,0 +1,324 @@
+﻿
+===== energy_monitoring.log =====
+2026-08-02 11:55:46,316 | INFO | Polling cycle started at 2026-08-02T06:25:46.316131+00:00.
+2026-08-02 11:55:46,413 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 11:55:46,415 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 11:55:46,417 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 11:55:46,418 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 11:55:46,441 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 11:55:46,441 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 11:55:46,442 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 11:55:46,442 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 11:55:46,442 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 11:55:46,443 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 11:55:46,444 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 11:55:46,444 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 11:55:46,452 | INFO | Polling cycle ended at 2026-08-02T06:25:46.451877+00:00 after 0.136s across 2 meter(s).
+2026-08-02 11:58:46,460 | INFO | Polling cycle started at 2026-08-02T06:28:46.459998+00:00.
+2026-08-02 11:58:46,524 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 11:58:46,524 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 11:58:46,525 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 11:58:46,526 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 11:58:46,529 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 11:58:46,530 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 11:58:46,531 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 11:58:46,531 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 11:58:46,531 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 11:58:46,532 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 11:58:46,533 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 11:58:46,533 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 11:58:46,535 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 11:58:46,536 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 11:58:46,729 | INFO | Hourly readings aggregate refreshed 2 row(s).
+2026-08-02 11:58:46,729 | INFO | Polling cycle ended at 2026-08-02T06:28:46.729496+00:00 after 0.269s across 2 meter(s).
+2026-08-02 12:01:46,739 | INFO | Polling cycle started at 2026-08-02T06:31:46.738653+00:00.
+2026-08-02 12:01:46,822 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:01:46,823 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:01:46,824 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:01:46,825 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:01:46,829 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:01:46,830 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:01:46,832 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:01:46,835 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:01:46,835 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:01:46,835 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:01:46,836 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:01:46,837 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:01:46,837 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:01:46,838 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:01:46,846 | INFO | Polling cycle ended at 2026-08-02T06:31:46.846073+00:00 after 0.107s across 2 meter(s).
+2026-08-02 12:04:46,853 | INFO | Polling cycle started at 2026-08-02T06:34:46.853618+00:00.
+2026-08-02 12:04:46,929 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:04:46,930 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:04:46,931 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:04:46,931 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:04:46,932 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:04:46,932 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:04:46,933 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:04:46,934 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:04:46,934 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:04:46,934 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:04:46,935 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:04:46,935 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:04:46,936 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:04:46,936 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:04:46,940 | INFO | Polling cycle ended at 2026-08-02T06:34:46.940808+00:00 after 0.087s across 2 meter(s).
+2026-08-02 12:07:46,946 | INFO | Polling cycle started at 2026-08-02T06:37:46.945766+00:00.
+2026-08-02 12:07:47,177 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:07:47,182 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:07:47,186 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:07:47,187 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:07:47,189 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:07:47,190 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:07:47,194 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:07:47,198 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:07:47,199 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:07:47,200 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:07:47,202 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:07:47,203 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:07:47,204 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:07:47,204 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:07:47,214 | INFO | Polling cycle ended at 2026-08-02T06:37:47.214182+00:00 after 0.268s across 2 meter(s).
+2026-08-02 12:10:47,219 | INFO | Polling cycle started at 2026-08-02T06:40:47.219210+00:00.
+2026-08-02 12:10:47,273 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:10:47,273 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:10:47,275 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:10:47,275 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:10:47,277 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:10:47,277 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:10:47,278 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:10:47,278 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:10:47,278 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:10:47,279 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:10:47,279 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:10:47,279 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:10:47,281 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:10:47,281 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:10:47,284 | INFO | Polling cycle ended at 2026-08-02T06:40:47.283860+00:00 after 0.065s across 2 meter(s).
+2026-08-02 12:13:47,291 | INFO | Polling cycle started at 2026-08-02T06:43:47.291205+00:00.
+2026-08-02 12:13:47,368 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:13:47,369 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:13:47,371 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:13:47,371 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:13:47,372 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:13:47,373 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:13:47,373 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:13:47,373 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:13:47,374 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:13:47,374 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:13:47,375 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:13:47,375 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:13:47,376 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:13:47,376 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:13:47,621 | INFO | Hourly readings aggregate refreshed 2 row(s).
+2026-08-02 12:13:47,622 | INFO | Polling cycle ended at 2026-08-02T06:43:47.622174+00:00 after 0.331s across 2 meter(s).
+2026-08-02 12:16:47,628 | INFO | Polling cycle started at 2026-08-02T06:46:47.628505+00:00.
+2026-08-02 12:16:47,806 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:16:47,807 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:16:47,808 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:16:47,808 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:16:47,810 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:16:47,810 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:16:47,810 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:16:47,810 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:16:47,811 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:16:47,811 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:16:47,812 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:16:47,812 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:16:47,813 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:16:47,813 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:16:47,816 | INFO | Polling cycle ended at 2026-08-02T06:46:47.816304+00:00 after 0.188s across 2 meter(s).
+2026-08-02 12:19:47,826 | INFO | Polling cycle started at 2026-08-02T06:49:47.826471+00:00.
+2026-08-02 12:19:48,005 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:19:48,006 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:19:48,007 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:19:48,007 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:19:48,009 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:19:48,009 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:19:48,010 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:19:48,010 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:19:48,010 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:19:48,011 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:19:48,012 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:19:48,012 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:19:48,012 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:19:48,013 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:19:48,017 | INFO | Polling cycle ended at 2026-08-02T06:49:48.017527+00:00 after 0.191s across 2 meter(s).
+2026-08-02 12:22:48,029 | INFO | Polling cycle started at 2026-08-02T06:52:48.029045+00:00.
+2026-08-02 12:22:48,127 | WARNING | Configured COM port COM5 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:22:48,127 | WARNING | Configured COM port COM7 is not currently present on this machine. Available ports: COM3, COM4. Polling will keep retrying if the adapter reconnects.
+2026-08-02 12:22:48,130 | INFO | Polling meter MTR-001 on COM5 slave 1.
+2026-08-02 12:22:48,131 | INFO | Attempting Modbus connection on COM5 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:22:48,133 | ERROR | Unable to open Modbus port COM5 for slave 1.
+2026-08-02 12:22:48,133 | WARNING | Modbus read failed for meter MTR-001 on COM5 slave 1 register 1845 count 4: connection unavailable
+2026-08-02 12:22:48,134 | INFO | Meter MTR-001 status changed from warning to offline (no readings received).
+2026-08-02 12:22:48,135 | WARNING | No readings received in this cycle for meter MTR-001.
+2026-08-02 12:22:48,135 | INFO | Polling meter MTR-002 on COM7 slave 2.
+2026-08-02 12:22:48,136 | INFO | Attempting Modbus connection on COM7 with 9600 baud, parity N, stop bits 1, byte size 8, timeout 2.00s.
+2026-08-02 12:22:48,141 | ERROR | Unable to open Modbus port COM7 for slave 2.
+2026-08-02 12:22:48,142 | WARNING | Modbus read failed for meter MTR-002 on COM7 slave 2 register 1845 count 4: connection unavailable
+2026-08-02 12:22:48,143 | INFO | Meter MTR-002 status changed from warning to offline (no readings received).
+2026-08-02 12:22:48,143 | WARNING | No readings received in this cycle for meter MTR-002.
+2026-08-02 12:22:48,151 | INFO | Polling cycle ended at 2026-08-02T06:52:48.151085+00:00 after 0.122s across 2 meter(s).
+
+===== backend_watchdog.log =====
+2026-07-24T15:17:24.5144483+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=15392.
+2026-07-24T15:17:24.5582398+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-24T15:34:08.4915766+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=24248.
+2026-07-24T15:34:08.5165603+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-25T14:34:18.2816443+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=2980.
+2026-07-25T14:34:18.3708093+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-26T18:46:25.4639505+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=2972.
+2026-07-26T18:46:25.6261860+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-27T08:06:12.3608672+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3060.
+2026-07-27T08:06:12.5200344+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-28T09:35:19.4810398+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3000.
+2026-07-28T09:35:19.5205759+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-28T09:35:19.7570069+05:30 | BACKEND STARTED: pid=18696.
+2026-07-29T09:22:35.8440169+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3184.
+2026-07-29T09:22:35.8619657+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-29T09:22:36.1922045+05:30 | BACKEND STARTED: pid=15344.
+2026-07-29T12:33:11.0414738+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3028.
+2026-07-29T12:33:11.0725467+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-29T22:42:29.3411973+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=2840.
+2026-07-29T22:42:29.4077579+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T09:16:12.6116765+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=2996.
+2026-07-31T09:16:12.7246130+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T12:36:35.4116286+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend_Phase3Probe project=D:\FFPL\energy-monitoring-system.
+2026-07-31T12:36:39.6048292+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend_Phase3Probe.
+2026-07-31T12:36:39.6839781+05:30 | BACKEND PID READ: pid=2940 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T12:36:40.1351650+05:30 | BACKEND PROCESS NOT RUNNING: pid=2940 from lock file.
+2026-07-31T12:37:36.9382677+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend_Phase3Probe project=D:\FFPL\energy-monitoring-system.
+2026-07-31T12:37:40.1562211+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend_Phase3Probe.
+2026-07-31T12:37:40.2147493+05:30 | BACKEND PID READ: pid=19548 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T12:37:40.5830340+05:30 | BACKEND VERIFY OK: pid=19548 executable='D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe' commandLine='"D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe" -u D:\FFPL\energy-monitoring-system\.phase3-stop-probe\main.py '.
+2026-07-31T12:37:40.5916177+05:30 | BACKEND STOP REQUESTED: pid=19548.
+2026-07-31T12:37:40.8029538+05:30 | BACKEND STOPPED: pid=19548.
+2026-07-31T12:51:03.8026563+05:30 | BACKEND CRASHED: exit_code=1. Restarting in 10 second(s).
+2026-07-31T12:51:13.9019278+05:30 | BACKEND RESTARTING after exit_code=1.
+2026-07-31T12:51:13.9500728+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T12:52:40.2318875+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T12:52:44.0134254+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T12:52:44.0774602+05:30 | BACKEND PID READ: pid=6328 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T12:52:44.5940121+05:30 | BACKEND VERIFY FAILED: pid=6328 executable='' commandLine=''. Expected executable='D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe' and script main.py.
+2026-07-31T12:53:42.2076728+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T12:53:45.2591320+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T12:53:45.3032726+05:30 | BACKEND PID READ: pid=6328 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T12:53:47.6645308+05:30 | BACKEND VERIFY OK: pid=6328 owns API port 5000 but Windows did not expose executable/commandLine metadata. Using project PID file and API port ownership fallback.
+2026-07-31T12:53:47.7021758+05:30 | BACKEND STOP REQUESTED: pid=6328.
+2026-07-31T12:53:47.7415759+05:30 | STOP FAILED: Cannot stop process "python (6328)" because of the following error: Access is denied
+2026-07-31T12:54:45.4005815+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T12:54:50.4767447+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T12:54:50.5960266+05:30 | BACKEND PID READ: pid=6328 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T12:54:54.0774371+05:30 | BACKEND VERIFY OK: pid=6328 owns API port 5000 but Windows did not expose executable/commandLine metadata. Using project PID file and API port ownership fallback.
+2026-07-31T12:54:54.1823079+05:30 | BACKEND STOP REQUESTED: pid=6328.
+2026-07-31T12:54:54.2322447+05:30 | BACKEND STOP-PROCESS FAILED: pid=6328. Cannot stop process "python (6328)" because of the following error: Access is denied
+2026-07-31T12:54:54.6162111+05:30 | BACKEND TASKKILL RESULT: pid=6328 exit_code=1 output=ERROR: The process with PID 6328 could not be terminated. Reason: Access is denied. System.Management.Automation.RemoteException
+2026-07-31T12:54:54.6355814+05:30 | STOP FAILED: taskkill failed for verified backend pid 6328 with exit code 1.
+2026-07-31T12:57:38.3813267+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=12464.
+2026-07-31T12:57:38.4371405+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T12:57:39.0343469+05:30 | BACKEND STARTED: pid=21964 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T12:59:35.7711047+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T12:59:40.2264924+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T12:59:40.3347092+05:30 | BACKEND PID READ: pid=22688 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T12:59:40.9245458+05:30 | BACKEND VERIFY OK: pid=22688 executable='C:\Users\venur\AppData\Local\Programs\Python\Python313\python.exe' commandLine='"D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe" -u main.py '.
+2026-07-31T12:59:40.9511321+05:30 | BACKEND STOP REQUESTED: pid=22688.
+2026-07-31T12:59:41.0558058+05:30 | BACKEND CRASHED: exit_code=-1. Restarting in 10 second(s).
+2026-07-31T12:59:41.2554525+05:30 | BACKEND STOPPED: pid=22688.
+2026-07-31T12:59:51.1199888+05:30 | BACKEND RESTARTING after exit_code=-1.
+2026-07-31T12:59:51.1272561+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T12:59:51.1823351+05:30 | BACKEND STARTED: pid=5904 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T13:01:48.1435291+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T13:01:53.0561245+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T13:01:53.1555460+05:30 | BACKEND PID READ: pid=13488 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T13:01:53.8251908+05:30 | BACKEND VERIFY OK: pid=13488 executable='C:\Users\venur\AppData\Local\Programs\Python\Python313\python.exe' commandLine='"D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe" -u main.py '.
+2026-07-31T13:01:54.6184651+05:30 | BACKEND STOP REQUESTED: pid=13488.
+2026-07-31T13:01:54.7010260+05:30 | BACKEND CRASHED: exit_code=-1. Restarting in 10 second(s).
+2026-07-31T13:01:54.9387931+05:30 | BACKEND STOPPED: pid=13488.
+2026-07-31T13:02:04.7171953+05:30 | BACKEND RESTARTING after exit_code=-1.
+2026-07-31T13:02:04.7226878+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T13:02:04.7659520+05:30 | BACKEND STARTED: pid=21276 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T13:03:31.1443022+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T13:03:35.5497908+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T13:03:35.6311343+05:30 | BACKEND PID READ: pid=23008 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T13:03:36.3803858+05:30 | BACKEND VERIFY OK: pid=23008 executable='C:\Users\venur\AppData\Local\Programs\Python\Python313\python.exe' commandLine='"D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe" -u main.py '.
+2026-07-31T13:03:36.9478752+05:30 | WATCHDOG PARENT STOP REQUESTED: pid=12464 commandLine='"C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_backend_watchdog.ps1 '.
+2026-07-31T13:03:36.9752146+05:30 | WATCHDOG PARENT STOPPED: pid=12464.
+2026-07-31T13:03:36.9929714+05:30 | BACKEND STOP REQUESTED: pid=23008.
+2026-07-31T13:03:37.2525660+05:30 | BACKEND STOPPED: pid=23008.
+2026-07-31T13:04:11.6193207+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=23120.
+2026-07-31T13:04:11.6731750+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T13:04:12.0764019+05:30 | BACKEND STARTED: pid=24500 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T13:04:27.1937726+05:30 | BACKEND CRASHED: exit_code=-1073741510. Restarting in 10 second(s).
+2026-07-31T13:04:37.2436929+05:30 | BACKEND RESTARTING after exit_code=-1073741510.
+2026-07-31T13:04:37.2436929+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T13:04:37.2787439+05:30 | BACKEND STARTED: pid=24452 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T13:05:39.2020304+05:30 | BACKEND CRASHED: exit_code=-1073741510. Restarting in 10 second(s).
+2026-07-31T13:05:49.2203475+05:30 | BACKEND RESTARTING after exit_code=-1073741510.
+2026-07-31T13:05:49.2203475+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T13:05:49.2401510+05:30 | BACKEND STARTED: pid=7156 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T13:07:51.1491774+05:30 | BACKEND STOPPED: exit_code=0. Watchdog will not restart a clean exit.
+2026-07-31T13:07:51.2282383+05:30 | WATCHDOG STOPPED.
+2026-07-31T15:45:53.2830831+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3188.
+2026-07-31T15:45:53.3588379+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-07-31T15:45:53.4655389+05:30 | BACKEND STARTED: pid=9300 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-07-31T15:58:21.5769455+05:30 | STOP REQUESTED: scheduled task EnergyMonitoringBackend project=D:\FFPL\energy-monitoring-system.
+2026-07-31T15:58:24.9538513+05:30 | SCHEDULED TASK NOT FOUND: EnergyMonitoringBackend.
+2026-07-31T15:58:24.9856118+05:30 | BACKEND PID READ: pid=9456 from pid file at D:\FFPL\energy-monitoring-system\data\energy-monitoring-system-main.pid.
+2026-07-31T15:58:27.7984437+05:30 | BACKEND VERIFY OK: pid=9456 owns API port 5000 but Windows did not expose executable/commandLine metadata. Using project PID file and API port ownership fallback.
+2026-07-31T15:58:28.7739866+05:30 | BACKEND STOP REQUESTED: pid=9456.
+2026-07-31T15:58:28.7898620+05:30 | BACKEND STOP-PROCESS FAILED: pid=9456. Cannot stop process "python (9456)" because of the following error: Access is denied
+2026-07-31T15:58:29.0182628+05:30 | BACKEND TASKKILL RESULT: pid=9456 exit_code=1 output=ERROR: The process with PID 9456 could not be terminated. Reason: Access is denied. System.Management.Automation.RemoteException
+2026-07-31T15:58:29.0246966+05:30 | STOP FAILED: taskkill failed for verified backend pid 9456 with exit code 1.
+2026-08-01T14:26:34.7989836+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3140.
+2026-08-01T14:26:34.8448925+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-08-01T14:26:34.9556761+05:30 | BACKEND STARTED: pid=13700 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-08-02T08:06:49.2857803+05:30 | WATCHDOG STARTED: project=D:\FFPL\energy-monitoring-system pid=3092.
+2026-08-02T08:06:49.3114209+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-08-02T08:06:49.4224066+05:30 | BACKEND STARTED: pid=14776 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+2026-08-02T11:41:02.3797864+05:30 | BACKEND CRASHED: exit_code=1. Restarting in 10 second(s).
+2026-08-02T11:41:12.4351162+05:30 | BACKEND RESTARTING after exit_code=1.
+2026-08-02T11:41:12.4443414+05:30 | BACKEND STARTING: executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe.
+2026-08-02T11:41:12.5505149+05:30 | BACKEND STARTED: pid=23224 executable=D:\FFPL\energy-monitoring-system\.venv\Scripts\python.exe script=main.py.
+
+===== backend_runner.log =====
+[21-07-2026 10:37:54.32] Runner invoked from D:\FFPL\energy-monitoring-system
+[21-07-2026 10:38:55.74] Runner invoked from D:\FFPL\energy-monitoring-system
+[21-07-2026 10:57:53.62] Backend process exited with code -1.
+[21-07-2026 15:22:24.21] Backend process exited with code 1.
+[21-07-2026 15:22:40.80] Runner invoked from D:\FFPL\energy-monitoring-system
+[21-07-2026 15:40:22.19] Runner invoked from D:\FFPL\energy-monitoring-system
+[21-07-2026 15:41:52.67] Runner invoked from D:\FFPL\energy-monitoring-system
+[22-07-2026 19:33:00.10] Runner invoked from D:\FFPL\energy-monitoring-system
+[22-07-2026 19:36:46.90] Runner invoked from D:\FFPL\energy-monitoring-system
+[23-07-2026  8:57:15.63] Runner invoked from D:\FFPL\energy-monitoring-system
+[23-07-2026  8:59:19.03] Runner invoked from D:\FFPL\energy-monitoring-system
+[24-07-2026  9:32:05.50] Runner invoked from D:\FFPL\energy-monitoring-system
+[24-07-2026  9:36:35.56] Runner invoked from D:\FFPL\energy-monitoring-system
+[24-07-2026 14:20:27.08] Runner invoked from D:\FFPL\energy-monitoring-system
+[24-07-2026 14:21:50.16] Backend process exited with code 1.
+[24-07-2026 14:22:06.90] Runner invoked from D:\FFPL\energy-monitoring-system
+[24-07-2026 14:22:08.25] Backend process exited with code 0.
+[24-07-2026 15:31:03.36] Backend process exited with code 1.
+[25-07-2026 14:34:57.75] Runner invoked from D:\FFPL\energy-monitoring-system
+[25-07-2026 14:35:02.97] Backend process exited with code 0.
+[26-07-2026 18:47:16.24] Runner invoked from D:\FFPL\energy-monitoring-system
+[26-07-2026 18:47:17.56] Backend process exited with code 0.
+[27-07-2026  8:06:26.29] Runner invoked from D:\FFPL\energy-monitoring-system
+[27-07-2026  8:06:28.78] Backend process exited with code 0.
+[28-07-2026  9:35:39.04] Runner invoked from D:\FFPL\energy-monitoring-system
+[28-07-2026  9:35:44.94] Backend process exited with code 0.
+[29-07-2026  9:22:53.37] Runner invoked from D:\FFPL\energy-monitoring-system
+[29-07-2026  9:22:55.91] Backend process exited with code 0.
+[29-07-2026 12:33:50.95] Runner invoked from D:\FFPL\energy-monitoring-system
+[29-07-2026 12:33:54.01] Backend process exited with code 0.
+[29-07-2026 22:42:58.91] Runner invoked from D:\FFPL\energy-monitoring-system
+[31-07-2026  9:16:34.85] Runner invoked from D:\FFPL\energy-monitoring-system
+[31-07-2026  9:16:37.42] Backend process exited with code 0.
+[31-07-2026 15:46:58.97] Runner invoked from D:\FFPL\energy-monitoring-system
+[31-07-2026 15:47:06.51] Backend process exited with code 0.
+[01-08-2026 14:27:23.24] Runner invoked from D:\FFPL\energy-monitoring-system
+[01-08-2026 14:27:27.77] Backend process exited with code 0.
+[02-08-2026  8:07:07.38] Runner invoked from D:\FFPL\energy-monitoring-system
+[02-08-2026  8:07:10.13] Backend process exited with code 0.
+[02-08-2026 11:43:37.58] Runner invoked from D:\FFPL\energy-monitoring-system

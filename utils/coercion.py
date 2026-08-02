@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 TRUE_VALUES = {"1", "true", "yes", "y", "on"}
 FALSE_VALUES = {"0", "false", "no", "n", "off", ""}
 
