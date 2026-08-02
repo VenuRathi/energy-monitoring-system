@@ -7,7 +7,6 @@ from typing import Callable
 from app.api.service import process_due_report_schedules
 from config.settings import Settings
 
-
 logger = logging.getLogger("energy_monitoring.report_worker")
 
 

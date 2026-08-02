@@ -33,7 +33,7 @@ function Resolve-PythonLauncher {
     )
 
     foreach ($candidate in $commonCandidates) {
-        if (Test-Path $candidate) {
+        if (Test-Path $candidate -ErrorAction SilentlyContinue) {
             return @{
                 Executable = $candidate
                 Arguments = @()

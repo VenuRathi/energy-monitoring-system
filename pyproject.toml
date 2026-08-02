@@ -1,0 +1,24 @@
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+extend-exclude = [
+    ".venv",
+    ".venv-*",
+    ".venv_old_*",
+    ".installer_smoke",
+    "backups",
+    "data",
+    "frontend",
+    "logs",
+    "pilot-evidence",
+    "release",
+]
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "I",
+]

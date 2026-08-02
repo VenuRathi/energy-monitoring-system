@@ -5,7 +5,6 @@ from typing import Optional
 
 from pymodbus.client import ModbusSerialClient
 
-
 logger = logging.getLogger("energy_monitoring.modbus_client")
 
 

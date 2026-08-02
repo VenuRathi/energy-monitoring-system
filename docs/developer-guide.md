@@ -57,11 +57,10 @@ Main control flow:
 Backend:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
-python main.py
+.\.venv\Scripts\python.exe main.py
 ```
 
 Frontend:
@@ -80,7 +79,14 @@ cd frontend
 npm run typecheck
 npm run build
 cd ..
-python main.py
+.\.venv\Scripts\python.exe main.py
+```
+
+Python diagnostics:
+
+```powershell
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pytest
 ```
 
 ## Deployment model

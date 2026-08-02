@@ -5,35 +5,36 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event, Thread
 from typing import Iterable
-from werkzeug.serving import make_server
+
 from serial.tools import list_ports
+from werkzeug.serving import make_server
 
 from app.api import app as api_app
-from config.meter_loader import load_meter_config
-from config.settings import Settings, load_settings
 from app.collectors.modbus_client import ModbusRTUClient
 from app.collectors.schneider.pm5000 import PM5000Collector
 from app.database.connection import get_connection
 from app.database.models import create_tables, parameter_name_to_column_name
 from app.database.repositories import AlertRuleRepository, MeterRepository, ReadingRepository, RuntimeSettingsRepository
-from app.runtime_state import get_shared_modbus_client as get_registered_modbus_client
 from app.runtime_state import (
+    get_runtime_poll_interval_seconds,
     pop_all_shared_modbus_clients,
     prune_meter_runtime_statuses,
     record_meter_runtime_error,
     record_polling_cycle_end,
     record_polling_cycle_start,
     record_polling_loop_error,
-    get_runtime_poll_interval_seconds,
     set_polling_loop_running,
     set_runtime_poll_interval_seconds,
     set_shared_modbus_client,
 )
-from app.services.polling_service import PollingService
+from app.runtime_state import get_shared_modbus_client as get_registered_modbus_client
 from app.services.buffered_reading_repository import BufferedReadingRepository
+from app.services.polling_service import PollingService
 from app.services.reading_spool import ReadingSpool
 from app.services.report_worker import ReportWorker
 from app.services.retention_service import ReadingsRetentionService
+from config.meter_loader import load_meter_config
+from config.settings import Settings, load_settings
 from utils.coercion import coerce_bool
 from utils.logger import setup_logger
 

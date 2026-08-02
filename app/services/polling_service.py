@@ -1,6 +1,6 @@
 if __package__ is None or __package__ == "":
-    from pathlib import Path
     import sys
+    from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -9,6 +9,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo
+
 from serial.tools import list_ports
 
 from app.collectors.base.base_meter import BaseMeter
@@ -22,7 +23,6 @@ from app.runtime_state import (
     record_meter_runtime_error,
 )
 from app.services.reading_spool import QueuedReading, ReadingSpool
-
 
 logger = logging.getLogger("energy_monitoring.polling_service")
 PRIMARY_MEASUREMENT_WARNING_INTERVAL = timedelta(minutes=15)
@@ -157,7 +157,6 @@ class PollingService:
             self.meter_repository.upsert_meter(self._meter_repository_payload())
 
     def poll_once(self) -> None:
-        connection = self.meter_config.get("connection", {})
         com_port = self._com_port()
         slave_id = self._slave_id()
         attempted_at = datetime.now(timezone.utc)

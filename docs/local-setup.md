@@ -40,6 +40,12 @@ If `.venv` exists but is broken, recreate it:
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1 -Recreate
 ```
 
+For developer diagnostics and tests, install the dev tools after the environment is ready:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+```
+
 ## 3. Create `.env`
 
 ```powershell
@@ -145,6 +151,13 @@ npm run build
 
 ## 8. Verify the system
 
+Developer checks:
+
+```powershell
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pytest
+```
+
 Open:
 
 - `http://127.0.0.1:5000/api/health`
@@ -195,4 +208,11 @@ Frontend production build:
 ```powershell
 cd frontend
 npm run build
+```
+
+Python diagnostics:
+
+```powershell
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pytest
 ```

@@ -1,6 +1,6 @@
 if __package__ is None or __package__ == "":
-    from pathlib import Path
     import sys
+    from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
@@ -10,7 +10,6 @@ from typing import Dict, List, Optional
 
 from app.collectors.base.base_meter import BaseMeter
 from app.collectors.modbus_client import ModbusRTUClient
-
 
 MAX_BLOCK_WORDS = 16
 MAX_GAP_WORDS = 2
