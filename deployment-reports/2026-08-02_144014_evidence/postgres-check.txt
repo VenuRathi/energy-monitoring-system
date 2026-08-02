@@ -1,0 +1,7 @@
+﻿
+Name               Status StartType
+----               ------ ---------
+postgresql-x64-18 Running Automatic
+
+
+
