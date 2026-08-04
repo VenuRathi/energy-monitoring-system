@@ -109,7 +109,7 @@ def _verify_schema(connection, results: list[dict[str, Any]]) -> None:
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT table_name
+            SELECT table_name 
             FROM information_schema.tables
             WHERE table_schema = current_schema()
               AND table_name = ANY(%s);
