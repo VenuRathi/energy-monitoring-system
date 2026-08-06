@@ -8,6 +8,8 @@ extend-exclude = [
     ".installer_smoke",
     "backups",
     "data",
+    "deployment-reports",
+    "deployment/reports",
     "frontend",
     "logs",
     "pilot-evidence",

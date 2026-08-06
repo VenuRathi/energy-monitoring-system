@@ -3,6 +3,7 @@
 .venv_old_*/
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 .env
 
@@ -15,6 +16,8 @@ data/
 backups/
 release/
 pilot-evidence/
+deployment-reports/
+deployment/reports/
 installer/output/
 .installer_smoke/
 

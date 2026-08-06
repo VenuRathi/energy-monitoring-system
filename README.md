@@ -222,6 +222,7 @@ Developer references:
 - [Debugging guide](docs/debugging-guide.md)
 - [Change guide](docs/change-guide.md)
 - [Maintenance playbook](docs/maintenance-playbook.md)
+- [Repository cleanup plan](docs/repository-cleanup-plan.md)
 - [OpenAPI starter contract](docs/openapi.yaml)
 
 Setup and operations:
