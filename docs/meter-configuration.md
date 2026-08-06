@@ -68,8 +68,8 @@ Recommended live setup:
 Example values:
 
 ```text
-MTR-001 -> COM6, slave 1, 9600, N, 1, 8, timeout 2.0
-MTR-002 -> COM6, slave 2, 9600, N, 1, 8, timeout 2.0
+MTR-001 -> COM5, slave 1, 9600, N, 1, 8, timeout 2.0
+MTR-002 -> COM5, slave 2, 9600, N, 1, 8, timeout 2.0
 ```
 
 ## How to disable meters that are not physically connected

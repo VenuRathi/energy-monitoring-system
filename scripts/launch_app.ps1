@@ -58,7 +58,7 @@ function Test-BackendHealth {
 }
 
 $envPath = Join-Path $ProjectRoot ".env"
-$runnerPath = Join-Path $ProjectRoot "scripts\run_backend_service.bat"
+$watchdogPath = Join-Path $ProjectRoot "scripts\run_backend_watchdog.ps1"
 $venvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $envMap = Get-EnvMap -Path $envPath
 $appUrl = Resolve-AppUrl -EnvMap $envMap
@@ -72,15 +72,25 @@ if (-not (Test-Path $venvPython)) {
     exit 1
 }
 
-if (-not (Test-Path $runnerPath)) {
-    throw "Backend runner not found: $runnerPath"
+if (-not (Test-Path $watchdogPath)) {
+    throw "Backend watchdog not found: $watchdogPath"
 }
 
 $backendReady = Test-BackendHealth -BaseUrl $appUrl
 
 if (-not $backendReady) {
-    Write-Host "Backend is not reachable at $appUrl. Starting backend service..." -ForegroundColor Cyan
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "`"$runnerPath`"" -WorkingDirectory $ProjectRoot -WindowStyle Minimized
+    Write-Host "Backend is not reachable at $appUrl. Starting hidden backend watchdog..." -ForegroundColor Cyan
+    Start-Process `
+        -FilePath "powershell.exe" `
+        -ArgumentList @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-WindowStyle", "Hidden",
+            "-File", $watchdogPath,
+            "-ProjectRoot", $ProjectRoot
+        ) `
+        -WorkingDirectory $ProjectRoot `
+        -WindowStyle Hidden
 
     $deadline = (Get-Date).AddSeconds(25)
     do {

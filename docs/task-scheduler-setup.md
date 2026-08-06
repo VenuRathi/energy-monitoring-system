@@ -155,6 +155,21 @@ If Windows blocks Task Scheduler registration because the current user does not 
 powershell -ExecutionPolicy Bypass -File .\scripts\install_user_startup_backend.ps1
 ```
 
+The fallback installs a hidden Startup-folder launcher for
+`run_backend_watchdog.ps1` and creates the **Plant Energy Monitor** desktop
+shortcut. The watchdog starts `main.py` in the project virtual environment,
+owns the lifecycle, and continues running when the browser is closed. The
+dashboard is only a viewer; it does not own polling, database writes, the
+outage spool, or watchdog recovery.
+
+The fallback starts after the current user logs in. It is useful for operator
+workstations and user-level validation, but it is not boot-level 24/7
+protection. For production power-loss/reboot recovery, register the
+Administrator Task Scheduler task using the SYSTEM context described above.
+
+The desktop shortcut opens `http://127.0.0.1:5000` through the hidden dashboard
+launcher. Closing that browser window does not stop the watchdog or backend.
+
 This is weaker than the production path because it starts after user login, not at machine boot. Use it only for a supervised development or pilot PC when admin rights are not available.
 
 ## NSSM option

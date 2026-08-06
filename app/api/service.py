@@ -831,7 +831,7 @@ def _database_hardening_status(connection: Connection) -> dict[str, Any]:
 
         cursor.execute(
             """
-            SELECT column_default
+            SELECT column_default, is_identity
             FROM information_schema.columns
             WHERE table_schema = current_schema()
               AND table_name = 'readings'
@@ -839,7 +839,9 @@ def _database_hardening_status(connection: Connection) -> dict[str, Any]:
             """
         )
         id_default_row = cursor.fetchone() or {}
-        status["readingsIdDefaultPresent"] = bool(id_default_row.get("column_default"))
+        status["readingsIdDefaultPresent"] = bool(
+            id_default_row.get("column_default") or id_default_row.get("is_identity") == "YES"
+        )
 
         cursor.execute(
             """
@@ -1427,6 +1429,9 @@ def _snapshot_from_latest_row(latest_row: dict[str, Any] | None) -> dict[str, fl
             "current": 0.0,
             "activePower": 0.0,
             "activeEnergy": 0.0,
+            "reactiveEnergy": 0.0,
+            "apparentEnergy": 0.0,
+            "powerFactor": 0.0,
         }
 
     return {
@@ -1434,6 +1439,9 @@ def _snapshot_from_latest_row(latest_row: dict[str, Any] | None) -> dict[str, fl
         "current": float(latest_row.get("current_avg") or 0),
         "activePower": float(latest_row.get("active_power_total") or 0),
         "activeEnergy": float(latest_row.get("active_energy_received_out_of_load") or 0),
+        "reactiveEnergy": float(latest_row.get("reactive_energy_received") or 0),
+        "apparentEnergy": float(latest_row.get("apparent_energy_received") or 0),
+        "powerFactor": float(latest_row.get("power_factor_total") or 0),
     }
 
 
@@ -1476,6 +1484,10 @@ def _row_to_meter(record: dict[str, Any], latest_row: dict[str, Any] | None = No
         "base_current": snapshot["current"],
         "base_power": snapshot["activePower"],
         "base_energy": snapshot["activeEnergy"],
+        "active_energy": snapshot["activeEnergy"],
+        "reactive_energy": snapshot["reactiveEnergy"],
+        "apparent_energy": snapshot["apparentEnergy"],
+        "power_factor": snapshot["powerFactor"],
         "snapshot": snapshot,
         **runtime_payload,
     }

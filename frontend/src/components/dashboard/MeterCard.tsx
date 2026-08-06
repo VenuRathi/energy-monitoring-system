@@ -28,20 +28,20 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
 
       <dl className="meter-card__metrics">
         <div>
-          <dt>Active Power</dt>
-          <dd>{formatNumber(meter.base_power, 2)} kW</dd>
+          <dt>Active Energy</dt>
+          <dd>{meter.active_energy == null ? "n/a" : `${formatNumber(meter.active_energy, 2)} kWh`}</dd>
         </div>
         <div>
-          <dt>Voltage L-N</dt>
-          <dd>{formatNumber(meter.base_voltage, 1)} V</dd>
+          <dt>Reactive Energy</dt>
+          <dd>{meter.reactive_energy == null ? "n/a" : `${formatNumber(meter.reactive_energy, 2)} kVARh`}</dd>
         </div>
         <div>
-          <dt>Current</dt>
-          <dd>{formatNumber(meter.base_current, 2)} A</dd>
+          <dt>Apparent Energy</dt>
+          <dd>{meter.apparent_energy == null ? "n/a" : `${formatNumber(meter.apparent_energy, 2)} kVAh`}</dd>
         </div>
         <div>
-          <dt>Energy</dt>
-          <dd>{formatNumber(meter.base_energy, 2)} kWh</dd>
+          <dt>Power Factor</dt>
+          <dd>{meter.power_factor == null ? "n/a" : formatNumber(meter.power_factor, 3)}</dd>
         </div>
       </dl>
 

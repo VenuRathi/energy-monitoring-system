@@ -118,6 +118,7 @@ try {
             -FilePath $pythonPath `
             -ArgumentList @("-u", "main.py") `
             -WorkingDirectory $ProjectRoot `
+            -WindowStyle Hidden `
             -PassThru
         Write-WatchdogLog "BACKEND STARTED: pid=$($backendProcess.Id) executable=$pythonPath script=main.py."
 

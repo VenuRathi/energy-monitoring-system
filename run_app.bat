@@ -3,21 +3,14 @@ setlocal EnableExtensions
 
 cd /d "%~dp0"
 set "APP_ROOT=%CD%"
-set "LAUNCHER=%APP_ROOT%\scripts\launch_app.ps1"
+set "LAUNCHER=%APP_ROOT%\scripts\launch_dashboard.vbs"
 
 if not exist "%LAUNCHER%" (
-	echo Missing launcher script:
+	echo Missing dashboard launcher:
 	echo %LAUNCHER%
-	pause
 	exit /b 1
 )
 
-powershell -ExecutionPolicy Bypass -File "%LAUNCHER%" -ProjectRoot "%APP_ROOT%"
-if errorlevel 1 (
-	echo.
-	echo Launch failed. Review the message above, then run post-install checks if needed.
-	pause
-	exit /b 1
-)
+wscript.exe "%LAUNCHER%"
 
 exit /b 0
