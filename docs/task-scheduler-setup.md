@@ -16,10 +16,14 @@ Use the Task Scheduler watchdog:
 
 - [scripts/run_backend_watchdog.ps1](../scripts/run_backend_watchdog.ps1)
 
-The watchdog starts the project virtual-environment Python process, waits for it,
-records lifecycle events, and restarts it after a non-zero exit. It uses a
-Windows mutex, while `main.py` keeps the existing single-instance lock, so a
-second launcher cannot create a second collector.
+The watchdog starts the project virtual-environment Python process, records
+lifecycle events, and restarts it after a non-zero exit. While the process is
+running it also checks `/api/status` and the polling heartbeat. Repeated API
+failure, a stopped polling loop, or a stale polling heartbeat is treated as a
+hang; the backend is stopped and restarted. A restart-window backoff prevents
+an unhealthy deployment from entering a tight restart loop. It uses a Windows
+mutex, while `main.py` keeps the existing single-instance lock, so a second
+launcher cannot create a second collector.
 
 Lifecycle events are written to:
 
@@ -48,8 +52,8 @@ This registers:
 - default run context: `SYSTEM`
 - long execution time limit so the task is not stopped like a short-lived batch job
 
-The watchdog performs the normal crash restart. Task Scheduler restart settings
-are an outer fallback if the watchdog process also fails.
+The watchdog performs the normal crash/hang restart. Task Scheduler restart
+settings are an outer fallback if the watchdog process also fails.
 
 If you specifically need the task to run as the current user instead, use:
 
@@ -139,6 +143,7 @@ Successful stop/start evidence:
 - `backend_watchdog.log` shows `STOP REQUESTED`
 - `backend_watchdog.log` shows `BACKEND VERIFY OK`
 - `backend_watchdog.log` shows `BACKEND STOPPED`
+- a forced backend hang produces `HEALTH FAILURE` and `BACKEND HUNG`, followed by a fresh backend PID
 - the next start logs a fresh backend PID
 - `/api/status` reports the expected polling heartbeat
 

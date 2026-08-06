@@ -24,6 +24,7 @@ The code has the major hardening needed for a controlled plant deployment, but f
 - [x] UI saves do not store a new plaintext SMTP password while env password is active.
 - [x] Backend wait loop is stop-aware between cycles.
 - [x] Task Scheduler watchdog startup path exists with rotating lifecycle log.
+- [x] Watchdog detects repeated API/polling-heartbeat failure, restarts hung backends, and applies restart-loop backoff.
 - [x] PostgreSQL outage readings are buffered in a bounded durable SQLite spool.
 - [x] Spool replay is duplicate-safe and isolated per meter.
 - [x] Meter clock drift is checked before trusting meter timestamps.
