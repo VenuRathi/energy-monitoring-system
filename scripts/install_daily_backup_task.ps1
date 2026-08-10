@@ -1,7 +1,9 @@
 param(
     [string]$TaskName = "EnergyMonitoringDailyBackup",
     [string]$ProjectRoot = (Resolve-Path "$PSScriptRoot\..").Path,
-    [string]$RunTime = "23:30"
+    [string]$RunTime = "23:30",
+    [string]$RunAsUser = $env:USERNAME,
+    [switch]$RunAsCurrentUser
 )
 
 $backupScript = Join-Path $ProjectRoot "scripts\backup_postgres.ps1"
@@ -21,6 +23,12 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 2 `
     -RestartInterval (New-TimeSpan -Minutes 5) `
     -StartWhenAvailable
+$principal = if ($RunAsCurrentUser) {
+    New-ScheduledTaskPrincipal -UserId $RunAsUser -LogonType InteractiveOrPassword -RunLevel Highest
+}
+else {
+    New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+}
 
 try {
     Register-ScheduledTask `
@@ -28,6 +36,7 @@ try {
         -Action $action `
         -Trigger $trigger `
         -Settings $settings `
+        -Principal $principal `
         -Description "Creates a daily PostgreSQL backup for the Energy Monitoring System." `
         -ErrorAction Stop | Out-Null
 }
@@ -40,4 +49,6 @@ if (-not $registeredTask) {
     throw "Scheduled backup task '$TaskName' was not found after registration."
 }
 
+$context = if ($RunAsCurrentUser) { $RunAsUser } else { "SYSTEM" }
 Write-Host "Scheduled backup task '$TaskName' registered for $RunTime."
+Write-Host "Run context: $context"

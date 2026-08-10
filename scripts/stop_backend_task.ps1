@@ -128,7 +128,7 @@ function Stop-VerifiedWatchdogParent {
 
         if ($isProjectWatchdog) {
             Write-StopLog "WATCHDOG PARENT STOP REQUESTED: pid=$($parent.ProcessId) commandLine='$parentCommandLine'."
-            Stop-Process -Id ([int]$parent.ProcessId) -ErrorAction Stop
+            Stop-Process -Id ([int]$parent.ProcessId) -Confirm:$false -ErrorAction Stop
             Write-StopLog "WATCHDOG PARENT STOPPED: pid=$($parent.ProcessId)."
             return
         }
@@ -159,7 +159,7 @@ function Stop-BackendProcess {
     $backendPid = [int]$BackendProcess.ProcessId
     Write-StopLog "BACKEND STOP REQUESTED: pid=$backendPid."
     try {
-        Stop-Process -Id $backendPid -ErrorAction Stop
+        Stop-Process -Id $backendPid -Confirm:$false -ErrorAction Stop
     }
     catch {
         Write-StopLog "BACKEND STOP-PROCESS FAILED: pid=$backendPid. $($_.Exception.Message)"

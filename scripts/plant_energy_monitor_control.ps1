@@ -29,6 +29,53 @@ $watchdogLauncher = Join-Path $ProjectRoot "scripts\run_backend_watchdog.vbs"
 $stopScript = Join-Path $ProjectRoot "scripts\stop_backend_task.ps1"
 $powershellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 $wscriptExe = Join-Path $env:SystemRoot "System32\wscript.exe"
+$backendTaskName = "EnergyMonitoringBackend"
+
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Get-BackendScheduledTask {
+    try {
+        return Get-ScheduledTask -TaskName $backendTaskName -ErrorAction Stop
+    }
+    catch {
+        return $null
+    }
+}
+
+function Invoke-ElevatedControlAction {
+    param([ValidateSet("Start", "Stop")][string]$RequestedAction)
+
+    $argumentList = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $PSCommandPath,
+        "-ProjectRoot", $ProjectRoot,
+        "-Action", $RequestedAction
+    )
+
+    try {
+        $elevatedProcess = Start-Process -FilePath $powershellExe `
+            -Verb RunAs `
+            -ArgumentList $argumentList `
+            -WorkingDirectory $ProjectRoot `
+            -WindowStyle Hidden `
+            -Wait `
+            -PassThru
+    }
+    catch {
+        throw "Administrator approval was cancelled or unavailable. The project was not changed. $($_.Exception.Message)"
+    }
+
+    if ($elevatedProcess.ExitCode -ne 0) {
+        throw "Administrator-elevated $RequestedAction failed with exit code $($elevatedProcess.ExitCode). Review logs\backend_watchdog.log."
+    }
+
+    return "Administrator-elevated $RequestedAction completed successfully."
+}
 
 function Get-ApiStatus {
     try {
@@ -62,6 +109,25 @@ function Start-ProjectSystem {
         return "Backend is already reachable at $apiBaseUrl. No duplicate watchdog was started."
     }
 
+    $scheduledTask = Get-BackendScheduledTask
+    if ($scheduledTask) {
+        if (-not (Test-IsAdministrator)) {
+            return Invoke-ElevatedControlAction -RequestedAction "Start"
+        }
+
+        Start-ScheduledTask -TaskName $backendTaskName -ErrorAction Stop
+        $deadline = (Get-Date).AddSeconds(45)
+        do {
+            Start-Sleep -Seconds 2
+            $status = Get-ApiStatus
+            if ($status) {
+                return "Scheduled backend task started and polling became reachable at $apiBaseUrl. Dashboard was not opened."
+            }
+        } while ((Get-Date) -lt $deadline)
+
+        throw "Scheduled backend task was started, but the backend did not become reachable within 45 seconds. Check logs\backend_watchdog.log and logs\energy_monitoring.log."
+    }
+
     Start-Process -FilePath $wscriptExe `
         -ArgumentList @("`"$watchdogLauncher`"") `
         -WorkingDirectory $ProjectRoot `
@@ -82,6 +148,10 @@ function Start-ProjectSystem {
 function Stop-ProjectSystem {
     if (-not (Test-Path $stopScript)) {
         throw "Safe stop script not found: $stopScript"
+    }
+
+    if (-not (Test-IsAdministrator)) {
+        return Invoke-ElevatedControlAction -RequestedAction "Stop"
     }
 
     $stopProcess = Start-Process -FilePath $powershellExe `
