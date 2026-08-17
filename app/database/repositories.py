@@ -13,7 +13,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from app.database.connection import get_connection
-from app.database.models import parameter_name_to_column_name
+from app.database.models import ordered_parameter_columns, parameter_name_to_column_name
 from config.settings import Settings
 
 
@@ -183,7 +183,11 @@ class ReadingRepository:
         )
 
     def _insert_columns(self) -> list[str]:
-        column_names = [parameter_name_to_column_name(parameter["name"]) for parameter in self.parameters]
+        parameter_by_column = {
+            parameter_name_to_column_name(parameter["name"]): parameter
+            for parameter in self.parameters
+        }
+        column_names = ordered_parameter_columns(parameter_by_column.values())
         return [
             "meter_id",
             "timestamp",
@@ -205,8 +209,16 @@ class ReadingRepository:
             payload.get("timestamp_source", "collector_fallback"),
         ]
         readings = payload.get("readings") or {}
-        for parameter in self.parameters:
-            values.append(readings.get(parameter["name"]))
+        parameter_by_column = {
+            parameter_name_to_column_name(parameter["name"]): parameter
+            for parameter in self.parameters
+        }
+        for column_name in ordered_parameter_columns(parameter_by_column.values()):
+            parameter = parameter_by_column[column_name]
+            value = readings.get(parameter["name"])
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                value = round(value, 2)
+            values.append(value)
         return values
 
     def insert_readings(self, reading_payloads: Sequence[dict]) -> bool:

@@ -261,7 +261,7 @@ def run(project_root: Path, apply_schema: bool, create_database: bool, output_pa
 def main() -> int:
     parser = argparse.ArgumentParser(description="Energy monitoring deployment database setup/check helper.")
     parser.add_argument("--project-root", required=True)
-    parser.add_argument("--outpu...t", required=True)
+    parser.add_argument("--output", required=True)
     parser.add_argument("--apply-schema", action="store_true")
     parser.add_argument("--create-database", action="store_true")
     args = parser.parse_args()

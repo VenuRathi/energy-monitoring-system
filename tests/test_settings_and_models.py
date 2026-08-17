@@ -77,12 +77,29 @@ class SettingsAndModelsTests(unittest.TestCase):
             validate_parameter_columns(parameters)
 
     def test_readings_table_ddl_is_partitioned_and_database_deduplicated(self) -> None:
-        ddl = build_readings_table_sql([{"name": "Frequency", "type": "float32"}])
+        ddl = build_readings_table_sql(
+            [
+                {"name": "Frequency", "type": "float32"},
+                {"name": "Active Energy Received (Out of Load)", "type": "uint32"},
+                {"name": "Reactive Energy Received", "type": "uint32"},
+                {"name": "Apparent Energy Received", "type": "uint32"},
+            ]
+        )
 
         self.assertIn("PARTITION BY RANGE (timestamp)", ddl)
         self.assertIn("PRIMARY KEY (timestamp, id)", ddl)
         self.assertIn("UNIQUE (meter_id, timestamp, timestamp_source)", ddl)
-        self.assertIn("frequency DOUBLE PRECISION", ddl)
+        self.assertIn("frequency NUMERIC(20,2)", ddl)
+        self.assertIn("meter_id TEXT NOT NULL REFERENCES meters(meter_id),\n    meter_name TEXT", ddl)
+        self.assertLess(ddl.index("timestamp_source"), ddl.index("active_energy_received_out_of_load"))
+        self.assertLess(
+            ddl.index("active_energy_received_out_of_load"),
+            ddl.index("reactive_energy_received"),
+        )
+        self.assertLess(
+            ddl.index("reactive_energy_received"),
+            ddl.index("apparent_energy_received"),
+        )
 
     def test_create_tables_applies_hourly_and_schema_views_sql(self) -> None:
         class FakeCursor:

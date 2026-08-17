@@ -1712,12 +1712,16 @@ def _aggregate_trend_series(meter_ids: list[str], parameter_key: str, limit: int
 def _fetch_latest_rows_by_meter(connection: Connection) -> dict[str, dict[str, Any]]:
     common_columns = [
         "meter_id",
+        "meter_name",
         "timestamp",
         "meter_timestamp",
         "collected_at",
         "reading_date",
         "reading_time",
         "timestamp_source",
+        "active_energy_received_out_of_load",
+        "reactive_energy_received",
+        "apparent_energy_received",
         "voltage_l_minus_n_avg",
         "voltage_l_minus_l_avg",
         "current_avg",
@@ -1726,9 +1730,6 @@ def _fetch_latest_rows_by_meter(connection: Connection) -> dict[str, dict[str, A
         "apparent_power_total",
         "frequency",
         "power_factor_total",
-        "active_energy_received_out_of_load",
-        "reactive_energy_received",
-        "apparent_energy_received",
         "peak_demand",
     ]
 
