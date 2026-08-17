@@ -24,6 +24,50 @@ If installed elsewhere, replace this path in all commands.
 cd D:\FFPL\energy-monitoring-system
 ```
 
+## Local Mode vs Plant LAN Mode
+
+Current production mode is intentionally local-only:
+
+```env
+API_HOST=127.0.0.1
+API_PORT=5000
+```
+
+The future Plant LAN change should be controlled and scheduled with IT:
+
+1. Change `API_HOST` to the approved bind value, normally `0.0.0.0` when the
+   PC must listen on its network interfaces.
+2. Keep `API_PORT=5000` unless another approved port is selected.
+3. Set a fixed IP address or DHCP reservation for the plant PC and document
+   the operator URL, for example `http://PLANT_PC_IP:5000`.
+4. Add a narrowly scoped inbound Windows Firewall rule for TCP 5000 limited to
+   the approved plant subnet.
+5. Rebuild the frontend only if `VITE_API_BASE_URL` is explicitly set; the
+   production default uses relative `/api` requests.
+6. Restart the backend scheduled task/watchdog.
+7. Verify locally, then verify `/api/health`, `/api/status`, and the dashboard
+   from an approved second plant PC.
+
+Do not enable Plant LAN mode by changing only the bind address. Confirm the
+firewall scope, IP assignment, API key policy, and plant-network approval
+first. The current local health checks intentionally use `127.0.0.1` and do
+not imply LAN exposure.
+
+## Background Engine And Dashboard Separation
+
+The Flask API, Modbus polling engine, PostgreSQL writes, outage spool, and
+watchdog are independent of the browser dashboard. Operators may close the
+dashboard without stopping collection or persistence.
+
+- Current-user fallback: starts the hidden watchdog after user login and is
+  suitable for user-level deployment checks.
+- Administrator Task Scheduler mode: starts the watchdog at Windows startup,
+  normally as `SYSTEM`, and is required for true unattended 24/7 operation
+  after power loss or reboot.
+
+Use the **Plant Energy Monitor** desktop shortcut to open the local dashboard.
+The shortcut is a viewer entry point and is not the backend process.
+
 ## 2. PostgreSQL Requirements
 
 - [ ] PostgreSQL 14+ is installed.

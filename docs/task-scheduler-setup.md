@@ -16,10 +16,14 @@ Use the Task Scheduler watchdog:
 
 - [scripts/run_backend_watchdog.ps1](../scripts/run_backend_watchdog.ps1)
 
-The watchdog starts the project virtual-environment Python process, waits for it,
-records lifecycle events, and restarts it after a non-zero exit. It uses a
-Windows mutex, while `main.py` keeps the existing single-instance lock, so a
-second launcher cannot create a second collector.
+The watchdog starts the project virtual-environment Python process, records
+lifecycle events, and restarts it after a non-zero exit. While the process is
+running it also checks `/api/status` and the polling heartbeat. Repeated API
+failure, a stopped polling loop, or a stale polling heartbeat is treated as a
+hang; the backend is stopped and restarted. A restart-window backoff prevents
+an unhealthy deployment from entering a tight restart loop. It uses a Windows
+mutex, while `main.py` keeps the existing single-instance lock, so a second
+launcher cannot create a second collector.
 
 Lifecycle events are written to:
 
@@ -48,8 +52,8 @@ This registers:
 - default run context: `SYSTEM`
 - long execution time limit so the task is not stopped like a short-lived batch job
 
-The watchdog performs the normal crash restart. Task Scheduler restart settings
-are an outer fallback if the watchdog process also fails.
+The watchdog performs the normal crash/hang restart. Task Scheduler restart
+settings are an outer fallback if the watchdog process also fails.
 
 If you specifically need the task to run as the current user instead, use:
 
@@ -139,6 +143,7 @@ Successful stop/start evidence:
 - `backend_watchdog.log` shows `STOP REQUESTED`
 - `backend_watchdog.log` shows `BACKEND VERIFY OK`
 - `backend_watchdog.log` shows `BACKEND STOPPED`
+- a forced backend hang produces `HEALTH FAILURE` and `BACKEND HUNG`, followed by a fresh backend PID
 - the next start logs a fresh backend PID
 - `/api/status` reports the expected polling heartbeat
 
@@ -149,6 +154,21 @@ If Windows blocks Task Scheduler registration because the current user does not 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install_user_startup_backend.ps1
 ```
+
+The fallback installs a hidden Startup-folder launcher for
+`run_backend_watchdog.ps1` and creates the **Plant Energy Monitor** desktop
+shortcut. The watchdog starts `main.py` in the project virtual environment,
+owns the lifecycle, and continues running when the browser is closed. The
+dashboard is only a viewer; it does not own polling, database writes, the
+outage spool, or watchdog recovery.
+
+The fallback starts after the current user logs in. It is useful for operator
+workstations and user-level validation, but it is not boot-level 24/7
+protection. For production power-loss/reboot recovery, register the
+Administrator Task Scheduler task using the SYSTEM context described above.
+
+The desktop shortcut opens `http://127.0.0.1:5000` through the hidden dashboard
+launcher. Closing that browser window does not stop the watchdog or backend.
 
 This is weaker than the production path because it starts after user login, not at machine boot. Use it only for a supervised development or pilot PC when admin rights are not available.
 

@@ -37,6 +37,25 @@ Do these once per shift or once per day:
 - [ ] Confirm yesterday/today backup exists in `backups\`.
 - [ ] Confirm Windows clock is correct.
 
+## Soak Test Signoff
+
+Run a minimum 72-hour soak test; a 7-day run is preferred for production
+signoff. Record evidence at the start and at least once per shift:
+
+- backend uptime, process/task state, and any watchdog restart events
+- PostgreSQL service status and database health
+- disk free space, database size, backup size, and log growth
+- MTR-001 and MTR-002 online/offline status and latest reading timestamps
+- SQLite reading spool queue count and oldest queued reading
+- `/api/health`, `/api/status`, and dashboard reachability
+- daily backup creation and `pg_restore -l` verification
+
+Use the evidence collector for each checkpoint:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\collect_pilot_evidence.ps1 -Label production-soak
+```
+
 Useful SQL:
 
 ```sql

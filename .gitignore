@@ -11,7 +11,10 @@ __pycache__/
 .vscode/
 
 logs/*.log
+logs/*.log.*
 logs/*.xlsx
+.chrome-headless-output.*
+.edge-headless-output.*
 data/
 backups/
 release/

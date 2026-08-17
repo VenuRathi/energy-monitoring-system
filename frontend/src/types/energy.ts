@@ -42,6 +42,10 @@ export type MeterRecord = {
   base_current: number;
   base_power: number;
   base_energy: number;
+  active_energy?: number | null;
+  reactive_energy?: number | null;
+  apparent_energy?: number | null;
+  power_factor?: number | null;
 };
 
 export type ParameterCategory =
