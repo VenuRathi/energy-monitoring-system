@@ -80,6 +80,7 @@ class SettingsAndModelsTests(unittest.TestCase):
         ddl = build_readings_table_sql(
             [
                 {"name": "Frequency", "type": "float32"},
+                {"name": "Frequency", "type": "float32"},
                 {"name": "Active Energy Received (Out of Load)", "type": "uint32"},
                 {"name": "Reactive Energy Received", "type": "uint32"},
                 {"name": "Apparent Energy Received", "type": "uint32"},
@@ -90,6 +91,7 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertIn("PRIMARY KEY (timestamp, id)", ddl)
         self.assertIn("UNIQUE (meter_id, timestamp, timestamp_source)", ddl)
         self.assertIn("frequency NUMERIC(20,2)", ddl)
+        self.assertEqual(ddl.count("frequency NUMERIC(20,2)"), 1)
         self.assertIn("meter_id TEXT NOT NULL REFERENCES meters(meter_id),\n    meter_name TEXT", ddl)
         self.assertLess(ddl.index("timestamp_source"), ddl.index("active_energy_received_out_of_load"))
         self.assertLess(
