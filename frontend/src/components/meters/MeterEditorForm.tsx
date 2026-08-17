@@ -1,3 +1,4 @@
+import { Radar, RotateCcw, Save, Search, Settings2 } from "lucide-react";
 import type { MeterDiscoveryResult, MeterDiscoverySyncResult, MeterInput } from "../../types/energy";
 
 type MeterEditorFormProps = {
@@ -268,6 +269,7 @@ export function MeterEditorForm({
             onClick={onSyncDetected}
             disabled={syncingDetected || discovering || !value.com_port.trim()}
           >
+            <Radar size={16} aria-hidden="true" />
             {syncingDetected ? "Scanning line..." : "Scan line and update active meters"}
           </button>
           <button
@@ -276,6 +278,7 @@ export function MeterEditorForm({
             onClick={onDiscover}
             disabled={discovering || syncingDetected || !value.com_port.trim()}
           >
+            <Search size={16} aria-hidden="true" />
             {discovering ? "Checking..." : "Preview detected meters"}
           </button>
         </div>
@@ -317,9 +320,11 @@ export function MeterEditorForm({
 
       <div className="editor__actions">
         <button type="button" className="ghost-button" onClick={onCancel}>
+          <RotateCcw size={16} aria-hidden="true" />
           Cancel
         </button>
         <button type="button" className="primary-button" onClick={onSubmit} disabled={saving}>
+          {saving ? <Settings2 size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
           {saving ? "Saving..." : "Save changes"}
         </button>
       </div>

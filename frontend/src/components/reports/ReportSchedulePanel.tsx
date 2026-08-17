@@ -1,3 +1,4 @@
+import { CalendarClock, Send, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatTimestamp } from "../../lib/formatters";
 import type { ReportEmailResult, ReportFilters, ReportSchedule, ReportScheduleInput } from "../../types/energy";
@@ -106,6 +107,7 @@ export function ReportSchedulePanel({
               onClick={submitSendNow}
               disabled={sendingNow || filters.meterIds.length === 0 || filters.parameterKeys.length === 0 || recipients.length === 0}
             >
+              <Send size={16} aria-hidden="true" />
               {sendingNow ? "Sending..." : "Send now"}
             </button>
           ) : (
@@ -115,6 +117,7 @@ export function ReportSchedulePanel({
               onClick={submitSchedule}
               disabled={saving || filters.meterIds.length === 0 || filters.parameterKeys.length === 0 || recipients.length === 0}
             >
+              <CalendarClock size={16} aria-hidden="true" />
               {saving ? "Saving..." : "Save schedule"}
             </button>
           )}
@@ -197,8 +200,8 @@ export function ReportSchedulePanel({
                   <td>{schedule.lastError ? schedule.lastError : schedule.enabled ? "Ready" : "Disabled"}</td>
                   <td>
                     <div className="row-actions">
-                      <button type="button" className="ghost-button ghost-button--danger" onClick={() => onDelete(schedule.id)}>
-                        Delete
+                      <button type="button" className="icon-button icon-button--danger" onClick={() => onDelete(schedule.id)} aria-label={`Delete schedule for ${schedule.meterName}`}>
+                        <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </div>
                   </td>

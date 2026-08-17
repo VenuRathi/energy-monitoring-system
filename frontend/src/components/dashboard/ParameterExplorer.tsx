@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { LatestReadingRow, ParameterCategory, ParameterMeta } from "../../types/energy";
+import { sortParametersByEnergyPriority } from "../../lib/energyParameters";
 
 type ParameterExplorerProps = {
   parameters: ParameterMeta[];
@@ -30,7 +31,8 @@ export function ParameterExplorer({ parameters, latestReadings, selectedKey, onS
   const filteredParameters = useMemo(() => {
     const searchText = query.trim().toLowerCase();
 
-    return parameters
+    return sortParametersByEnergyPriority(
+      parameters
       .filter((parameter) => category === "All" || parameter.category === category)
       .filter((parameter) => {
         if (!searchText) return true;
@@ -39,12 +41,8 @@ export function ParameterExplorer({ parameters, latestReadings, selectedKey, onS
           parameter.key.toLowerCase().includes(searchText) ||
           parameter.unit.toLowerCase().includes(searchText)
         );
-      })
-      .sort((left, right) => {
-        if (left.key === selectedKey) return -1;
-        if (right.key === selectedKey) return 1;
-        return left.order - right.order;
-      });
+      }),
+    );
   }, [category, parameters, query]);
 
   return (
@@ -85,7 +83,7 @@ export function ParameterExplorer({ parameters, latestReadings, selectedKey, onS
         {filteredParameters.length === 0 ? (
           <div className="page-state page-state--padded">No parameters match the current filters.</div>
         ) : (
-          filteredParameters.slice(0, 18).map((parameter) => (
+          filteredParameters.map((parameter) => (
             <button
               key={parameter.key}
               type="button"

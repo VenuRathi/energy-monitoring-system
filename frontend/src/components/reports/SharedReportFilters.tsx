@@ -1,5 +1,7 @@
+import { CheckCircle2, Filter, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { MeterRecord, ParameterCategory, ParameterMeta, ReportFilters } from "../../types/energy";
+import { sortParametersByEnergyPriority } from "../../lib/energyParameters";
 
 type SharedReportFiltersProps = {
   meters: MeterRecord[];
@@ -10,12 +12,6 @@ type SharedReportFiltersProps = {
 };
 
 const categories: Array<ParameterCategory | "All"> = ["All", "Voltage", "Current", "Power", "Energy", "Quality", "Demand", "System"];
-const prioritizedKeys = [
-  "active_energy_received_out_of_load",
-  "reactive_energy_received",
-  "apparent_energy_received",
-  "power_factor_total",
-];
 const rangePresets = [
   { label: "1 hour", hours: 1 },
   { label: "8 hours", hours: 8 },
@@ -34,8 +30,8 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
 
   const filteredParameters = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const priority = new Map(prioritizedKeys.map((key, index) => [key, index]));
-    return parameters
+    return sortParametersByEnergyPriority(
+      parameters
       .filter((parameter) => {
         const matchesCategory = category === "All" || parameter.category === category;
         const matchesQuery =
@@ -44,21 +40,8 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
           parameter.key.toLowerCase().includes(query) ||
           parameter.unit.toLowerCase().includes(query);
         return matchesCategory && matchesQuery;
-      })
-      .sort((left, right) => {
-        const leftPriority = priority.get(left.key);
-        const rightPriority = priority.get(right.key);
-        if (leftPriority !== undefined && rightPriority !== undefined) {
-          return leftPriority - rightPriority;
-        }
-        if (leftPriority !== undefined) {
-          return -1;
-        }
-        if (rightPriority !== undefined) {
-          return 1;
-        }
-        return left.order - right.order;
-      });
+      }),
+    );
   }, [category, parameters, search]);
 
   const selectedParameters = useMemo(() => {
@@ -127,12 +110,15 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
               className="ghost-button ghost-button--compact"
               onClick={() => updateMeterSelection(enabledMeters.map((meter) => meter.meter_id))}
             >
+              <CheckCircle2 size={15} aria-hidden="true" />
               Select enabled
             </button>
             <button type="button" className="ghost-button ghost-button--compact" onClick={() => updateMeterSelection(meters.map((meter) => meter.meter_id))}>
+              <Filter size={15} aria-hidden="true" />
               Select all
             </button>
             <button type="button" className="ghost-button ghost-button--compact" onClick={() => updateMeterSelection([])}>
+              <X size={15} aria-hidden="true" />
               Clear
             </button>
           </div>
@@ -169,7 +155,7 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
                 onClick={() => updateMeterSelection(filters.meterIds.filter((meterId) => meterId !== meter.meter_id))}
               >
                 <span>{meter.meter_name}</span>
-                <span className="report-selected__remove">Remove</span>
+                <span className="report-selected__remove"><X size={13} aria-hidden="true" /></span>
               </button>
             ))
           ) : (
@@ -204,6 +190,7 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
       <div className="explorer__toolbar">
         <label className="explorer__field">
           <span className="explorer__label">Search</span>
+          <span className="explorer__input-icon" aria-hidden="true"><Search size={15} /></span>
           <input
             className="explorer__input"
             value={search}
@@ -242,7 +229,7 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
               >
                 <span className="report-selected__index">{index + 1}</span>
                 <span>{parameter.label}</span>
-                <span className="report-selected__remove">Remove</span>
+                <span className="report-selected__remove"><X size={13} aria-hidden="true" /></span>
               </button>
             ))
           ) : (

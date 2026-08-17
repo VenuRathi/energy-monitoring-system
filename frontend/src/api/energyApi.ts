@@ -8,6 +8,7 @@ import type {
   EmailSettingsInput,
   EmailTestResult,
   ExportPreview,
+  HourlyEnergyPoint,
   LatestReadingRow,
   MeterDiscoveryInput,
   MeterDiscoveryResult,
@@ -110,6 +111,13 @@ export function fetchTrendSeries(meterId: string, parameterKey: string, hours?: 
     query.set("hours", String(hours));
   }
   return requestJson<TrendPoint[]>(`/api/meters/${encodeURIComponent(meterId)}/trend?${query.toString()}`);
+}
+
+export function fetchHourlyEnergyHistory(meterId: string, hours = 72): Promise<HourlyEnergyPoint[]> {
+  const query = new URLSearchParams({ hours: String(hours) });
+  return requestJson<HourlyEnergyPoint[]>(
+    `/api/meters/${encodeURIComponent(meterId)}/hourly-energy?${query.toString()}`,
+  );
 }
 
 export function fetchAlertRules(meterId: string): Promise<AlertRule[]> {

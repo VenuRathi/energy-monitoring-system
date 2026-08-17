@@ -1,5 +1,6 @@
 import type { LatestReadingRow } from "../../types/energy";
 import { formatNumber } from "../../lib/formatters";
+import { sortLatestReadingsByEnergyPriority } from "../../lib/energyParameters";
 
 type LatestReadingsTableProps = {
   rows: LatestReadingRow[];
@@ -9,6 +10,8 @@ export function LatestReadingsTable({ rows }: LatestReadingsTableProps) {
   if (rows.length === 0) {
     return <div className="page-state page-state--padded">No readings available yet for this meter.</div>;
   }
+
+  const orderedRows = sortLatestReadingsByEnergyPriority(rows);
 
   return (
     <div className="table-shell">
@@ -24,7 +27,7 @@ export function LatestReadingsTable({ rows }: LatestReadingsTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {orderedRows.map((row) => (
             <tr key={row.parameterKey}>
               <td className="latest-table__parameter">
                 <strong>{row.label}</strong>

@@ -1,3 +1,4 @@
+import { MailCheck, Save, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatTimestamp } from "../../lib/formatters";
 import type { EmailHealth, EmailSettings, EmailSettingsInput } from "../../types/energy";
@@ -148,6 +149,7 @@ export function EmailSettingsPanel({
 
       <div className="editor__actions">
         <button type="button" className="primary-button" onClick={submitSettings} disabled={saving}>
+          <Save size={16} aria-hidden="true" />
           {saving ? "Saving..." : "Save email settings"}
         </button>
       </div>
@@ -166,6 +168,7 @@ export function EmailSettingsPanel({
 
       <div className="editor__actions">
         <button type="button" className="ghost-button" onClick={submitTest} disabled={testing || testRecipients.trim().length === 0}>
+          {testing ? <Send size={16} aria-hidden="true" /> : <MailCheck size={16} aria-hidden="true" />}
           {testing ? "Sending..." : "Send test email"}
         </button>
       </div>

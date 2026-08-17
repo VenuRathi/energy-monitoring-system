@@ -21,6 +21,7 @@ from app.api.service import (
     get_email_health,
     get_email_settings,
     get_latest_readings,
+    get_hourly_energy_history,
     get_parameter_catalog,
     get_polling_settings,
     get_system_health,
@@ -250,6 +251,12 @@ def create_app() -> Flask:
         hours = request.args.get("hours")
         hours_value = int(hours) if hours and hours.isdigit() else None
         return get_trend_series(meter_id, parameter_key, limit=limit, hours=hours_value)
+
+    @app.route("/api/meters/<meter_id>/hourly-energy", methods=["GET"])
+    @_route_json
+    def meter_hourly_energy(meter_id: str):
+        hours = _parse_limited_int(request.args.get("hours"), default=72, minimum=1, maximum=72, name="hours")
+        return get_hourly_energy_history(meter_id, hours=hours)
 
     @app.route("/api/meters/<meter_id>/alert-rules", methods=["GET"])
     @_route_json

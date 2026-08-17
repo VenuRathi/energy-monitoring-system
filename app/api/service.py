@@ -132,6 +132,12 @@ HOURLY_TREND_COLUMNS = {
     "apparent_energy_received": "apparent_energy_received_max",
 }
 
+HOURLY_ENERGY_COLUMNS = {
+    "activeEnergy": "active_energy_received_out_of_load_max",
+    "reactiveEnergy": "reactive_energy_received_max",
+    "apparentEnergy": "apparent_energy_received_max",
+}
+
 logger = logging.getLogger("energy_monitoring.api.service")
 
 
@@ -643,6 +649,32 @@ def _demo_trend_series_for_meter(meter_id: str, parameter_key: str, limit: int =
             }
         )
     return series
+
+
+def _demo_hourly_energy_history(meter_id: str, hours: int = 72) -> list[dict[str, Any]]:
+    bases = {
+        "MTR-DEMO-001": (12458.3, 5087.6, 13602.4),
+        "MTR-DEMO-002": (9612.8, 4018.9, 10445.1),
+        "MTR-DEMO-003": (7811.2, 3121.0, 8421.7),
+    }
+    base_values = bases.get(meter_id)
+    if base_values is None:
+        return []
+
+    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    points: list[dict[str, Any]] = []
+    for index in range(max(1, min(int(hours), 72))):
+        hour = now - timedelta(hours=max(1, min(int(hours), 72)) - index - 1)
+        wave = math.sin(index / 6.0) * 0.012
+        points.append(
+            {
+                "hour": _serialize_timestamp(hour),
+                "activeEnergy": round(base_values[0] + index * 4.2 + base_values[0] * wave, 2),
+                "reactiveEnergy": round(base_values[1] + index * 1.7 + base_values[1] * wave, 2),
+                "apparentEnergy": round(base_values[2] + index * 4.8 + base_values[2] * wave, 2),
+            }
+        )
+    return points
 
 
 def _demo_active_alerts(meter_id: str | None = None) -> list[dict[str, Any]]:
@@ -1828,6 +1860,43 @@ def get_trend_series(meter_id: str, parameter_key: str, limit: int = 12, hours: 
         }
         for row in rows
         if row.get(column_name) is not None
+    ]
+
+
+def get_hourly_energy_history(meter_id: str, hours: int = 72) -> list[dict[str, Any]]:
+    bounded_hours = max(1, min(int(hours), 72))
+    if _demo_mode_enabled():
+        return _demo_hourly_energy_history(meter_id, bounded_hours)
+
+    selected_columns = [sql.Identifier(column) for column in HOURLY_ENERGY_COLUMNS.values()]
+    query = sql.SQL(
+        """
+        SELECT hour_ts, {active_energy}, {reactive_energy}, {apparent_energy}
+        FROM hourly_readings
+        WHERE meter_id = %s
+          AND hour_ts >= now() - (%s * interval '1 hour')
+        ORDER BY hour_ts ASC
+        LIMIT %s
+        """
+    ).format(
+        active_energy=selected_columns[0],
+        reactive_energy=selected_columns[1],
+        apparent_energy=selected_columns[2],
+    )
+
+    with _open_connection() as connection, connection.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(query, (meter_id, bounded_hours, bounded_hours))
+        rows = cursor.fetchall()
+
+    column_names = tuple(HOURLY_ENERGY_COLUMNS.values())
+    return [
+        {
+            "hour": _serialize_timestamp(row["hour_ts"]),
+            "activeEnergy": row.get(column_names[0]),
+            "reactiveEnergy": row.get(column_names[1]),
+            "apparentEnergy": row.get(column_names[2]),
+        }
+        for row in rows
     ]
 
 

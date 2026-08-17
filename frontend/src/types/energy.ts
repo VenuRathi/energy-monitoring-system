@@ -101,6 +101,13 @@ export type TrendPoint = {
   value: number;
 };
 
+export type HourlyEnergyPoint = {
+  hour: string;
+  activeEnergy: number | null;
+  reactiveEnergy: number | null;
+  apparentEnergy: number | null;
+};
+
 export type DashboardData = {
   meters: MeterRecord[];
   selectedMeter: MeterRecord | null;

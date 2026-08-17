@@ -1,3 +1,4 @@
+import { Clock3, Cpu, MapPin, Zap } from "lucide-react";
 import type { MeterRecord } from "../../types/energy";
 import { formatNumber, formatTimestamp } from "../../lib/formatters";
 
@@ -20,15 +21,17 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
         <div>
           <p className="meter-card__plant">{meter.meter_id}</p>
           <h5 className="meter-card__name">{meter.meter_name}</h5>
-          <p className="meter-card__detail">{meter.location || "Location not set"}</p>
-          {meter.status_detail ? <p className="meter-card__detail">{meter.status_detail}</p> : null}
+          <p className="meter-card__detail meter-card__detail--icon">
+            <MapPin size={14} aria-hidden="true" />
+            {meter.location || "Location not set"}
+          </p>
         </div>
         <span className={`status-pill status-pill--${tone}`}>{!meter.enabled ? "disabled" : meter.status}</span>
       </div>
 
       <dl className="meter-card__metrics">
         <div>
-          <dt>Active Power</dt>
+          <dt><Zap size={13} aria-hidden="true" /> Active Power</dt>
           <dd>{formatNumber(meter.base_power, 2)} kW</dd>
         </div>
         <div>
@@ -39,16 +42,11 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
           <dt>Current</dt>
           <dd>{formatNumber(meter.base_current, 2)} A</dd>
         </div>
-        <div>
-          <dt>Energy</dt>
-          <dd>{formatNumber(meter.base_energy, 2)} kWh</dd>
-        </div>
       </dl>
 
       <div className="meter-card__footer">
-        <span>{meter.com_port || "COM n/a"} - Slave {meter.slave_id}</span>
-        <span>{meter.seu ? "SEU" : "Non-SEU"}</span>
-        <span>Updated {formatTimestamp(meter.last_update)}</span>
+        <span><Cpu size={14} aria-hidden="true" /> {meter.com_port || "COM n/a"} - Slave {meter.slave_id}</span>
+        <span><Clock3 size={14} aria-hidden="true" /> Updated {formatTimestamp(meter.last_update)}</span>
       </div>
     </button>
   );

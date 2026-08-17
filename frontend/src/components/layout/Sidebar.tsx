@@ -1,12 +1,13 @@
+import { Activity, Gauge, HelpCircle, Mail, ServerCog, Zap } from "lucide-react";
 import { APP_META } from "../../app/appMeta";
 import { useSystemStatusData } from "../../hooks/useMetersData";
 import type { PageKey } from "../../types/energy";
 
-const navItems: Array<{ key: PageKey; label: string }> = [
-  { key: "dashboard", label: "Live View" },
-  { key: "meters", label: "Meter Setup" },
-  { key: "reports", label: "Reports & Email" },
-  { key: "help", label: "Help & Guide" },
+const navItems: Array<{ key: PageKey; label: string; Icon: typeof Activity }> = [
+  { key: "dashboard", label: "Live View", Icon: Activity },
+  { key: "meters", label: "Meter Setup", Icon: Gauge },
+  { key: "reports", label: "Reports & Email", Icon: Mail },
+  { key: "help", label: "Help & Guide", Icon: HelpCircle },
 ];
 
 type SidebarProps = {
@@ -38,7 +39,9 @@ export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps)
       />
       <aside className={`sidebar ${open ? "sidebar--open" : ""}`}>
         <div className="sidebar__brand">
-          <div className="sidebar__badge">EM</div>
+          <div className="sidebar__badge" aria-hidden="true">
+            <Zap size={20} strokeWidth={2.4} />
+          </div>
           <div>
             <p className="sidebar__eyebrow">{APP_META.systemName}</p>
             <h1 className="sidebar__title">{APP_META.productName}</h1>
@@ -54,7 +57,9 @@ export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps)
               className={`sidebar__link ${activePage === item.key ? "sidebar__link--active" : ""}`}
               onClick={() => onNavigate(item.key)}
             >
-              <span className="sidebar__link-dot" />
+              <span className="sidebar__link-icon" aria-hidden="true">
+                <item.Icon size={18} strokeWidth={2.2} />
+              </span>
               {item.label}
             </button>
           ))}
@@ -62,7 +67,10 @@ export function Sidebar({ activePage, open, onNavigate, onClose }: SidebarProps)
 
         <section className="sidebar__status">
           <p className="sidebar__status-label">System Status</p>
-          <div className={`sidebar__status-pill status-pill--${overallStatusTone}`}>{overallStatusLabel}</div>
+          <div className={`sidebar__status-pill status-pill--${overallStatusTone}`}>
+            <ServerCog size={15} aria-hidden="true" />
+            {overallStatusLabel}
+          </div>
           <p className="sidebar__status-note">{statusNote}</p>
         </section>
       </aside>

@@ -1,3 +1,4 @@
+import { CheckCircle2, Download, FileText, Gauge, ListChecks, MailCheck, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmailSettingsPanel } from "../components/reports/EmailSettingsPanel";
 import { ReportSchedulePanel } from "../components/reports/ReportSchedulePanel";
@@ -90,31 +91,38 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
       <section className="dashboard__hero dashboard__hero--compact">
         <div className="dashboard__hero-copy">
           <p className="section-label">Reports and email</p>
-          <h3 className="dashboard__headline">Prepare exports and scheduled report delivery</h3>
+          <h3 className="dashboard__headline">Build exports and email schedules</h3>
           <p className="dashboard__copy">
-            Choose the meters and time range first, then download files or send the same report by email.
+            Review selected meters, parameters, readiness, and delivery settings before generating files.
           </p>
         </div>
 
         <div className="dashboard__hero-actions">
           <div className="dashboard__summary dashboard__summary--compact dashboard__summary--reports">
             <div className="summary-card">
+              <span className="summary-card__icon summary-card__icon--online"><Gauge size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Enabled meters</span>
               <strong>{enabledMeters}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon"><ListChecks size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Schedules</span>
               <strong>{schedules.length}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon"><CheckCircle2 size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Selected meters</span>
               <strong>{filters.meterIds.length}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon"><SlidersHorizontal size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Selected parameters</span>
               <strong>{filters.parameterKeys.length}</strong>
             </div>
             <div className="summary-card">
+              <span className={`summary-card__icon ${emailReady ? "summary-card__icon--online" : "summary-card__icon--warning"}`}>
+                <MailCheck size={17} aria-hidden="true" />
+              </span>
               <span className="summary-card__label">Email</span>
               <strong>{emailReady ? "Ready" : "Needs setup"}</strong>
             </div>
@@ -187,8 +195,8 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="section-label">Step 1</p>
-              <h4>Download report files</h4>
+              <p className="section-label">Download</p>
+              <h4>Export files</h4>
             </div>
           </div>
 
@@ -199,6 +207,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
               onClick={() => submitExport("excel")}
               disabled={!reportReady || reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
             >
+              <Download size={16} aria-hidden="true" />
               {reportMutations.excelExport.isPending ? "Generating..." : "Export Excel"}
             </button>
             <button
@@ -207,6 +216,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
               onClick={() => submitExport("word")}
               disabled={!reportReady || reportMutations.excelExport.isPending || reportMutations.wordReport.isPending}
             >
+              <FileText size={16} aria-hidden="true" />
               {reportMutations.wordReport.isPending ? "Generating..." : "Generate Word"}
             </button>
           </div>
@@ -229,8 +239,8 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="section-label">Step 2</p>
-              <h4>Send or schedule email reports</h4>
+              <p className="section-label">Email delivery</p>
+              <h4>Send or schedule reports</h4>
             </div>
           </div>
           <ReportSchedulePanel
@@ -252,9 +262,13 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="section-label">Step 3</p>
+              <p className="section-label">SMTP readiness</p>
               <h4>Email account settings</h4>
             </div>
+            <span className={`status-pill status-pill--${emailReady ? "online" : "warning"}`}>
+              <MailCheck size={15} aria-hidden="true" />
+              {emailReady ? "ready" : "setup needed"}
+            </span>
           </div>
           <EmailSettingsPanel
             settings={emailSettings}

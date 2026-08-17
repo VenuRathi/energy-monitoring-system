@@ -1,5 +1,7 @@
+import { Bell, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatNumber } from "../../lib/formatters";
+import { sortParametersByEnergyPriority } from "../../lib/energyParameters";
 import type { AlertRule, AlertRuleInput, ParameterMeta } from "../../types/energy";
 
 type AlertRulesPanelProps = {
@@ -24,7 +26,7 @@ export function AlertRulesPanel({ meterId, meterName, parameters, rules, onSave,
   const [form, setForm] = useState(emptyForm);
 
   const numericParameters = useMemo(
-    () => parameters.filter((parameter) => parameter.dataType === "number").sort((left, right) => left.order - right.order),
+    () => sortParametersByEnergyPriority(parameters.filter((parameter) => parameter.dataType === "number")),
     [parameters],
   );
 
@@ -42,7 +44,7 @@ export function AlertRulesPanel({ meterId, meterName, parameters, rules, onSave,
     <section className="page-stack">
       <div className="section-heading">
         <div>
-          <p className="section-label">Alerts</p>
+          <p className="section-label">Alert rules</p>
           <h4>{meterName ? `${meterName} threshold rules` : "Threshold rules"}</h4>
         </div>
       </div>
@@ -87,7 +89,7 @@ export function AlertRulesPanel({ meterId, meterName, parameters, rules, onSave,
                         <div className="row-actions">
                           <button
                             type="button"
-                            className="ghost-button"
+                            className="icon-button"
                             onClick={() =>
                               setForm({
                                 parameterKey: rule.parameterKey,
@@ -96,11 +98,12 @@ export function AlertRulesPanel({ meterId, meterName, parameters, rules, onSave,
                                 enabled: rule.enabled,
                               })
                             }
+                            aria-label={`Load ${rule.parameterLabel} rule`}
                           >
-                            Load
+                            <Bell size={16} aria-hidden="true" />
                           </button>
-                          <button type="button" className="ghost-button ghost-button--danger" onClick={() => onDelete(rule.id)}>
-                            Delete
+                          <button type="button" className="icon-button icon-button--danger" onClick={() => onDelete(rule.id)} aria-label={`Delete ${rule.parameterLabel} rule`}>
+                            <Trash2 size={16} aria-hidden="true" />
                           </button>
                         </div>
                       </td>
@@ -163,9 +166,11 @@ export function AlertRulesPanel({ meterId, meterName, parameters, rules, onSave,
 
           <div className="editor__actions">
             <button type="button" className="ghost-button" onClick={() => setForm(emptyForm)}>
+              <RotateCcw size={16} aria-hidden="true" />
               Reset
             </button>
             <button type="button" className="primary-button" onClick={submit} disabled={saving || !meterId || !form.parameterKey}>
+              <Save size={16} aria-hidden="true" />
               {saving ? "Saving..." : "Save alert rule"}
             </button>
           </div>

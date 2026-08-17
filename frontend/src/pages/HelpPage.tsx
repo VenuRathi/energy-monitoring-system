@@ -1,3 +1,4 @@
+import { Activity, Clock3, Database, Gauge, Save, ServerCog, Wifi } from "lucide-react";
 import { APP_META } from "../app/appMeta";
 import { useEffect, useState } from "react";
 import { savePollingSettings } from "../api/energyApi";
@@ -71,10 +72,9 @@ export function HelpPage() {
         <div className="section-heading">
           <div>
             <p className="section-label">System guide</p>
-            <h3 className="page-title">How to use and support this system</h3>
+            <h3 className="page-title">Runtime support console</h3>
             <p className="page-copy">
-              This page is for operators and support engineers. Use it for quick checks during normal operation, first-line
-              troubleshooting, and handover after deployment.
+              Use live health checks, polling status, and compact troubleshooting guidance during operation.
             </p>
           </div>
           <div className="app-meta-card">
@@ -83,32 +83,6 @@ export function HelpPage() {
             <span className="app-meta-card__version">{APP_META.version}</span>
           </div>
         </div>
-      </section>
-
-      <section className="setup-guide setup-guide--highlight">
-        <article className="setup-guide__card">
-          <span className="setup-guide__step">Step 1</span>
-          <h4>Check live status</h4>
-          <p>Open Live View first. Confirm the selected meter is online and that new readings are visible.</p>
-        </article>
-        <article className="setup-guide__card">
-          <span className="setup-guide__step">Step 2</span>
-          <h4>Review meter setup</h4>
-          <p>Use Meter Setup to confirm COM port, slave ID, enabled state, and serial settings for each live meter.</p>
-        </article>
-        <article className="setup-guide__card">
-          <span className="setup-guide__step">Step 3</span>
-          <h4>Check reports</h4>
-          <p>Use Reports &amp; Email to export Excel or Word files, or review email and schedule configuration.</p>
-        </article>
-        <article className="setup-guide__card">
-          <span className="setup-guide__step">Step 4</span>
-          <h4>Use API status if needed</h4>
-          <p>
-            If something looks wrong, check <code>/api/status</code> to confirm database health, polling heartbeat, and
-            per-meter communication state.
-          </p>
-        </article>
       </section>
 
       <section className="panel">
@@ -140,26 +114,40 @@ export function HelpPage() {
           <div className="status-stack">
             <div className="dashboard__summary dashboard__summary--compact">
               <div className="summary-card">
+                <span className={`summary-card__icon ${systemStatus.checks.api.status === "ok" ? "summary-card__icon--online" : "summary-card__icon--warning"}`}>
+                  <ServerCog size={17} aria-hidden="true" />
+                </span>
                 <span className="summary-card__label">API</span>
                 <strong>{systemStatus.checks.api.status}</strong>
               </div>
               <div className="summary-card">
+                <span className={`summary-card__icon ${systemStatus.databaseStatus === "ok" ? "summary-card__icon--online" : "summary-card__icon--warning"}`}>
+                  <Database size={17} aria-hidden="true" />
+                </span>
                 <span className="summary-card__label">Database</span>
                 <strong>{systemStatus.databaseStatus}</strong>
               </div>
               <div className="summary-card">
+                <span className={`summary-card__icon ${systemStatus.polling.running ? "summary-card__icon--online" : "summary-card__icon--danger"}`}>
+                  <Wifi size={17} aria-hidden="true" />
+                </span>
                 <span className="summary-card__label">Polling</span>
                 <strong>{systemStatus.polling.running ? "running" : "stopped"}</strong>
               </div>
               <div className="summary-card">
+                <span className="summary-card__icon"><Gauge size={17} aria-hidden="true" /></span>
                 <span className="summary-card__label">Enabled meters</span>
                 <strong>{systemStatus.summary.enabledMeterCount}</strong>
               </div>
               <div className="summary-card">
+                <span className={`summary-card__icon ${systemStatus.summary.staleMeterCount > 0 ? "summary-card__icon--warning" : "summary-card__icon--online"}`}>
+                  <Activity size={17} aria-hidden="true" />
+                </span>
                 <span className="summary-card__label">Stale / warning</span>
                 <strong>{systemStatus.summary.staleMeterCount}</strong>
               </div>
               <div className="summary-card">
+                <span className="summary-card__icon"><Clock3 size={17} aria-hidden="true" /></span>
                 <span className="summary-card__label">Polling cycles</span>
                 <strong>{systemStatus.polling.totalCyclesCompleted}</strong>
               </div>
@@ -216,6 +204,7 @@ export function HelpPage() {
                 {pollingSettingsMessage ? <p className="table-subtle">{pollingSettingsMessage}</p> : null}
                 <div className="editor__actions">
                   <button type="button" className="primary-button" onClick={savePollingInterval} disabled={savingPollingSettings}>
+                    <Save size={16} aria-hidden="true" />
                     {savingPollingSettings ? "Saving..." : "Save interval"}
                   </button>
                 </div>

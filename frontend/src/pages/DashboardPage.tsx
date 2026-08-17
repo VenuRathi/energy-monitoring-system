@@ -1,15 +1,19 @@
-import { useMemo, useState } from "react";
+import { Clock3, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { ActiveAlertsPanel } from "../components/dashboard/ActiveAlertsPanel";
 import { AllMetersEnergyPanel } from "../components/dashboard/AllMetersEnergyPanel";
 import { EnergyChart } from "../components/dashboard/EnergyChart";
+import { EnergyHistoryPanel } from "../components/dashboard/EnergyHistoryPanel";
 import { LatestReadingsTable } from "../components/dashboard/LatestReadingsTable";
 import { MeterCard } from "../components/dashboard/MeterCard";
 import { MeterSelector } from "../components/dashboard/MeterSelector";
 import { MetricStrip } from "../components/dashboard/MetricStrip";
 import { ParameterExplorer } from "../components/dashboard/ParameterExplorer";
 import { useDashboardData } from "../hooks/useDashboardData";
+import { useHourlyEnergyHistory } from "../hooks/useHourlyEnergyHistory";
 import { useSystemStatusData } from "../hooks/useMetersData";
 import { formatTimestamp } from "../lib/formatters";
+import { ENERGY_PARAMETER_KEYS, sortParametersByEnergyPriority } from "../lib/energyParameters";
 import type { MeterRecord, SystemStatusMeter } from "../types/energy";
 
 const TREND_RANGES = [
@@ -56,9 +60,15 @@ type DashboardPageProps = {
 };
 
 export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeters }: DashboardPageProps) {
-  const [trendParameterKey, setTrendParameterKey] = useState("active_power_total");
+  const [trendParameterKey, setTrendParameterKey] = useState<string>(ENERGY_PARAMETER_KEYS[0]);
   const [trendHours, setTrendHours] = useState<number | undefined>(undefined);
+  const [readingTab, setReadingTab] = useState<"latest" | "history" | "parameters">("latest");
   const { data, isLoading, isError, error, refetch } = useDashboardData(selectedMeterId, trendParameterKey, trendHours);
+  const hourlyEnergyHistory = useHourlyEnergyHistory(
+    selectedMeterId === "ALL" ? "" : selectedMeterId,
+    72,
+    selectedMeterId !== "ALL",
+  );
   const {
     data: systemStatus,
     isLoading: isSystemStatusLoading,
@@ -66,6 +76,10 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
     error: systemStatusError,
     refetch: refetchSystemStatus,
   } = useSystemStatusData();
+
+  useEffect(() => {
+    setReadingTab("latest");
+  }, [selectedMeterId]);
 
   const meterTone = (meter: MeterRecord | null | undefined) => {
     if (!meter?.enabled) return "offline";
@@ -77,6 +91,10 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
   const selectedTrendLabel = useMemo(
     () => data?.trendParameter?.label ?? "Active Power Total",
     [data?.trendParameter?.label],
+  );
+  const trendParameters = useMemo(
+    () => sortParametersByEnergyPriority(data?.parameterCatalog ?? []),
+    [data?.parameterCatalog],
   );
 
   if (isLoading) {
@@ -120,61 +138,131 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
 
   return (
     <section className="dashboard">
-      <section className="dashboard__hero dashboard__hero--compact">
-        <div className="dashboard__hero-copy">
-          <p className="section-label">Live plant view</p>
-          <h3 className="dashboard__headline">Check line status and latest readings</h3>
-          <p className="dashboard__copy">
-            Use this page to see which meters are talking, whether they are live, and what the latest values look like.
-          </p>
+      <section className="dashboard__commandbar">
+        <div className="dashboard__commandbar-copy">
+          <p className="section-label">Live View</p>
+          <h3 className="dashboard__headline">Energy command center</h3>
+          <p className="dashboard__copy">Fresh readings, meter health, and active alerts at a glance.</p>
+        </div>
+        <div className="dashboard__commandbar-actions">
+          <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
+          <span className="dashboard__updated-at"><Clock3 size={14} aria-hidden="true" /> {latestUpdateText}</span>
+          <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
+          <button type="button" className="ghost-button" onClick={onConfigureMeters}>
+            <Settings2 size={15} aria-hidden="true" />
+            Meter setup
+          </button>
+        </div>
+      </section>
+
+      <section className="dashboard__kpis" aria-label="Live View summary">
+        <div className="summary-card">
+          <span className="summary-card__label">Total meters</span>
+          <strong>{data.summary.totalMeters}</strong>
+        </div>
+        <div className="summary-card">
+          <span className="summary-card__label">Online</span>
+          <strong>{data.summary.onlineMeters}</strong>
+        </div>
+        <div className="summary-card">
+          <span className="summary-card__label">Needs attention</span>
+          <strong>{data.summary.warningMeters + data.summary.offlineMeters}</strong>
+        </div>
+        <div className="summary-card">
+          <span className="summary-card__label">Active alerts</span>
+          <strong>{totalAlerts}</strong>
+        </div>
+        <div className="summary-card">
+          <span className="summary-card__label">Latest reading</span>
+          <strong>{latestUpdateText}</strong>
+        </div>
+      </section>
+
+      <section className="dashboard__main-grid">
+        <div className="panel dashboard__trend-panel">
+          <div className="section-heading">
+            <div>
+              <p className="section-label">Trend</p>
+              <h4>{isAllMetersView ? "Energy by meter" : selectedTrendLabel}</h4>
+            </div>
+            {!isAllMetersView ? (
+              <div className="trend-controls">
+                <label className="trend-parameter-select">
+                  <span className="sr-only">Trend parameter</span>
+                  <select value={trendParameterKey} onChange={(event) => setTrendParameterKey(event.target.value)}>
+                    {trendParameters.map((parameter) => (
+                      <option key={parameter.key} value={parameter.key}>
+                        {parameter.label} {parameter.unit ? `(${parameter.unit})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="trend-range" role="tablist" aria-label="Trend range">
+                  {TREND_RANGES.map((range) => (
+                    <button
+                      key={range.label}
+                      type="button"
+                      className={`trend-range__button ${trendHours === range.hours ? "trend-range__button--active" : ""}`}
+                      onClick={() => setTrendHours(range.hours)}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          {isAllMetersView ? (
+            <AllMetersEnergyPanel meters={data.meterEnergySummaries ?? []} />
+          ) : (
+            <EnergyChart data={data.trendSeries ?? []} label={selectedTrendLabel} unit={data.trendParameter?.unit ?? ""} />
+          )}
         </div>
 
-        <div className="dashboard__hero-actions">
-          <div className="dashboard__summary dashboard__summary--compact dashboard__summary--dashboard">
-            <div className="summary-card">
-              <span className="summary-card__label">Total meters</span>
-              <strong>{data.summary.totalMeters}</strong>
+        <aside className="dashboard__side-rail">
+          <div className="panel dashboard__health-panel">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">Meter health</p>
+                <h4>What needs attention</h4>
+              </div>
+              {systemStatus ? <span className="table-subtle">Live status</span> : null}
             </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Online</span>
-              <strong>{data.summary.onlineMeters}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Warning</span>
-              <strong>{data.summary.warningMeters}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Offline</span>
-              <strong>{data.summary.offlineMeters}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Active alerts</span>
-              <strong>{totalAlerts}</strong>
-            </div>
+            {systemStatus ? (
+              <div className="health-list">
+                {[
+                  ["Online", systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "online").length, "online"],
+                  ["Warning", systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "warning").length, "warning"],
+                  ["Offline", systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "offline").length, "offline"],
+                  ["Stale", systemStatus.summary.staleMeterCount, "warning"],
+                ].map(([label, value, tone]) => (
+                  <div key={label} className="health-list__row">
+                    <span><i className={`health-list__dot health-list__dot--${tone}`} />{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : isSystemStatusLoading ? (
+              <div className="page-state">Loading status...</div>
+            ) : (
+              <div className="page-state page-state--error">
+                <p>{isSystemStatusError && systemStatusError instanceof Error ? systemStatusError.message : "Status unavailable."}</p>
+                <button type="button" className="ghost-button" onClick={() => refetchSystemStatus()}>Retry</button>
+              </div>
+            )}
           </div>
 
-          <div className="dashboard__control-card">
-            <div className="dashboard__control-copy">
-              <p className="section-label">Selected meter</p>
-              <h4>{selectedMeter.meter_name}</h4>
-              <p className="dashboard__control-note">Last update: {latestUpdateText}</p>
+          <div className="panel dashboard__alerts-panel">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">Alerts</p>
+                <h4>Active now</h4>
+              </div>
+              <strong className="dashboard__alert-count">{totalAlerts}</strong>
             </div>
-            <div className="dashboard__control-row">
-              <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
-              <button type="button" className="ghost-button" onClick={onConfigureMeters}>
-                Open Meter Setup
-              </button>
-            </div>
-            <p className="page-copy">
-              {isAllMetersView
-                ? `Showing energy totals for ${data.meterEnergySummaries?.length ?? data.meters.length} meter(s).`
-                : `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${
-                    selectedMeter.enabled ? "Polling enabled" : "Disabled"
-                  }`}
-            </p>
-            <MeterSelector meters={data.meters} value={selectedMeterId} onChange={onSelectMeter} />
+            <ActiveAlertsPanel alerts={data.activeAlerts ?? []} />
           </div>
-        </div>
+        </aside>
       </section>
 
       <section className="dashboard__cards">
@@ -188,11 +276,11 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         ))}
       </section>
 
-      <section className="dashboard__section">
+      <section className="dashboard__section dashboard__connections">
         <div className="section-heading">
           <div>
-            <p className="section-label">Live connections</p>
-            <h4>Meter communication state</h4>
+            <p className="section-label">Diagnostics</p>
+            <h4>Communication details</h4>
           </div>
           {systemStatus ? (
             <span className={`status-pill status-pill--${systemStatus.status === "ok" ? "online" : "warning"}`}>
@@ -215,25 +303,6 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
 
         {systemStatus ? (
           <div className="status-stack">
-            <div className="dashboard__summary dashboard__summary--compact">
-              <div className="summary-card">
-                <span className="summary-card__label">Online</span>
-                <strong>{systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "online").length}</strong>
-              </div>
-              <div className="summary-card">
-                <span className="summary-card__label">Warning</span>
-                <strong>{systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "warning").length}</strong>
-              </div>
-              <div className="summary-card">
-                <span className="summary-card__label">Offline</span>
-                <strong>{systemStatus.summary.meters.filter((meter) => meter.communicationStatus === "offline").length}</strong>
-              </div>
-              <div className="summary-card">
-                <span className="summary-card__label">Stale</span>
-                <strong>{systemStatus.summary.staleMeterCount}</strong>
-              </div>
-            </div>
-
             <div className="status-meter-grid">
               {systemStatus.summary.meters.map((meter) => (
                 <article key={meter.meterId} className="status-meter-card">
@@ -318,8 +387,14 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         {isAllMetersView ? (
           <AllMetersEnergyPanel meters={data.meterEnergySummaries ?? []} />
         ) : (
-          <>
-            <div className="dashboard__overview">
+          <div className="selected-meter__grid">
+            <div className="selected-meter__energy">
+              <MetricStrip metrics={data.metrics} energyOnly />
+            </div>
+            <div className="selected-meter__operating">
+              <MetricStrip metrics={data.metrics} excludeEnergy />
+            </div>
+            <div className="dashboard__overview dashboard__overview--secondary">
               <div className="summary-card">
                 <span className="summary-card__label">Data quality</span>
                 <strong>{selectedMeter.data_quality?.replaceAll("_", " ") ?? "n/a"}</strong>
@@ -343,73 +418,92 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
                 <span className="table-subtle">{selectedMeter.driver}</span>
               </div>
             </div>
-            <MetricStrip metrics={data.metrics} />
-          </>
+          </div>
         )}
       </section>
 
       {!isAllMetersView ? (
-        <>
-          <section className="dashboard__split">
-            <div className="panel">
-              <div className="section-heading">
-                <div>
-                  <p className="section-label">Trend</p>
-                  <h4>{selectedTrendLabel}</h4>
-                </div>
-                <div className="trend-range" role="tablist" aria-label="Trend range">
-                  {TREND_RANGES.map((range) => (
-                    <button
-                      key={range.label}
-                      type="button"
-                      className={`trend-range__button ${trendHours === range.hours ? "trend-range__button--active" : ""}`}
-                      onClick={() => setTrendHours(range.hours)}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <EnergyChart data={data.trendSeries ?? []} label={selectedTrendLabel} unit={data.trendParameter?.unit ?? ""} />
-            </div>
+        <section className="dashboard__section dashboard__reading-tabs">
+          <div className="reading-tabs" role="tablist" aria-label="Selected meter details">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={readingTab === "latest"}
+              className={`reading-tabs__button ${readingTab === "latest" ? "reading-tabs__button--active" : ""}`}
+              onClick={() => setReadingTab("latest")}
+            >
+              Latest Main Readings
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={readingTab === "history"}
+              className={`reading-tabs__button ${readingTab === "history" ? "reading-tabs__button--active" : ""}`}
+              onClick={() => setReadingTab("history")}
+            >
+              72h Energy History
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={readingTab === "parameters"}
+              className={`reading-tabs__button ${readingTab === "parameters" ? "reading-tabs__button--active" : ""}`}
+              onClick={() => setReadingTab("parameters")}
+            >
+              All Parameters
+            </button>
+          </div>
 
-            <div className="panel">
+          {readingTab === "latest" ? (
+            <div className="reading-tabs__panel">
               <div className="section-heading">
                 <div>
-                  <p className="section-label">Latest readings</p>
-                  <h4>Main values</h4>
+                  <p className="section-label">Latest Main Readings</p>
+                  <h4>Current operating values</h4>
                 </div>
               </div>
               <LatestReadingsTable rows={data.latestReadings ?? []} />
             </div>
-          </section>
+          ) : null}
 
-          <section className="dashboard__section">
-            <div className="section-heading">
-              <div>
-                <p className="section-label">Parameter explorer</p>
-                <h4>All available meter parameters</h4>
+          {readingTab === "history" ? (
+            <div className="reading-tabs__panel">
+              <div className="section-heading">
+                <div>
+                  <p className="section-label">72h Energy History</p>
+                  <h4>Hourly energy received</h4>
+                </div>
+                <span className="table-subtle">kWh / kVARh / kVAh</span>
               </div>
+              <EnergyHistoryPanel
+                data={hourlyEnergyHistory.data ?? []}
+                isLoading={hourlyEnergyHistory.isLoading}
+                isError={hourlyEnergyHistory.isError}
+                errorMessage={hourlyEnergyHistory.error instanceof Error ? hourlyEnergyHistory.error.message : undefined}
+                onRetry={() => hourlyEnergyHistory.refetch()}
+              />
             </div>
-            <ParameterExplorer
-              parameters={data.parameterCatalog ?? []}
-              latestReadings={data.latestReadings ?? []}
-              selectedKey={trendParameterKey}
-              onSelect={(parameterKey) => setTrendParameterKey(parameterKey)}
-            />
-          </section>
-        </>
+          ) : null}
+
+          {readingTab === "parameters" ? (
+            <div className="reading-tabs__panel">
+              <div className="section-heading">
+                <div>
+                  <p className="section-label">All Parameters</p>
+                  <h4>Full parameter explorer</h4>
+                </div>
+              </div>
+              <ParameterExplorer
+                parameters={data.parameterCatalog ?? []}
+                latestReadings={data.latestReadings ?? []}
+                selectedKey={trendParameterKey}
+                onSelect={(parameterKey) => setTrendParameterKey(parameterKey)}
+              />
+            </div>
+          ) : null}
+        </section>
       ) : null}
 
-      <section className="dashboard__section">
-        <div className="section-heading">
-          <div>
-            <p className="section-label">Alerts</p>
-            <h4>Current alerts</h4>
-          </div>
-        </div>
-        <ActiveAlertsPanel alerts={data.activeAlerts ?? []} />
-      </section>
     </section>
   );
 }

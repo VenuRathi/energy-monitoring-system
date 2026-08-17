@@ -20,13 +20,7 @@ export function EnergyChart({ data, label, unit }: EnergyChartProps) {
   if (data.length === 0) {
     return (
       <div className="chart chart--empty">
-        <div className="chart__header">
-          <div>
-            <p className="section-label">Trend</p>
-            <h4>{label}</h4>
-          </div>
-          <span className="chart__unit">{unit || "n/a"}</span>
-        </div>
+        <span className="chart__unit chart__unit--standalone">{unit || "n/a"}</span>
         <div className="page-state page-state--padded">No readings available yet for this meter.</div>
       </div>
     );
@@ -34,13 +28,7 @@ export function EnergyChart({ data, label, unit }: EnergyChartProps) {
 
   return (
     <div className="chart">
-      <div className="chart__header">
-        <div>
-          <p className="section-label">Trend</p>
-          <h4>{label}</h4>
-        </div>
-        <span className="chart__unit">{unit || "n/a"}</span>
-      </div>
+      <span className="chart__unit chart__unit--standalone">{unit || "n/a"}</span>
       <ResponsiveContainer width="100%" height={280}>
         <AreaChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
           <defs>

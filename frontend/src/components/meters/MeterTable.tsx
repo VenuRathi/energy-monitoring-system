@@ -1,3 +1,4 @@
+import { Edit3, PauseCircle, PlayCircle } from "lucide-react";
 import type { MeterRecord } from "../../types/energy";
 import { formatTimestamp } from "../../lib/formatters";
 
@@ -29,7 +30,7 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable
             <th>Model</th>
             <th>Location</th>
             <th>Status</th>
-            <th>SEU</th>
+            <th>COM / Slave</th>
             <th>Polling</th>
             <th>Last update</th>
             <th>Actions</th>
@@ -45,9 +46,7 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable
               <td className="latest-table__parameter">
                 <strong>{meter.meter_name}</strong>
                 <div className="table-subtle">{meter.meter_id}</div>
-                <div className="table-subtle">
-                  {meter.com_port || "COM n/a"} - Slave {meter.slave_id}
-                </div>
+                <div className="table-subtle">{meter.seu ? "SEU meter" : "Standard meter"}</div>
                 {!meter.enabled ? <div className="table-subtle table-subtle--danger">Disabled meter</div> : null}
               </td>
               <td>{meter.manufacturer} {meter.model}</td>
@@ -56,7 +55,10 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable
                 <span className={`status-pill status-pill--${meter.status}`}>{meter.status}</span>
                 {meter.status_detail ? <div className="table-subtle">{meter.status_detail}</div> : null}
               </td>
-              <td>{meter.seu ? "Yes" : "No"}</td>
+              <td>
+                <strong>{meter.com_port || "COM n/a"}</strong>
+                <div className="table-subtle">Slave {meter.slave_id}</div>
+              </td>
               <td>
                 <strong>{meter.enabled ? "Active" : "Disabled"}</strong>
                 <div className="table-subtle">{meter.enabled ? "Included in polling" : "History preserved only"}</div>
@@ -64,20 +66,21 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable
               <td>{formatTimestamp(meter.last_update)}</td>
               <td>
                 <div className="row-actions" onClick={(event) => event.stopPropagation()}>
-                  <button type="button" className="ghost-button" onClick={() => onEdit(meter)}>
-                    Edit
+                  <button type="button" className="icon-button" onClick={() => onEdit(meter)} aria-label={`Edit ${meter.meter_name}`}>
+                    <Edit3 size={16} aria-hidden="true" />
                   </button>
                   {meter.enabled ? (
                     <button
                       type="button"
-                      className="ghost-button ghost-button--danger"
+                      className="icon-button icon-button--danger"
                       onClick={() => onDisable(meter.meter_id)}
+                      aria-label={`Disable ${meter.meter_name}`}
                     >
-                      Disable Meter
+                      <PauseCircle size={16} aria-hidden="true" />
                     </button>
                   ) : (
-                    <button type="button" className="ghost-button" onClick={() => onEnable(meter)}>
-                      Enable Meter
+                    <button type="button" className="icon-button" onClick={() => onEnable(meter)} aria-label={`Enable ${meter.meter_name}`}>
+                      <PlayCircle size={16} aria-hidden="true" />
                     </button>
                   )}
                 </div>

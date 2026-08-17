@@ -1,3 +1,4 @@
+import { AlertTriangle, CirclePause, CirclePlus, Cpu, Gauge, RadioTower } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AlertRulesPanel } from "../components/meters/AlertRulesPanel";
 import { MeterEditorForm } from "../components/meters/MeterEditorForm";
@@ -267,7 +268,6 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
   const warningCount = meters.filter((meter) => meter.status === "warning").length;
   const disabledCount = meters.filter((meter) => !meter.enabled).length;
   const enabledCount = meters.filter((meter) => meter.enabled).length;
-  const needsSetup = meters.length === 0 || onlineCount === 0;
   const selectedMeterUpdated = formatTimestamp(selectedMeter?.last_update ?? "");
 
   return (
@@ -275,32 +275,36 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
       <section className="dashboard__hero dashboard__hero--compact">
         <div className="dashboard__hero-copy">
           <p className="section-label">Meter setup</p>
-          <h3 className="dashboard__headline">Set up the line and keep the right meters active</h3>
+          <h3 className="dashboard__headline">Configure, test, and manage meters</h3>
           <p className="dashboard__copy">
-            Enter the serial settings, scan the daisy chain, and keep only the physically connected meters active for
-            polling.
+            Maintain the active polling inventory, serial line settings, discovery scans, and alert rules from one operator workspace.
           </p>
         </div>
 
         <div className="dashboard__hero-actions">
           <div className="dashboard__summary dashboard__summary--compact dashboard__summary--meter-setup">
             <div className="summary-card">
+              <span className="summary-card__icon"><Gauge size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Total meters</span>
               <strong>{meters.length}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon summary-card__icon--online"><RadioTower size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Online</span>
               <strong>{onlineCount}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon summary-card__icon--warning"><AlertTriangle size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Warning</span>
               <strong>{warningCount}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon"><Cpu size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Enabled</span>
               <strong>{enabledCount}</strong>
             </div>
             <div className="summary-card">
+              <span className="summary-card__icon summary-card__icon--danger"><CirclePause size={17} aria-hidden="true" /></span>
               <span className="summary-card__label">Disabled</span>
               <strong>{disabledCount}</strong>
             </div>
@@ -317,6 +321,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
                 {selectedMeter?.status ?? "offline"}
               </span>
               <button type="button" className="primary-button" onClick={startAdd}>
+                <CirclePlus size={16} aria-hidden="true" />
                 Add new meter
               </button>
             </div>
@@ -329,29 +334,6 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         </div>
       </section>
 
-      <section className={`setup-guide ${needsSetup ? "setup-guide--highlight" : ""}`}>
-        <div className="setup-guide__card">
-          <span className="setup-guide__step">Step 1</span>
-          <h4>Enter line settings</h4>
-          <p>Fill in COM port, baud rate, parity, stop bits, byte size, and timeout.</p>
-        </div>
-        <div className="setup-guide__card">
-          <span className="setup-guide__step">Step 2</span>
-          <h4>Scan the daisy chain</h4>
-          <p>Use the scan button to find which slave IDs are actually connected right now.</p>
-        </div>
-        <div className="setup-guide__card">
-          <span className="setup-guide__step">Step 3</span>
-          <h4>Sync active meters</h4>
-          <p>The system will keep detected meters active and report missing configured meters without disabling them automatically.</p>
-        </div>
-        <div className="setup-guide__card">
-          <span className="setup-guide__step">Step 4</span>
-          <h4>Name the meters</h4>
-          <p>Update the meter name, location, and SEU flag so reports and dashboard labels are easy to understand.</p>
-        </div>
-      </section>
-
       <section className="dashboard__split">
         <div className="panel">
           {disableMeterMutation.error instanceof Error ? (
@@ -359,8 +341,8 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
           ) : null}
           <div className="section-heading">
             <div>
-              <p className="section-label">Detected and saved meters</p>
-              <h4>Current meter list</h4>
+              <p className="section-label">Meter inventory</p>
+              <h4>Saved meters</h4>
               <p className="page-copy">Disabled meters stay in history and reports but are excluded from active polling.</p>
             </div>
           </div>
@@ -409,7 +391,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="section-label">Selected meter</p>
+            <p className="section-label">Selected meter summary</p>
             <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
           </div>
           {selectedMeter ? (

@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import type { AlertEvent } from "../../types/energy";
 import { formatNumber } from "../../lib/formatters";
 
@@ -25,39 +26,41 @@ export function ActiveAlertsPanel({ alerts }: ActiveAlertsPanelProps) {
   }
 
   return (
-    <div className="table-shell">
-      <table className="latest-table latest-table--compact">
-        <thead>
-          <tr>
-            <th>Meter</th>
-            <th>Parameter</th>
-            <th>Range</th>
-            <th>Value</th>
-            <th>Date</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {alerts.map((alert) => (
-            <tr key={alert.id}>
-              <td className="latest-table__parameter">
-                <strong>{alert.meterName}</strong>
-                <div className="table-subtle">{alert.location || alert.meterId}</div>
-              </td>
-              <td>
-                <strong>{alert.parameterLabel}</strong>
-                <div className="table-subtle">{alert.parameterKey}</div>
-              </td>
-              <td>{formatThreshold(alert.minValue, alert.maxValue, alert.unit)}</td>
-              <td className="latest-table__value">
-                {alert.value !== null ? `${formatNumber(alert.value, 2)} ${alert.unit}`.trim() : "n/a"}
-              </td>
-              <td>{alert.date || "n/a"}</td>
-              <td>{alert.time || "n/a"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="alert-card-grid">
+      {alerts.map((alert) => (
+        <article key={alert.id} className="alert-card">
+          <div className="alert-card__icon" aria-hidden="true">
+            <AlertTriangle size={19} strokeWidth={2.3} />
+          </div>
+          <div className="alert-card__body">
+            <div className="alert-card__header">
+              <div>
+                <p className="section-label">{alert.location || alert.meterId}</p>
+                <h5>{alert.meterName}</h5>
+              </div>
+              <span className="status-pill status-pill--warning">{alert.eventType || "active"}</span>
+            </div>
+            <dl className="alert-card__details">
+              <div>
+                <dt>Parameter</dt>
+                <dd>{alert.parameterLabel}</dd>
+              </div>
+              <div>
+                <dt>Allowed range</dt>
+                <dd>{formatThreshold(alert.minValue, alert.maxValue, alert.unit)}</dd>
+              </div>
+              <div>
+                <dt>Current value</dt>
+                <dd>{alert.value !== null ? `${formatNumber(alert.value, 2)} ${alert.unit}`.trim() : "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Raised</dt>
+                <dd>{alert.date || "n/a"} {alert.time || ""}</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
