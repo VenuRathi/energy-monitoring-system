@@ -3052,6 +3052,10 @@ body {
   padding-top: 10px;
 }
 
+.report-admin--attention {
+  border-top-color: rgba(202, 138, 4, 0.42);
+}
+
 .report-admin summary,
 .support-guidance summary {
   display: flex;
@@ -3190,6 +3194,160 @@ body {
   grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);
   gap: 14px;
   align-items: start;
+}
+
+/* Meter setup workspace: inventory first, configuration second, rules last. */
+.meter-inventory-panel,
+.meter-setup-panel {
+  min-width: 0;
+}
+
+.meter-inventory-panel__header,
+.meter-setup-panel__header {
+  margin-bottom: 10px;
+}
+
+.meter-inventory-panel__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.meter-filter-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ghost-button--compact {
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 0.82rem;
+}
+
+.meter-inventory-panel .table-shell {
+  margin-inline: -4px;
+}
+
+.meter-inventory-panel .meters-table th,
+.meter-inventory-panel .meters-table td {
+  padding-block: 9px;
+}
+
+.meter-inventory-panel .meters-table td:first-child {
+  min-width: 150px;
+}
+
+.meter-inventory-panel .meters-table td:nth-child(2) {
+  min-width: 145px;
+}
+
+.meter-inventory-panel .meters-table td:nth-child(3) {
+  min-width: 130px;
+}
+
+.meter-inventory-panel .meters-table td {
+  white-space: nowrap;
+}
+
+.meter-inventory-panel .meters-table td:first-child strong,
+.meter-inventory-panel .meters-table td:nth-child(2),
+.meter-inventory-panel .meters-table td:nth-child(3) {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meter-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(185, 28, 28, 0.18);
+  border-radius: 10px;
+  background: rgba(254, 242, 242, 0.72);
+}
+
+.meter-confirm p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.meter-setup-panel > .editor {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.meter-setup-panel .editor__header {
+  display: none;
+}
+
+.meter-setup-panel .editor__section {
+  padding-top: 0;
+}
+
+.meter-setup-panel .editor__section + .editor__section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+}
+
+.meter-setup-panel .editor__notice {
+  background: rgba(63, 125, 243, 0.035);
+}
+
+.meter-setup-panel .editor__actions:last-child {
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+}
+
+.ghost-button--danger {
+  color: var(--danger);
+}
+
+.meter-empty-rules {
+  padding: 18px;
+}
+
+.meter-empty-rules h4 {
+  margin: 4px 0 5px;
+}
+
+.meter-empty-rules p:last-child {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .meter-inventory-panel__toolbar,
+  .meter-confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .meter-filter-group {
+    width: 100%;
+  }
+
+  .meter-filter-group .ghost-button {
+    flex: 1 1 auto;
+  }
+
+  .meter-confirm .row-actions {
+    justify-content: flex-end;
+  }
 }
 
 .dashboard__primary-rail {
@@ -3342,6 +3500,172 @@ body {
 
 .engineering-inventory[open] .meter-inventory__shell {
   margin-top: 10px;
+}
+
+/* Reports workflow: scope and intent should be visible before delivery details. */
+.reports-page {
+  gap: 16px;
+}
+
+.report-workflow__step,
+.report-workflow__action-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.report-workflow__criteria {
+  display: grid;
+  gap: 14px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+}
+
+.report-workflow__criteria > .section-heading {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.report-workflow__step > .section-heading,
+.report-workflow__action-panel > .section-heading {
+  margin-bottom: 0;
+}
+
+.report-workflow__step .page-copy {
+  max-width: 680px;
+  margin-top: 4px;
+}
+
+.report-workflow__modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-workflow__mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid rgba(101, 123, 171, 0.18);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--text);
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.report-workflow__mode:hover,
+.report-workflow__mode:focus-visible {
+  border-color: rgba(63, 125, 243, 0.42);
+  outline: none;
+}
+
+.report-workflow__mode--active {
+  border-color: rgba(63, 125, 243, 0.65);
+  background: #f5f8ff;
+  box-shadow: inset 3px 0 0 var(--primary), 0 3px 12px rgba(50, 84, 145, 0.06);
+}
+
+.report-workflow__mode-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #edf3ff;
+  color: var(--primary);
+}
+
+.report-workflow__mode strong,
+.report-workflow__mode small {
+  display: block;
+}
+
+.report-workflow__mode strong {
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.report-workflow__mode small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.report-workflow__active-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.report-workflow__active-summary strong {
+  color: var(--text);
+}
+
+.report-grid--scope {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.report-grid--criteria {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-workflow__action-panel .report-status {
+  margin-top: 2px;
+}
+
+.report-workflow__quiet-note {
+  margin: 0;
+  padding: 9px 10px;
+  border-left: 2px solid rgba(63, 125, 243, 0.45);
+  background: #f7f9fd;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.email-readiness-warning {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--warning);
+  background: #fffaf0;
+  color: #8a5a00;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.email-readiness-warning strong {
+  color: #704800;
+}
+
+.field-help {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .report-workflow__modes,
+  .report-grid--criteria {
+    grid-template-columns: 1fr;
+  }
+
+  .report-workflow__active-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
 }
 
 @media (max-width: 1120px) {
@@ -3601,5 +3925,270 @@ body {
   .dashboard__commandbar-actions .meter-selector,
   .dashboard__commandbar-actions .ghost-button {
     grid-column: 1 / -1;
+  }
+}
+
+/* Phase 9: give the report builder a quieter rhythm and a compact engineering table. */
+.reports-page .report-workflow__step,
+.reports-page .report-workflow__action-panel {
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.reports-page .report-workflow__criteria {
+  gap: 12px;
+}
+
+.reports-page .report-selected--compact {
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+  border-radius: 0;
+  background: transparent;
+}
+
+.reports-page .report-selected__label {
+  letter-spacing: 0.08em;
+}
+
+.reports-page .report-criteria .explorer__list {
+  max-height: 300px;
+}
+
+.reports-page .report-inline-summary {
+  gap: 6px 16px;
+  padding: 9px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.8rem;
+}
+
+.reports-page .report-readiness {
+  margin-top: 2px;
+  padding: 9px 11px;
+  border-radius: 8px;
+}
+
+.reports-page .report-status--card {
+  margin-top: 0;
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+  border-radius: 0;
+  background: transparent;
+}
+
+.reports-page .report-email-form {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.reports-page .report-email-form__controls {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reports-page .report-schedule-table {
+  min-width: 1180px;
+  font-size: 0.8rem;
+}
+
+.reports-page .report-schedule-table th,
+.reports-page .report-schedule-table td {
+  padding: 8px 9px;
+  vertical-align: top;
+}
+
+.reports-page .report-schedule-table th {
+  white-space: nowrap;
+}
+
+.reports-page .report-schedule-table td:first-child {
+  min-width: 150px;
+}
+
+.reports-page .report-schedule-table td:nth-child(2),
+.reports-page .report-schedule-table td:nth-child(7) {
+  max-width: 220px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.report-meter-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(101, 123, 171, 0.22);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--muted);
+}
+
+.report-meter-search:focus-within {
+  border-color: rgba(63, 125, 243, 0.58);
+  box-shadow: 0 0 0 3px rgba(63, 125, 243, 0.12);
+}
+
+.report-meter-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.report-meter-list {
+  display: grid;
+  gap: 6px;
+  max-height: 224px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid rgba(101, 123, 171, 0.16);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.report-meter-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.report-meter-option:hover,
+.report-meter-option--selected {
+  border-color: rgba(63, 125, 243, 0.22);
+  background: #f5f8ff;
+}
+
+.report-meter-option input {
+  accent-color: var(--primary);
+}
+
+.report-meter-option__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.report-meter-option__copy strong,
+.report-meter-option__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-meter-option__copy strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.report-meter-option__copy small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.report-meter-list__empty {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.email-readiness-warning--info {
+  border-left-color: var(--primary);
+  background: #f5f8ff;
+  color: var(--muted);
+}
+
+.email-readiness-warning--info strong {
+  color: var(--text);
+}
+
+.status-pill--configured {
+  color: var(--primary-strong);
+  background: rgba(63, 125, 243, 0.08);
+  border-color: rgba(63, 125, 243, 0.18);
+}
+
+.email-health--configured {
+  background: rgba(63, 125, 243, 0.06);
+  border-color: rgba(63, 125, 243, 0.16);
+}
+
+.report-delete-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(194, 65, 74, 0.2);
+  border-radius: 8px;
+  background: #fff8f8;
+}
+
+.report-delete-confirm > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.report-delete-confirm span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.report-delete-confirm__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .reports-page .report-workflow__step,
+  .reports-page .report-workflow__action-panel {
+    padding: 14px;
+  }
+
+  .reports-page .report-email-form__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-page .report-email-form__actions .primary-button,
+  .reports-page .report-email-form__actions .ghost-button {
+    flex: 1 1 180px;
+  }
+
+  .report-meter-option {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .report-meter-option .status-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .report-delete-confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-delete-confirm__actions {
+    width: 100%;
+  }
+
+  .report-delete-confirm__actions button {
+    flex: 1 1 0;
   }
 }

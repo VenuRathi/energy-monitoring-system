@@ -253,10 +253,15 @@ export type ReportSchedule = {
   meterName: string;
   meterNames: string[];
   location: string;
+  scheduleName: string;
   parameterKeys: string[];
   recipientEmails: string[];
   sendTime: string;
   deliveryTime: string;
+  nextSendAt: string;
+  scheduleStartDate: string;
+  windowMode: "previous_day";
+  intervalHours: number | null;
   windowHours: number;
   enabled: boolean;
   lastSentOn: string;
@@ -272,7 +277,10 @@ export type ReportScheduleInput = {
   meterIds: string[];
   parameterKeys: string[];
   recipientEmails: string[];
+  scheduleName: string;
   sendTime: string;
+  scheduleStartDate: string;
+  intervalHours: number | null;
   enabled: boolean;
 };
 

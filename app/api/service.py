@@ -1206,6 +1206,35 @@ def _schedule_delivery_time_text(reading_time_text: str) -> str:
     return _minutes_to_time_text(total_minutes)
 
 
+def _next_schedule_delivery_at(schedule: dict[str, Any], now: datetime | None = None) -> datetime:
+    app_timezone = _app_timezone()
+    local_now = (now or datetime.now(timezone.utc)).astimezone(app_timezone)
+    schedule_start_date = schedule.get("schedule_start_date")
+    if isinstance(schedule_start_date, str):
+        try:
+            schedule_start_date = date.fromisoformat(schedule_start_date)
+        except ValueError:
+            schedule_start_date = local_now.date()
+    if isinstance(schedule_start_date, datetime):
+        schedule_start_date = schedule_start_date.date()
+    if not isinstance(schedule_start_date, date):
+        schedule_start_date = local_now.date()
+
+    delivery_time = _parse_time_text(_schedule_delivery_time_text(schedule["send_time"]))
+    candidate_date = max(local_now.date(), schedule_start_date + timedelta(days=1))
+    candidate = datetime.combine(candidate_date, delivery_time, tzinfo=app_timezone)
+    last_sent_on = schedule.get("last_sent_on")
+    if isinstance(last_sent_on, str):
+        try:
+            last_sent_on = date.fromisoformat(last_sent_on)
+        except ValueError:
+            last_sent_on = None
+
+    while candidate <= local_now or last_sent_on == candidate.date():
+        candidate += timedelta(days=1)
+    return candidate.astimezone(timezone.utc)
+
+
 def _time_seconds(value: time) -> int:
     return (value.hour * 3600) + (value.minute * 60) + value.second
 
@@ -1315,7 +1344,7 @@ def _parse_timestamp(value: str | None) -> datetime:
         return datetime.now(timezone.utc)
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=datetime.now().astimezone().tzinfo)
+        parsed = parsed.replace(tzinfo=_app_timezone())
     return parsed
 
 
@@ -2563,7 +2592,11 @@ def get_email_health() -> dict[str, Any]:
         "smtpUseTls": coerce_bool(email_settings.get("smtp_use_tls", True), True),
         "smtpUseSsl": coerce_bool(email_settings.get("smtp_use_ssl", False), False),
         "lastCheckedAt": datetime.now(timezone.utc).isoformat(),
-        "message": "SMTP is configured." if configured else "SMTP is not configured yet.",
+        "message": (
+            "SMTP settings are configured; connection has not been verified."
+            if configured
+            else "SMTP is not configured yet."
+        ),
     }
 
 
@@ -2595,6 +2628,13 @@ def _serialize_report_schedule(record: dict[str, Any], meter_map: dict[str, dict
     primary_meter = meter_map.get(record["meter_id"], {})
     meter_names = [meter_map.get(meter_id, {}).get("meter_name", meter_id) for meter_id in meter_ids]
     reading_time = record["send_time"]
+    schedule_start_date = record.get("schedule_start_date")
+    if isinstance(schedule_start_date, date):
+        schedule_start_date_text = schedule_start_date.isoformat()
+    else:
+        schedule_start_date_text = str(schedule_start_date or "")
+    schedule_name = _normalize_text(record.get("schedule_name")) or f"Daily energy report - {record['meter_id']}"
+    enabled = coerce_bool(record.get("enabled", True), True)
     return {
         "id": int(record["id"]),
         "meterId": record["meter_id"],
@@ -2602,12 +2642,17 @@ def _serialize_report_schedule(record: dict[str, Any], meter_map: dict[str, dict
         "meterName": ", ".join(meter_names),
         "meterNames": meter_names,
         "location": primary_meter.get("location", ""),
+        "scheduleName": schedule_name,
         "parameterKeys": list(record.get("parameter_keys", [])),
         "recipientEmails": list(record.get("recipient_emails", [])),
         "sendTime": reading_time,
         "deliveryTime": _schedule_delivery_time_text(reading_time),
+        "nextSendAt": _serialize_timestamp(_next_schedule_delivery_at(record)) if enabled else "",
+        "scheduleStartDate": schedule_start_date_text,
+        "windowMode": "previous_day",
+        "intervalHours": float(record["interval_hours"]) if record.get("interval_hours") is not None else None,
         "windowHours": int(record.get("window_hours", 24) or 24),
-        "enabled": coerce_bool(record.get("enabled", True), True),
+        "enabled": enabled,
         "lastSentOn": str(record["last_sent_on"]) if record.get("last_sent_on") else "",
         "lastSentAt": _serialize_timestamp(record.get("last_sent_at")),
         "lastError": record.get("last_error") or "",
@@ -2626,6 +2671,9 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
     meter_ids = _normalize_meter_ids(payload.get("meterIds") or payload.get("meter_ids") or payload.get("meter_id") or payload.get("meterId"))
     parameter_keys = payload.get("parameter_keys") or payload.get("parameterKeys") or []
     send_time = _normalize_text(payload.get("send_time") or payload.get("sendTime"))
+    schedule_start_date_text = _normalize_text(payload.get("schedule_start_date") or payload.get("scheduleStartDate"))
+    interval_value = payload.get("interval_hours", payload.get("intervalHours"))
+    schedule_name = _normalize_text(payload.get("schedule_name") or payload.get("scheduleName")) or "Daily energy report"
     recipient_emails = _normalize_email_list(payload.get("recipient_emails") or payload.get("recipientEmails") or [])
     schedule_id = payload.get("id")
     enabled = True if schedule_id in (None, "") else coerce_bool(payload.get("enabled", True), True)
@@ -2650,6 +2698,22 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("At least one recipient email is required.")
     if not TIME_TEXT_PATTERN.match(send_time):
         raise ValueError("sendTime must be in HH:MM 24-hour format.")
+    if schedule_start_date_text:
+        try:
+            schedule_start_date = date.fromisoformat(schedule_start_date_text)
+        except ValueError as exc:
+            raise ValueError("scheduleStartDate must be a valid date.") from exc
+    else:
+        schedule_start_date = datetime.now(timezone.utc).astimezone(_app_timezone()).date()
+    if interval_value in (None, ""):
+        interval_hours = None
+    else:
+        try:
+            interval_hours = float(interval_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("intervalHours must be a positive number or null.") from exc
+        if interval_hours <= 0:
+            raise ValueError("intervalHours must be a positive number or null.")
 
     repository = ReportScheduleRepository(settings=get_runtime_settings())
     saved = repository.upsert_schedule(
@@ -2659,7 +2723,10 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
             "meter_ids": meter_ids,
             "parameter_keys": normalized_parameter_keys,
             "recipient_emails": recipient_emails,
+            "schedule_name": schedule_name,
             "send_time": send_time,
+            "schedule_start_date": schedule_start_date,
+            "interval_hours": interval_hours,
             "window_hours": 24,
             "enabled": enabled,
         }
@@ -2762,26 +2829,28 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
 
         try:
             reading_time_text = schedule["send_time"]
-            reading_time = _parse_time_text(reading_time_text)
-            reading_moment_local = datetime.combine(local_now.date(), reading_time, tzinfo=ZoneInfo(settings.app_timezone))
-            month_start_local = reading_moment_local.replace(day=1)
+            report_day = local_now.date() - timedelta(days=1)
+            report_start_local = datetime.combine(report_day, time.min, tzinfo=ZoneInfo(settings.app_timezone))
+            report_end_local = datetime.combine(report_day, time.max, tzinfo=ZoneInfo(settings.app_timezone))
             export = build_scheduled_report_payload(
                 meter_ids=schedule_meter_ids,
                 parameter_keys=schedule["parameter_keys"],
                 reading_time_text=reading_time_text,
-                start=month_start_local,
-                end=reading_moment_local,
+                start=report_start_local,
+                end=report_end_local,
+                interval_hours=float(schedule["interval_hours"]) if schedule.get("interval_hours") is not None else None,
             )
             meter_names = [meter_map[meter_id]["meter_name"] for meter_id in schedule_meter_ids]
             _send_email_with_attachment(
                 recipient_emails=schedule["recipient_emails"],
-                subject=f"Energy report - {export['meter_name']} - {local_now.strftime('%d/%m/%Y')}",
+                subject=f"Energy report - {export['meter_name']} - {report_day.strftime('%d/%m/%Y')}",
                 body=(
-                    f"Automated daily meter readings report.\n\n"
+                    f"Automated previous-day meter readings report.\n\n"
                     f"Meters: {', '.join(meter_names)}\n"
                     f"Reading time: {reading_time_text}\n"
+                    f"Reading interval: {schedule.get('interval_hours') or 'All readings'}\n"
                     f"Email delivery time: {_schedule_delivery_time_text(reading_time_text)}\n"
-                    f"Included days: {month_start_local.strftime('%d/%m/%Y')} to {reading_moment_local.strftime('%d/%m/%Y')}"
+                    f"Included day: {report_day.strftime('%d/%m/%Y')}"
                 ),
                 attachment_bytes=export["bytes"],
                 filename=export["filename"],
@@ -2838,7 +2907,9 @@ def _normalize_filters(filters: dict[str, Any]) -> dict[str, Any]:
     parameter_keys = filters.get("parameterKeys") or filters.get("parameter_keys") or []
     start_value = filters.get("startDateTime") or filters.get("start_date_time")
     end_value = filters.get("endDateTime") or filters.get("end_date_time")
-    interval_value = filters.get("intervalHours") or filters.get("interval_hours")
+    interval_value = filters.get("intervalHours")
+    if interval_value is None and "interval_hours" in filters:
+        interval_value = filters.get("interval_hours")
 
     if not meter_ids:
         raise ValueError("At least one meter must be selected.")
@@ -2857,13 +2928,23 @@ def _normalize_filters(filters: dict[str, Any]) -> dict[str, Any]:
     if end - start > timedelta(days=MAX_EXPORT_RANGE_DAYS):
         raise ValueError(f"Report range cannot exceed {MAX_EXPORT_RANGE_DAYS} days.")
 
+    if interval_value in (None, ""):
+        interval_hours = None
+    else:
+        try:
+            interval_hours = float(interval_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("intervalHours must be a positive number or null.") from exc
+        if interval_hours <= 0:
+            raise ValueError("intervalHours must be a positive number or null.")
+
     return {
         "meter_id": meter_ids[0],
         "meter_ids": meter_ids,
         "parameter_keys": [str(key) for key in parameter_keys],
         "start": start,
         "end": end,
-        "interval_hours": None if interval_value in (None, "", 0, "0") else float(interval_value),
+        "interval_hours": interval_hours,
     }
 
 
@@ -2874,8 +2955,10 @@ def _select_interval_rows(
     end: datetime,
     interval_hours: float | None,
 ) -> list[dict[str, Any]]:
-    if interval_hours is None or interval_hours <= 0:
+    if interval_hours is None:
         return rows
+    if interval_hours <= 0:
+        raise ValueError("intervalHours must be a positive number or null.")
 
     interval_seconds = interval_hours * 3600.0
     selected_rows: list[dict[str, Any]] = []
@@ -3641,6 +3724,7 @@ def build_scheduled_report_payload(
     reading_time_text: str,
     start: datetime,
     end: datetime,
+    interval_hours: float | None = None,
 ) -> dict[str, Any]:
     meters = _require_known_meters(meter_ids)
     selected_parameter_keys = [key for key in parameter_keys if key in get_parameter_map()]
@@ -3652,7 +3736,7 @@ def build_scheduled_report_payload(
         meter_rows = []
         for meter in meters:
             source_rows = _fetch_report_source_rows(connection, meter["meter_id"], selected_parameter_keys, range_start, range_end)
-            snapshot_rows = _select_daily_snapshot_rows(source_rows, start, end, reading_time_text)
+            snapshot_rows = _select_interval_rows(source_rows, start=start, end=end, interval_hours=interval_hours)
             meter_rows.append((meter, snapshot_rows))
 
     timestamp = datetime.now(timezone.utc)

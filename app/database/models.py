@@ -253,7 +253,10 @@ CREATE TABLE IF NOT EXISTS report_schedules (
     meter_ids TEXT NOT NULL DEFAULT '[]',
     parameter_keys TEXT NOT NULL DEFAULT '[]',
     recipient_emails TEXT NOT NULL DEFAULT '[]',
+    schedule_name TEXT NOT NULL DEFAULT 'Daily energy report',
     send_time TEXT NOT NULL,
+    schedule_start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    interval_hours DOUBLE PRECISION,
     window_hours INTEGER NOT NULL DEFAULT 24,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     last_attempt_on DATE,
@@ -405,6 +408,9 @@ def create_tables(connection: Connection, parameters: Iterable[dict], poll_inter
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS last_attempt_on DATE;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS window_hours INTEGER NOT NULL DEFAULT 24;")
+        cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS schedule_start_date DATE NOT NULL DEFAULT CURRENT_DATE;")
+        cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS interval_hours DOUBLE PRECISION;")
+        cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS schedule_name TEXT NOT NULL DEFAULT 'Daily energy report';")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS meter_ids TEXT NOT NULL DEFAULT '[]';")
         cursor.execute(
             """

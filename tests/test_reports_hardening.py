@@ -1,0 +1,51 @@
+import unittest
+from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
+
+from app.api import service as api_service
+
+
+class ReportsHardeningTests(unittest.TestCase):
+    def test_naive_report_timestamp_uses_configured_application_timezone(self) -> None:
+        settings = SimpleNamespace(app_timezone="Asia/Kolkata")
+
+        with patch("app.api.service.get_runtime_settings", return_value=settings):
+            parsed = api_service._parse_timestamp("2026-08-08T08:00")
+
+        self.assertEqual(parsed.tzinfo, ZoneInfo("Asia/Kolkata"))
+        self.assertEqual(parsed.isoformat(), "2026-08-08T08:00:00+05:30")
+
+    def test_next_schedule_delivery_uses_previous_day_start_boundary(self) -> None:
+        settings = SimpleNamespace(app_timezone="Asia/Kolkata")
+        schedule = {
+            "send_time": "08:00",
+            "schedule_start_date": "2026-08-08",
+            "last_sent_on": None,
+        }
+        now = datetime(2026, 8, 9, 2, 0, tzinfo=timezone.utc)
+
+        with patch("app.api.service.get_runtime_settings", return_value=settings):
+            next_delivery = api_service._next_schedule_delivery_at(schedule, now=now)
+
+        self.assertEqual(next_delivery.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M"), "2026-08-09 08:05")
+
+    def test_schedule_delivery_rolls_over_midnight(self) -> None:
+        self.assertEqual(api_service._schedule_delivery_time_text("23:58"), "00:03")
+
+    def test_report_interval_rejects_non_positive_values(self) -> None:
+        base_filters = {
+            "meterIds": ["MTR-001"],
+            "parameterKeys": ["active_power_total"],
+            "startDateTime": "2026-08-08T00:00:00+05:30",
+            "endDateTime": "2026-08-08T01:00:00+05:30",
+        }
+
+        for interval in (0, -1, "0", "-1"):
+            with self.subTest(interval=interval), self.assertRaisesRegex(ValueError, "positive"):
+                api_service._normalize_filters({**base_filters, "intervalHours": interval})
+
+
+if __name__ == "__main__":
+    unittest.main()

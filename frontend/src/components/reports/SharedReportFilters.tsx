@@ -1,80 +1,30 @@
 import { CheckCircle2, Filter, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { MeterRecord, ParameterCategory, ParameterMeta, ReportFilters } from "../../types/energy";
-import { sortParametersByEnergyPriority } from "../../lib/energyParameters";
+import type { MeterRecord, ReportFilters } from "../../types/energy";
 
 type SharedReportFiltersProps = {
   meters: MeterRecord[];
-  parameters: ParameterMeta[];
   filters: ReportFilters;
   onChange: (next: ReportFilters) => void;
   onSelectMeter: (meterId: string) => void;
 };
 
-const categories: Array<ParameterCategory | "All"> = ["All", "Voltage", "Current", "Power", "Energy", "Quality", "Demand", "System"];
-const rangePresets = [
-  { label: "1 hour", hours: 1 },
-  { label: "8 hours", hours: 8 },
-  { label: "24 hours", hours: 24 },
-  { label: "7 days", hours: 168 },
-];
-
-export function SharedReportFilters({ meters, parameters, filters, onChange, onSelectMeter }: SharedReportFiltersProps) {
-  const [category, setCategory] = useState<(typeof categories)[number]>("All");
+export function SharedReportFilters({ meters, filters, onChange, onSelectMeter }: SharedReportFiltersProps) {
   const [search, setSearch] = useState("");
   const enabledMeters = useMemo(() => meters.filter((meter) => meter.enabled), [meters]);
+  const visibleMeters = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return meters;
+    }
+    return meters.filter((meter) =>
+      [meter.meter_name, meter.meter_id, meter.location].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [meters, search]);
   const selectedMeters = useMemo(
     () => meters.filter((meter) => filters.meterIds.includes(meter.meter_id)),
     [filters.meterIds, meters],
   );
-
-  const filteredParameters = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return sortParametersByEnergyPriority(
-      parameters
-      .filter((parameter) => {
-        const matchesCategory = category === "All" || parameter.category === category;
-        const matchesQuery =
-          !query ||
-          parameter.label.toLowerCase().includes(query) ||
-          parameter.key.toLowerCase().includes(query) ||
-          parameter.unit.toLowerCase().includes(query);
-        return matchesCategory && matchesQuery;
-      }),
-    );
-  }, [category, parameters, search]);
-
-  const selectedParameters = useMemo(() => {
-    const parameterMap = new Map(parameters.map((parameter) => [parameter.key, parameter]));
-    return filters.parameterKeys
-      .map((key, index) => {
-        const parameter = parameterMap.get(key);
-        if (!parameter) {
-          return null;
-        }
-        return {
-          index,
-          parameter,
-        };
-      })
-      .filter((item): item is { index: number; parameter: ParameterMeta } => item !== null);
-  }, [filters.parameterKeys, parameters]);
-
-  const toggleParameter = (parameterKey: string) => {
-    onChange({
-      ...filters,
-      parameterKeys: filters.parameterKeys.includes(parameterKey)
-        ? filters.parameterKeys.filter((key) => key !== parameterKey)
-        : [...filters.parameterKeys, parameterKey],
-    });
-  };
-
-  const applyRangePreset = (hours: number) => {
-    onChange({
-      ...filters,
-      intervalHours: hours,
-    });
-  };
 
   const updateMeterSelection = (meterIds: string[]) => {
     const uniqueMeterIds = meterIds.filter((meterId, index) => meterIds.indexOf(meterId) === index);
@@ -88,22 +38,47 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
   };
 
   return (
-    <section className="report-filters">
-      <div className="report-grid">
-        <label className="editor__field">
+    <section className="report-filters report-scope">
+      <div className="report-grid report-grid--scope">
+        <div className="editor__field">
           <span>Meters</span>
-          <select
-            multiple
-            size={Math.min(5, Math.max(3, meters.length))}
-            value={filters.meterIds}
-            onChange={(event) => updateMeterSelection(Array.from(event.target.selectedOptions, (option) => option.value))}
-          >
-            {meters.map((meter) => (
-              <option key={meter.meter_id} value={meter.meter_id}>
-                {meter.meter_name} {meter.enabled ? "" : "(disabled)"}
-              </option>
-            ))}
-          </select>
+          <label className="report-meter-search">
+            <span className="sr-only">Search meters</span>
+            <Search size={15} aria-hidden="true" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by meter name, ID, or location"
+            />
+          </label>
+          <div className="report-meter-list" role="group" aria-label="Meters">
+            {visibleMeters.map((meter) => {
+              const selected = filters.meterIds.includes(meter.meter_id);
+              return (
+                <label key={meter.meter_id} className={`report-meter-option ${selected ? "report-meter-option--selected" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() =>
+                      updateMeterSelection(
+                        selected
+                          ? filters.meterIds.filter((meterId) => meterId !== meter.meter_id)
+                          : [...filters.meterIds, meter.meter_id],
+                      )
+                    }
+                  />
+                  <span className="report-meter-option__copy">
+                    <strong>{meter.meter_name}</strong>
+                    <small>{meter.location || meter.meter_id}</small>
+                  </span>
+                  <span className={`status-pill status-pill--${meter.enabled ? meter.status : "offline"}`}>
+                    {meter.enabled ? meter.status : "Disabled"}
+                  </span>
+                </label>
+              );
+            })}
+            {visibleMeters.length === 0 ? <span className="report-meter-list__empty">No meters match this search.</span> : null}
+          </div>
           <div className="report-meter-actions">
             <button
               type="button"
@@ -122,25 +97,7 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
               Clear
             </button>
           </div>
-        </label>
-
-        <label className="editor__field">
-          <span>Start date/time</span>
-          <input
-            type="datetime-local"
-            value={filters.startDateTime}
-            onChange={(event) => onChange({ ...filters, startDateTime: event.target.value })}
-          />
-        </label>
-
-        <label className="editor__field">
-          <span>End date/time</span>
-          <input
-            type="datetime-local"
-            value={filters.endDateTime}
-            onChange={(event) => onChange({ ...filters, endDateTime: event.target.value })}
-          />
-        </label>
+        </div>
       </div>
 
       <div className="report-selected report-selected--compact">
@@ -162,104 +119,6 @@ export function SharedReportFilters({ meters, parameters, filters, onChange, onS
             <span className="report-selected__empty">No meters selected yet.</span>
           )}
         </div>
-      </div>
-
-      <div className="report-range-bar">
-        <span className="report-range-bar__label">Reading interval</span>
-        <div className="report-range-bar__actions">
-          <button
-            type="button"
-            className={`ghost-button ghost-button--compact ${filters.intervalHours === null ? "ghost-button--active" : ""}`}
-            onClick={() => onChange({ ...filters, intervalHours: null })}
-          >
-            All readings
-          </button>
-          {rangePresets.map((preset) => (
-            <button
-              key={preset.hours}
-              type="button"
-              className={`ghost-button ghost-button--compact ${filters.intervalHours === preset.hours ? "ghost-button--active" : ""}`}
-              onClick={() => applyRangePreset(preset.hours)}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="explorer__toolbar">
-        <label className="explorer__field">
-          <span className="explorer__label">Search</span>
-          <span className="explorer__input-icon" aria-hidden="true"><Search size={15} /></span>
-          <input
-            className="explorer__input"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search parameter"
-          />
-        </label>
-
-        <label className="explorer__field">
-          <span className="explorer__label">Category</span>
-          <select className="explorer__input" value={category} onChange={(event) => setCategory(event.target.value as typeof category)}>
-            {categories.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="explorer__meta explorer__meta--compact">
-        <span>{filteredParameters.length} parameters</span>
-        <span>{filters.parameterKeys.length} selected</span>
-      </div>
-
-      <div className="report-selected report-selected--compact">
-        <span className="report-selected__label">Selected parameters</span>
-        <div className="report-selected__chips">
-          {selectedParameters.length > 0 ? (
-            selectedParameters.map(({ index, parameter }) => (
-              <button
-                key={parameter.key}
-                type="button"
-                className="report-selected__chip"
-                onClick={() => toggleParameter(parameter.key)}
-              >
-                <span className="report-selected__index">{index + 1}</span>
-                <span>{parameter.label}</span>
-                <span className="report-selected__remove"><X size={13} aria-hidden="true" /></span>
-              </button>
-            ))
-          ) : (
-            <span className="report-selected__empty">No parameters selected yet.</span>
-          )}
-        </div>
-      </div>
-
-      <div className="explorer__list explorer__list--compact">
-        {filteredParameters.map((parameter) => {
-          const selectedIndex = filters.parameterKeys.indexOf(parameter.key);
-          return (
-          <button
-            key={parameter.key}
-            type="button"
-            className={`parameter-row ${filters.parameterKeys.includes(parameter.key) ? "parameter-row--selected" : ""}`}
-            onClick={() => toggleParameter(parameter.key)}
-          >
-            <span className="parameter-row__main">
-              <strong>{parameter.label}</strong>
-              <span>{parameter.key}</span>
-            </span>
-            <span className="parameter-row__side">
-              {selectedIndex >= 0 ? <span className="parameter-row__index">#{selectedIndex + 1}</span> : null}
-              <span className="parameter-row__category">{parameter.category}</span>
-              <span className="parameter-row__unit">{parameter.unit || "n/a"}</span>
-            </span>
-          </button>
-          );
-        })}
       </div>
     </section>
   );

@@ -71,8 +71,8 @@ export function EmailSettingsPanel({
 
   return (
     <section className="page-stack">
-      <div className={`email-health ${health?.configured ? "email-health--ok" : "email-health--warning"}`}>
-        <strong>{health?.configured ? "SMTP ready" : "SMTP not configured"}</strong>
+      <div className={`email-health ${health?.configured ? "email-health--configured" : "email-health--warning"}`}>
+        <strong>{health?.configured ? "SMTP configured" : "SMTP needs setup"}</strong>
         <span>
           Source: {health?.source ?? settings?.source ?? "env"} | {health?.message ?? "Waiting for SMTP configuration."}
         </span>

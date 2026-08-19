@@ -158,7 +158,10 @@ export function saveReportSchedule(input: ReportScheduleInput): Promise<ReportSc
     meterIds: input.meterIds,
     parameterKeys: input.parameterKeys,
     recipientEmails: input.recipientEmails,
+    scheduleName: input.scheduleName,
     sendTime: input.sendTime,
+    scheduleStartDate: input.scheduleStartDate,
+    intervalHours: input.intervalHours,
     enabled: input.enabled,
   };
 
