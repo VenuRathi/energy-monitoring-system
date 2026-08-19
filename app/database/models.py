@@ -113,6 +113,9 @@ AS $$
 DECLARE
     d date;
     partition_name text;
+    actual_partition_name text;
+    partition_start timestamptz;
+    partition_end timestamptz;
     created_or_verified integer := 0;
 BEGIN
     FOR d IN
@@ -123,30 +126,61 @@ BEGIN
         )::date
     LOOP
         partition_name := 'readings_' || to_char(d, 'YYYY_MM_DD');
+        partition_start := d::timestamp AT TIME ZONE p_partition_timezone;
+        partition_end := (d + 1)::timestamp AT TIME ZONE p_partition_timezone;
 
-        EXECUTE format(
-            'CREATE TABLE IF NOT EXISTS %I PARTITION OF readings FOR VALUES FROM (%L) TO (%L)',
-            partition_name,
-            d::timestamp AT TIME ZONE p_partition_timezone,
-            (d + 1)::timestamp AT TIME ZONE p_partition_timezone
-        );
+        SELECT c.relname
+        INTO actual_partition_name
+        FROM pg_inherits i
+        JOIN pg_class c ON c.oid = i.inhrelid
+        WHERE i.inhparent = 'readings'::regclass
+          AND pg_get_expr(c.relpartbound, c.oid) = format(
+              'FOR VALUES FROM (%L) TO (%L)',
+              partition_start,
+              partition_end
+          )
+        LIMIT 1;
+
+        IF actual_partition_name IS NULL THEN
+            EXECUTE format(
+                'CREATE TABLE IF NOT EXISTS %I PARTITION OF readings FOR VALUES FROM (%L) TO (%L)',
+                partition_name,
+                partition_start,
+                partition_end
+            );
+            actual_partition_name := partition_name;
+        ELSIF actual_partition_name <> partition_name THEN
+            IF to_regclass(partition_name) IS NOT NULL THEN
+                RAISE EXCEPTION
+                    'Partition name % already exists while % covers the same date range',
+                    partition_name,
+                    actual_partition_name;
+            END IF;
+
+            EXECUTE format(
+                'ALTER TABLE %I RENAME TO %I',
+                actual_partition_name,
+                partition_name
+            );
+            actual_partition_name := partition_name;
+        END IF;
 
         EXECUTE format(
             'CREATE INDEX IF NOT EXISTS %I ON %I (meter_id, timestamp DESC)',
-            partition_name || '_meter_timestamp_idx',
-            partition_name
+            actual_partition_name || '_meter_timestamp_idx',
+            actual_partition_name
         );
 
         EXECUTE format(
             'CREATE INDEX IF NOT EXISTS %I ON %I (meter_id, collected_at DESC)',
-            partition_name || '_meter_collected_idx',
-            partition_name
+            actual_partition_name || '_meter_collected_idx',
+            actual_partition_name
         );
 
         EXECUTE format(
             'CREATE INDEX IF NOT EXISTS %I ON %I (collected_at)',
-            partition_name || '_collected_at_idx',
-            partition_name
+            actual_partition_name || '_collected_at_idx',
+            actual_partition_name
         );
 
         created_or_verified := created_or_verified + 1;

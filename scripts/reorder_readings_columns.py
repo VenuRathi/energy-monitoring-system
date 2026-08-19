@@ -6,6 +6,7 @@ keeps the original table as a backup and creates a partitioned replacement.
 
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 import sys
 
 import psycopg
@@ -38,6 +39,13 @@ NON_NUMERIC_COLUMNS = {
     "present_date_and_time",
     "peak_demand_datetime",
 }
+
+
+def replacement_partition_name(old_partition: str) -> str:
+    match = re.fullmatch(r"(?:readings|readings_reordered)_(\d{4}_\d{2}_\d{2})", old_partition)
+    if match is None:
+        raise ValueError(f"Unexpected readings partition name: {old_partition}")
+    return f"readings_{match.group(1)}"
 
 
 def main() -> None:
@@ -117,7 +125,7 @@ def main() -> None:
                 """
             )
             for old_partition, bound in cursor.fetchall():
-                new_partition = f"{replacement_name}_{old_partition.removeprefix('readings_')}"
+                new_partition = replacement_partition_name(old_partition)
                 cursor.execute(
                     sql.SQL("CREATE TABLE {} PARTITION OF {} {}").format(
                         sql.Identifier(new_partition), sql.Identifier(replacement_name), sql.SQL(bound)
