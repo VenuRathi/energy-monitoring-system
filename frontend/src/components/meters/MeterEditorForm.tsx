@@ -1,4 +1,4 @@
-import { Radar, RotateCcw, Save, Search, Settings2 } from "lucide-react";
+import { PauseCircle, Radar, RotateCcw, Save, Search, Settings2 } from "lucide-react";
 import type { MeterDiscoveryResult, MeterDiscoverySyncResult, MeterInput } from "../../types/energy";
 
 type MeterEditorFormProps = {
@@ -10,11 +10,13 @@ type MeterEditorFormProps = {
   onScanRangeChange: (next: { scanStart: number; scanEnd: number }) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  onDisable?: () => void;
   onDiscover: () => void;
   onSyncDetected: () => void;
   saving: boolean;
   discovering: boolean;
   syncingDetected: boolean;
+  disabling?: boolean;
   errorMessage: string | null;
   discoveryErrorMessage?: string | null;
   discoveryResult?: MeterDiscoveryResult | null;
@@ -30,11 +32,13 @@ export function MeterEditorForm({
   onScanRangeChange,
   onSubmit,
   onCancel,
+  onDisable,
   onDiscover,
   onSyncDetected,
   saving,
   discovering,
   syncingDetected,
+  disabling = false,
   errorMessage,
   discoveryErrorMessage,
   discoveryResult,
@@ -53,12 +57,12 @@ export function MeterEditorForm({
       <div className="editor__header">
         <div className="section-heading">
           <div>
-            <p className="section-label">{mode === "edit" ? "Edit meter" : "Meter details"}</p>
+            <p className="section-label">Meter setup</p>
             <h4>{meterLabel}</h4>
             <p className="page-copy">
               {mode === "edit"
                 ? "Review the live meter setup, then change only what is needed."
-                : "Create a clean meter record before enabling it for polling."}
+                : "Add a meter, configure its line settings, or scan the line to discover devices."}
             </p>
           </div>
         </div>
@@ -323,9 +327,15 @@ export function MeterEditorForm({
           <RotateCcw size={16} aria-hidden="true" />
           Cancel
         </button>
+        {mode === "edit" && onDisable ? (
+          <button type="button" className="ghost-button ghost-button--danger" onClick={onDisable} disabled={disabling}>
+            <PauseCircle size={16} aria-hidden="true" />
+            {disabling ? "Disabling..." : "Disable meter"}
+          </button>
+        ) : null}
         <button type="button" className="primary-button" onClick={onSubmit} disabled={saving}>
           {saving ? <Settings2 size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
-          {saving ? "Saving..." : "Save changes"}
+          {saving ? "Saving..." : mode === "edit" ? "Save changes" : "Add meter"}
         </button>
       </div>
     </section>

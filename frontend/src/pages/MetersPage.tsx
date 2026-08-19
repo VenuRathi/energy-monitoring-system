@@ -12,6 +12,17 @@ type MetersPageProps = {
   onSelectMeter: (meterId: string) => void;
 };
 
+type MeterFilter = "all" | "enabled" | "disabled" | "online" | "offline" | "stale";
+
+const meterFilters: Array<{ value: MeterFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "enabled", label: "Enabled" },
+  { value: "disabled", label: "Disabled" },
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+  { value: "stale", label: "Stale" },
+];
+
 const emptyMeter = (meterId?: string): MeterInput => ({
   meter_id: meterId,
   meter_name: "",
@@ -67,12 +78,25 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
   const [mode, setMode] = useState<"add" | "edit">("add");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [scanRange, setScanRange] = useState({ scanStart: 1, scanEnd: 16 });
+  const [meterFilter, setMeterFilter] = useState<MeterFilter>("all");
+  const [pendingDisableMeterId, setPendingDisableMeterId] = useState<string | null>(null);
 
   const meters = data ?? [];
 
   const selectedMeter = useMemo(
-    () => meters.find((meter) => meter.meter_id === selectedMeterId) ?? meters[0],
+    () => (selectedMeterId ? meters.find((meter) => meter.meter_id === selectedMeterId) : undefined),
     [meters, selectedMeterId],
+  );
+  const filteredMeters = useMemo(
+    () => meters.filter((meter) => {
+      if (meterFilter === "enabled") return meter.enabled;
+      if (meterFilter === "disabled") return !meter.enabled;
+      if (meterFilter === "online") return meter.enabled && meter.status === "online";
+      if (meterFilter === "offline") return meter.enabled && meter.status === "offline";
+      if (meterFilter === "stale") return meter.enabled && meter.data_quality === "stale";
+      return true;
+    }),
+    [meterFilter, meters],
   );
   const { data: alertRules = [] } = useAlertRulesData(selectedMeter?.meter_id ?? "");
 
@@ -112,6 +136,8 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
     setMode("add");
     setEditing(emptyMeter());
     setValidationMessage(null);
+    setPendingDisableMeterId(null);
+    onSelectMeter("");
   };
 
   const startEdit = (meter: MeterRecord) => {
@@ -156,9 +182,18 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
     });
   };
 
+  const requestDisable = (meterId: string) => {
+    setPendingDisableMeterId(meterId);
+  };
+
   const disableMeter = (meterId: string) => {
     disableMeterMutation.mutate(meterId, {
       onSuccess: () => {
+        setPendingDisableMeterId(null);
+        if (editing.meter_id === meterId) {
+          setMode("add");
+          setEditing(emptyMeter());
+        }
         if (selectedMeterId !== meterId) {
           return;
         }
@@ -266,6 +301,7 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
   const warningCount = meters.filter((meter) => meter.status === "warning").length;
   const disabledCount = meters.filter((meter) => !meter.enabled).length;
   const enabledCount = meters.filter((meter) => meter.enabled).length;
+  const pendingDisableMeter = meters.find((meter) => meter.meter_id === pendingDisableMeterId);
 
   return (
     <section className="page-stack">
@@ -287,27 +323,72 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         </div>
       </section>
 
-      <section className="dashboard__split">
-        <div className="panel">
+      <section className="panel meter-inventory-panel">
           {disableMeterMutation.error instanceof Error ? (
             <div className="page-state page-state--error page-state--padded">{disableMeterMutation.error.message}</div>
           ) : null}
-          <div className="section-heading">
+          <div className="section-heading meter-inventory-panel__header">
             <div>
               <p className="section-label">Meter inventory</p>
               <h4>Saved meters</h4>
             </div>
+            <span className="table-subtle">{filteredMeters.length} of {meters.length} shown</span>
+          </div>
+          <div className="meter-inventory-panel__toolbar">
+            <div className="meter-filter-group" role="group" aria-label="Filter meters">
+              {meterFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  className={`ghost-button ghost-button--compact ${meterFilter === filter.value ? "ghost-button--active" : ""}`}
+                  onClick={() => setMeterFilter(filter.value)}
+                  aria-pressed={meterFilter === filter.value}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
           </div>
           <MeterTable
-            meters={meters}
+            meters={filteredMeters}
             selectedMeterId={selectedMeterId}
             onSelect={onSelectMeter}
             onEdit={startEdit}
             onEnable={enableMeter}
-            onDisable={disableMeter}
+            onDisable={requestDisable}
+            emptyMessage="No meters match this filter. Choose another view or add a new meter."
           />
-        </div>
+          {pendingDisableMeter ? (
+            <div className="meter-confirm" role="alert">
+              <div>
+                <strong>Disable {pendingDisableMeter.meter_name}?</strong>
+                <p>Polling will stop, but its history and configuration will be preserved.</p>
+              </div>
+              <div className="row-actions">
+                <button type="button" className="ghost-button ghost-button--compact" onClick={() => setPendingDisableMeterId(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button ghost-button--compact ghost-button--danger"
+                  onClick={() => disableMeter(pendingDisableMeter.meter_id)}
+                  disabled={disableMeterMutation.isPending}
+                >
+                  {disableMeterMutation.isPending ? "Disabling..." : "Disable meter"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+      </section>
 
+      <section className="panel meter-setup-panel">
+        <div className="section-heading meter-setup-panel__header">
+          <div>
+            <p className="section-label">Meter setup</p>
+            <h4>{mode === "edit" ? "Edit selected meter" : "Add a new meter"}</h4>
+          </div>
+          {mode === "edit" && selectedMeter ? <span className="table-subtle">Editing {selectedMeter.meter_id}</span> : null}
+        </div>
         <MeterEditorForm
           mode={mode}
           value={editing}
@@ -321,11 +402,13 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             setEditing(emptyMeter());
             setValidationMessage(null);
           }}
+          onDisable={mode === "edit" && editing.meter_id ? () => requestDisable(editing.meter_id as string) : undefined}
           onDiscover={runDiscovery}
           onSyncDetected={runSyncDetected}
           saving={saveMeter.isPending}
           discovering={discoverMeters.isPending}
           syncingDetected={syncDiscoveredMeters.isPending}
+          disabling={disableMeterMutation.isPending}
           errorMessage={validationMessage ?? (saveMeter.error instanceof Error ? saveMeter.error.message : null)}
           discoveryErrorMessage={
             validationMessage ??
@@ -340,20 +423,26 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         />
       </section>
 
-      {selectedMeter ? (
-        <section className="setup-alert-rules">
+      <section className="setup-alert-rules">
+        {selectedMeter ? (
           <AlertRulesPanel
-          meterId={selectedMeter.meter_id}
-          meterName={selectedMeter.meter_name}
-          parameters={parameters}
-          rules={alertRules}
-          onSave={(input) => reportMutations.saveAlertRule.mutate(input)}
-          onDelete={(ruleId) => reportMutations.deleteAlertRule.mutate(ruleId)}
-          saving={reportMutations.saveAlertRule.isPending}
-          errorMessage={reportMutations.saveAlertRule.error instanceof Error ? reportMutations.saveAlertRule.error.message : null}
+            meterId={selectedMeter.meter_id}
+            meterName={selectedMeter.meter_name}
+            parameters={parameters}
+            rules={alertRules}
+            onSave={(input) => reportMutations.saveAlertRule.mutate(input)}
+            onDelete={(ruleId) => reportMutations.deleteAlertRule.mutate(ruleId)}
+            saving={reportMutations.saveAlertRule.isPending}
+            errorMessage={reportMutations.saveAlertRule.error instanceof Error ? reportMutations.saveAlertRule.error.message : null}
           />
-        </section>
-      ) : null}
+        ) : (
+          <div className="panel page-state meter-empty-rules">
+            <p className="section-label">Alert rules</p>
+            <h4>Select a meter to manage alert rules</h4>
+            <p>Choose a meter from the inventory, then configure its threshold notifications here.</p>
+          </div>
+        )}
+      </section>
     </section>
   );
 }

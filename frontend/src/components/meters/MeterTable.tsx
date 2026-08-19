@@ -5,18 +5,19 @@ import { formatTimestamp } from "../../lib/formatters";
 type MeterTableProps = {
   meters: MeterRecord[];
   selectedMeterId: string;
+  emptyMessage?: string;
   onSelect: (meterId: string) => void;
   onEdit: (meter: MeterRecord) => void;
   onEnable: (meter: MeterRecord) => void;
   onDisable: (meterId: string) => void;
 };
 
-export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable, onDisable }: MeterTableProps) {
+export function MeterTable({ meters, selectedMeterId, emptyMessage, onSelect, onEdit, onEnable, onDisable }: MeterTableProps) {
   if (meters.length === 0) {
     return (
       <div className="page-state">
         <h3>No meters configured yet</h3>
-        <p>Add the first meter or run a scan on the active COM line to populate the meter list.</p>
+        <p>{emptyMessage ?? "Add the first meter or run a scan on the active COM line to populate the meter list."}</p>
       </div>
     );
   }
@@ -46,14 +47,12 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable
               <td className="latest-table__parameter">
                 <strong>{meter.meter_name}</strong>
                 <div className="table-subtle">{meter.meter_id}</div>
-                <div className="table-subtle">{meter.seu ? "SEU meter" : "Standard meter"}</div>
-                {!meter.enabled ? <div className="table-subtle table-subtle--danger">Disabled meter</div> : null}
               </td>
               <td>{meter.manufacturer} {meter.model}</td>
               <td>{meter.location}</td>
               <td>
                 <span className={`status-pill status-pill--${meter.status}`}>{meter.status}</span>
-                {meter.status_detail ? <div className="table-subtle">{meter.status_detail}</div> : null}
+                {!meter.enabled ? <div className="table-subtle table-subtle--danger">Disabled</div> : null}
               </td>
               <td>
                 <strong>{meter.com_port || "COM n/a"}</strong>
@@ -61,7 +60,6 @@ export function MeterTable({ meters, selectedMeterId, onSelect, onEdit, onEnable
               </td>
               <td>
                 <strong>{meter.enabled ? "Active" : "Disabled"}</strong>
-                <div className="table-subtle">{meter.enabled ? "Included in polling" : "History preserved only"}</div>
               </td>
               <td>{formatTimestamp(meter.last_update)}</td>
               <td>
