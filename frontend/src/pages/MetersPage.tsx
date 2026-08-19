@@ -1,11 +1,10 @@
-import { AlertTriangle, CirclePause, CirclePlus, Cpu, Gauge, RadioTower } from "lucide-react";
+import { CirclePlus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AlertRulesPanel } from "../components/meters/AlertRulesPanel";
 import { MeterEditorForm } from "../components/meters/MeterEditorForm";
 import { MeterTable } from "../components/meters/MeterTable";
 import { useMeterMutations, useReportMutations } from "../hooks/useEnergyMutations";
 import { useAlertRulesData, useMetersData, useParameterCatalog } from "../hooks/useMetersData";
-import { formatNumber, formatTimestamp } from "../lib/formatters";
 import type { MeterInput, MeterRecord } from "../types/energy";
 
 type MetersPageProps = {
@@ -60,7 +59,7 @@ function validateMeterInput(input: MeterInput): string | null {
 }
 
 export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) {
-  const { data, isLoading, isError, error } = useMetersData();
+  const { data, isLoading, isError, error, refetch } = useMetersData();
   const { data: parameters = [] } = useParameterCatalog();
   const { saveMeter, disableMeter: disableMeterMutation, discoverMeters, syncDiscoveredMeters } = useMeterMutations();
   const reportMutations = useReportMutations();
@@ -264,73 +263,27 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
     return <div className="page-state page-state--error">{message}</div>;
   }
 
-  const onlineCount = meters.filter((meter) => meter.status === "online").length;
   const warningCount = meters.filter((meter) => meter.status === "warning").length;
   const disabledCount = meters.filter((meter) => !meter.enabled).length;
   const enabledCount = meters.filter((meter) => meter.enabled).length;
-  const selectedMeterUpdated = formatTimestamp(selectedMeter?.last_update ?? "");
 
   return (
     <section className="page-stack">
-      <section className="dashboard__hero dashboard__hero--compact">
-        <div className="dashboard__hero-copy">
-          <p className="section-label">Meter setup</p>
-          <h3 className="dashboard__headline">Configure, test, and manage meters</h3>
-          <p className="dashboard__copy">
-            Maintain the active polling inventory, serial line settings, discovery scans, and alert rules from one operator workspace.
-          </p>
+      <section className="page-toolbar">
+        <div>
+          <p className="section-label">Meter Setup</p>
+          <h3 className="page-title">Meter inventory</h3>
         </div>
-
-        <div className="dashboard__hero-actions">
-          <div className="dashboard__summary dashboard__summary--compact dashboard__summary--meter-setup">
-            <div className="summary-card">
-              <span className="summary-card__icon"><Gauge size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Total meters</span>
-              <strong>{meters.length}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon summary-card__icon--online"><RadioTower size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Online</span>
-              <strong>{onlineCount}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon summary-card__icon--warning"><AlertTriangle size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Warning</span>
-              <strong>{warningCount}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon"><Cpu size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Enabled</span>
-              <strong>{enabledCount}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon summary-card__icon--danger"><CirclePause size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Disabled</span>
-              <strong>{disabledCount}</strong>
-            </div>
-          </div>
-
-          <div className="dashboard__control-card">
-            <div className="dashboard__control-copy">
-              <p className="section-label">Selected meter</p>
-              <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
-              <p className="dashboard__control-note">Last update: {selectedMeterUpdated}</p>
-            </div>
-            <div className="dashboard__control-row">
-              <span className={`status-pill status-pill--${selectedMeter?.status ?? "offline"}`}>
-                {selectedMeter?.status ?? "offline"}
-              </span>
-              <button type="button" className="primary-button" onClick={startAdd}>
-                <CirclePlus size={16} aria-hidden="true" />
-                Add new meter
-              </button>
-            </div>
-            <p className="page-copy">
-              {selectedMeter
-                ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${selectedMeter.enabled ? "Polling enabled" : "Disabled"}`
-                : "Choose a meter from the table to review or edit it."}
-            </p>
-          </div>
+        <div className="page-toolbar__actions">
+          <span className="table-subtle">{meters.length} total / {enabledCount} enabled / {warningCount} warning / {disabledCount} disabled</span>
+          <button type="button" className="ghost-button ghost-button--compact" onClick={() => refetch()}>
+            <RefreshCw size={15} aria-hidden="true" />
+            Refresh
+          </button>
+          <button type="button" className="primary-button" onClick={startAdd}>
+            <CirclePlus size={16} aria-hidden="true" />
+            Add meter
+          </button>
         </div>
       </section>
 
@@ -343,7 +296,6 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
             <div>
               <p className="section-label">Meter inventory</p>
               <h4>Saved meters</h4>
-              <p className="page-copy">Disabled meters stay in history and reports but are excluded from active polling.</p>
             </div>
           </div>
           <MeterTable
@@ -388,55 +340,9 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
         />
       </section>
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="section-label">Selected meter summary</p>
-            <h4>{selectedMeter?.meter_name ?? "No meter selected"}</h4>
-          </div>
-          {selectedMeter ? (
-            <div className="dashboard__meter-aside">
-              <span className={`status-pill status-pill--${selectedMeter.status}`}>{selectedMeter.status}</span>
-              <span className="dashboard__updated-at">Updated {selectedMeterUpdated}</span>
-            </div>
-          ) : null}
-        </div>
-        <p className="page-copy">
-          {selectedMeter
-            ? `${selectedMeter.location} - ${selectedMeter.manufacturer} ${selectedMeter.model} - ${formatNumber(selectedMeter.base_power, 2)} kW base load${selectedMeter.enabled ? "" : " - disabled for polling"}`
-            : "Choose a meter from the table to review or edit it."}
-        </p>
-
-        {selectedMeter ? (
-          <div className="meter-overview">
-            <div className="summary-card">
-              <span className="summary-card__label">Address</span>
-              <strong>{selectedMeter.com_port || "COM n/a"}</strong>
-              <span className="table-subtle">Slave {selectedMeter.slave_id}</span>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Serial settings</span>
-              <strong>{selectedMeter.baud_rate} baud</strong>
-              <span className="table-subtle">
-                {selectedMeter.parity}-{selectedMeter.byte_size}-{selectedMeter.stop_bits} - {selectedMeter.timeout}s timeout
-              </span>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Polling state</span>
-              <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong>
-              <span className="table-subtle">{selectedMeter.one_based_map ? "One-based map" : "Zero-based map"}</span>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__label">Role</span>
-              <strong>{selectedMeter.seu ? "SEU meter" : "Standard meter"}</strong>
-              <span className="table-subtle">{selectedMeter.driver}</span>
-            </div>
-          </div>
-        ) : null}
-      </section>
-
       {selectedMeter ? (
-        <AlertRulesPanel
+        <section className="setup-alert-rules">
+          <AlertRulesPanel
           meterId={selectedMeter.meter_id}
           meterName={selectedMeter.meter_name}
           parameters={parameters}
@@ -445,7 +351,8 @@ export function MetersPage({ selectedMeterId, onSelectMeter }: MetersPageProps) 
           onDelete={(ruleId) => reportMutations.deleteAlertRule.mutate(ruleId)}
           saving={reportMutations.saveAlertRule.isPending}
           errorMessage={reportMutations.saveAlertRule.error instanceof Error ? reportMutations.saveAlertRule.error.message : null}
-        />
+          />
+        </section>
       ) : null}
     </section>
   );

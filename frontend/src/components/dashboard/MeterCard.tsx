@@ -5,10 +5,11 @@ import { formatNumber, formatTimestamp } from "../../lib/formatters";
 type MeterCardProps = {
   meter: MeterRecord;
   active?: boolean;
+  alertCount?: number;
   onClick?: (meterId: string) => void;
 };
 
-export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
+export function MeterCard({ meter, active = false, alertCount = 0, onClick }: MeterCardProps) {
   const tone = !meter.enabled ? "offline" : meter.status === "online" && meter.data_quality === "live" ? "online" : meter.status === "offline" ? "offline" : "warning";
 
   return (
@@ -46,7 +47,9 @@ export function MeterCard({ meter, active = false, onClick }: MeterCardProps) {
 
       <div className="meter-card__footer">
         <span><Cpu size={14} aria-hidden="true" /> {meter.com_port || "COM n/a"} - Slave {meter.slave_id}</span>
-        <span><Clock3 size={14} aria-hidden="true" /> Updated {formatTimestamp(meter.last_update)}</span>
+        <span><Clock3 size={14} aria-hidden="true" /> {meter.data_quality === "live" ? "Fresh" : meter.data_quality?.replaceAll("_", " ") || "Needs review"}</span>
+        <span>{alertCount > 0 ? `${alertCount} alert${alertCount === 1 ? "" : "s"}` : "No alerts"}</span>
+        <span>Updated {formatTimestamp(meter.last_update)}</span>
       </div>
     </button>
   );

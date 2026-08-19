@@ -1,5 +1,4 @@
 import { Activity, Clock3, Database, Gauge, Save, ServerCog, Wifi } from "lucide-react";
-import { APP_META } from "../app/appMeta";
 import { useEffect, useState } from "react";
 import { savePollingSettings } from "../api/energyApi";
 import { useSystemStatusData } from "../hooks/useMetersData";
@@ -68,21 +67,12 @@ export function HelpPage() {
 
   return (
     <section className="page-stack">
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="section-label">System guide</p>
-            <h3 className="page-title">Runtime support console</h3>
-            <p className="page-copy">
-              Use live health checks, polling status, and compact troubleshooting guidance during operation.
-            </p>
-          </div>
-          <div className="app-meta-card">
-            <span className="summary-card__label">Product</span>
-            <strong>{APP_META.productName}</strong>
-            <span className="app-meta-card__version">{APP_META.version}</span>
-          </div>
+      <section className="page-toolbar">
+        <div>
+          <p className="section-label">Help & Support</p>
+          <h3 className="page-title">Runtime support console</h3>
         </div>
+        <span className="table-subtle">Live API, database, polling, and meter health</span>
       </section>
 
       <section className="panel">
@@ -227,31 +217,34 @@ export function HelpPage() {
                 </ul>
               </article>
 
-              <article className="panel help-card">
-                <div className="section-heading">
-                  <div>
-                    <p className="section-label">Database hardening</p>
-                    <h4>Storage health</h4>
+              <details className="support-advanced">
+                <summary>Advanced: database hardening</summary>
+                <article className="panel help-card">
+                  <div className="section-heading">
+                    <div>
+                      <p className="section-label">Database hardening</p>
+                      <h4>Storage health</h4>
+                    </div>
+                    <span
+                      className={`status-pill status-pill--${
+                        systemStatus.checks.databaseHardening.status === "ok" ? "online" : "warning"
+                      }`}
+                    >
+                      {systemStatus.checks.databaseHardening.status}
+                    </span>
                   </div>
-                  <span
-                    className={`status-pill status-pill--${
-                      systemStatus.checks.databaseHardening.status === "ok" ? "online" : "warning"
-                    }`}
-                  >
-                    {systemStatus.checks.databaseHardening.status}
-                  </span>
-                </div>
-                <ul className="help-list help-list--compact">
-                  <li>Readings partitioned: {systemStatus.databaseHardening.readingsPartitioned ? "Yes" : "No"}</li>
-                  <li>Raw readings: {systemStatus.databaseHardening.readingsCount ?? "n/a"}</li>
-                  <li>Daily partitions: {systemStatus.databaseHardening.partitionCount ?? "n/a"}</li>
-                  <li>ID default: {systemStatus.databaseHardening.readingsIdDefaultPresent ? "Present" : "Missing"}</li>
-                  <li>Duplicate groups: {systemStatus.databaseHardening.duplicateGroups ?? "n/a"}</li>
-                  <li>Hourly aggregate rows: {systemStatus.databaseHardening.hourlyAggregateRows ?? "n/a"}</li>
-                  <li>Pending DB restart settings: {systemStatus.databaseHardening.pendingRestartSettings.length}</li>
-                  <li>Legacy table retained: {systemStatus.databaseHardening.legacyTablePresent ? "Yes" : "No"}</li>
-                </ul>
-              </article>
+                  <ul className="help-list help-list--compact">
+                    <li>Readings partitioned: {systemStatus.databaseHardening.readingsPartitioned ? "Yes" : "No"}</li>
+                    <li>Raw readings: {systemStatus.databaseHardening.readingsCount ?? "n/a"}</li>
+                    <li>Daily partitions: {systemStatus.databaseHardening.partitionCount ?? "n/a"}</li>
+                    <li>ID default: {systemStatus.databaseHardening.readingsIdDefaultPresent ? "Present" : "Missing"}</li>
+                    <li>Duplicate groups: {systemStatus.databaseHardening.duplicateGroups ?? "n/a"}</li>
+                    <li>Hourly aggregate rows: {systemStatus.databaseHardening.hourlyAggregateRows ?? "n/a"}</li>
+                    <li>Pending DB restart settings: {systemStatus.databaseHardening.pendingRestartSettings.length}</li>
+                    <li>Legacy table retained: {systemStatus.databaseHardening.legacyTablePresent ? "Yes" : "No"}</li>
+                  </ul>
+                </article>
+              </details>
             </div>
 
             <div className="section-heading">
@@ -318,7 +311,9 @@ export function HelpPage() {
         ) : null}
       </section>
 
-      <section className="help-grid">
+      <details className="support-guidance">
+        <summary>Operator guidance and troubleshooting</summary>
+        <section className="help-grid">
         <article className="panel help-card">
           <div className="section-heading">
             <div>
@@ -379,7 +374,8 @@ export function HelpPage() {
             <li>Use the Change Guide before editing polling, schema, or API contracts.</li>
           </ul>
         </article>
-      </section>
+        </section>
+      </details>
 
       <section className="panel">
         <div className="section-heading">

@@ -2809,124 +2809,797 @@ body {
   }
 }
 
-/* Keep the selected-meter summary as one complete, evenly packed grid. */
-.selected-meter__grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  align-items: stretch;
+/* Operational support surfaces stay compact and secondary to the dashboard composition. */
+.dashboard__inventory-panel,
+.dashboard__selected-panel,
+.dashboard__trend-panel,
+.dashboard__attention-panel {
+  min-width: 0;
 }
 
-.selected-meter__grid .selected-meter__energy,
-.selected-meter__grid .selected-meter__operating,
-.selected-meter__grid .dashboard__overview--secondary,
-.selected-meter__grid .metric-strip {
-  display: contents;
+.dashboard__selected-panel .section-heading {
+  margin-bottom: 8px;
 }
 
-.selected-meter__grid .metric-tile,
-.selected-meter__grid .summary-card {
-  min-height: 72px;
-  margin: 0;
+.dashboard__selected-panel .dashboard__meter-meta {
+  gap: 6px 12px;
+  font-size: 0.78rem;
 }
 
-.selected-meter__grid .selected-meter__energy .metric-tile {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  align-content: center;
-  column-gap: 8px;
+.dashboard__selected-panel .dashboard__status-note {
+  margin: 8px 0;
   padding: 8px 10px;
+  font-size: 0.8rem;
 }
 
-.selected-meter__grid .selected-meter__energy .metric-tile__icon {
-  grid-row: 1 / span 3;
-  width: 20px;
-  height: 20px;
-  margin: 0;
+.meter-inventory__shell {
+  margin: 0 -2px;
 }
 
-.selected-meter__grid .selected-meter__energy .metric-tile__label {
-  grid-column: 2;
-  margin: 0;
+.meter-inventory {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.meter-inventory th,
+.meter-inventory td {
+  padding: 8px 7px;
+  border-bottom: 1px solid rgba(101, 123, 171, 0.12);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.meter-inventory th {
+  color: var(--muted);
   font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.selected-meter__grid .selected-meter__energy .metric-tile__value {
-  grid-column: 2;
-  margin: 2px 0 0;
-  font-size: 0.94rem;
+.meter-inventory tbody tr {
+  outline: none;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
 }
 
-.selected-meter__grid .selected-meter__energy .metric-tile__unit {
-  grid-column: 2;
-  margin: 0;
-  font-size: 0.7rem;
+.meter-inventory tbody tr:hover,
+.meter-inventory tbody tr:focus-visible {
+  background: rgba(63, 125, 243, 0.045);
 }
 
-.selected-meter__grid .selected-meter__operating .metric-tile {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-content: center;
+.meter-inventory tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.meter-inventory__row--selected {
+  background: rgba(63, 125, 243, 0.07);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.meter-inventory td:first-child {
+  min-width: 160px;
+}
+
+.meter-inventory td:first-child strong,
+.meter-inventory td:first-child span {
+  display: block;
+  overflow: hidden;
+  max-width: 220px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meter-inventory__number {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.meter-inventory__alerts {
+  font-weight: 800;
+  text-align: center !important;
+}
+
+.meter-inventory__updated {
+  white-space: nowrap;
+}
+
+.status-marker,
+.freshness-marker {
+  display: inline-flex;
   align-items: center;
-  column-gap: 7px;
-  padding: 8px 9px;
-  border-radius: 8px;
-  background: #fbfcff;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
-.selected-meter__grid .selected-meter__operating .metric-tile__icon {
-  grid-row: span 2;
-  width: 18px;
-  height: 18px;
-  margin: 0;
+.status-marker::before,
+.freshness-marker::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 
-.selected-meter__grid .selected-meter__operating .metric-tile__label {
-  margin: 0;
-  font-size: 0.66rem;
-  letter-spacing: 0.07em;
+.status-marker--online,
+.freshness-marker--fresh {
+  color: var(--success);
 }
 
-.selected-meter__grid .selected-meter__operating .metric-tile__value {
-  margin: 0;
-  font-size: 0.84rem;
+.status-marker--warning,
+.freshness-marker--attention {
+  color: var(--warning);
 }
 
-.selected-meter__grid .selected-meter__operating .metric-tile__unit {
-  grid-column: 2;
-  margin: -2px 0 0;
-  font-size: 0.68rem;
+.status-marker--offline {
+  color: var(--danger);
 }
 
-.selected-meter__grid .dashboard__overview--secondary .summary-card {
+.attention-queue {
   display: grid;
-  align-content: center;
-  gap: 2px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: #f8faff;
-  box-shadow: none;
+  gap: 0;
 }
 
-.selected-meter__grid .dashboard__overview--secondary .summary-card strong {
-  margin: 0;
-  font-size: 0.88rem;
+.attention-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(101, 123, 171, 0.12);
 }
 
-.selected-meter__grid .dashboard__overview--secondary .table-subtle {
+.attention-item:last-child {
+  border-bottom: 0;
+}
+
+.attention-item__marker {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--warning);
+}
+
+.attention-item--offline .attention-item__marker {
+  color: var(--danger);
+}
+
+.attention-item__body {
+  min-width: 0;
+}
+
+.attention-item__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.attention-item__top span,
+.attention-item__meter,
+.attention-item__body small {
+  color: var(--muted);
   font-size: 0.7rem;
 }
 
-@media (max-width: 900px) {
-  .selected-meter__grid {
+.attention-item__meter {
+  display: block;
+  margin-top: 2px;
+  font-weight: 700;
+}
+
+.attention-item__body p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.attention-item__body small {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.attention-queue__empty {
+  padding: 16px 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.dashboard__attention-panel .ghost-button {
+  margin-top: 8px;
+}
+
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0;
+}
+
+.page-toolbar__actions,
+.report-builder__state {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.page-toolbar .page-title {
+  margin-top: 3px;
+}
+
+.setup-alert-rules {
+  min-width: 0;
+}
+
+.report-builder__summary {
+  margin-top: 10px;
+}
+
+.report-admin {
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+  padding-top: 10px;
+}
+
+.report-admin summary,
+.support-guidance summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.report-admin summary::-webkit-details-marker,
+.support-guidance summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-admin summary > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.report-admin[open] summary,
+.support-guidance[open] summary {
+  margin-bottom: 12px;
+}
+
+.support-guidance {
+  border-top: 1px solid rgba(101, 123, 171, 0.14);
+  padding-top: 12px;
+}
+
+.support-guidance summary::after {
+  color: var(--muted);
+  content: "+";
+  font-size: 1rem;
+}
+
+.support-guidance[open] summary::after {
+  content: "-";
+}
+
+.support-advanced {
+  grid-column: 1 / -1;
+  border-top: 1px solid rgba(101, 123, 171, 0.12);
+  padding-top: 10px;
+}
+
+.support-advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.support-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.support-advanced summary::after {
+  float: right;
+  content: "+";
+}
+
+.support-advanced[open] summary::after {
+  content: "-";
+}
+
+.support-advanced[open] .help-card {
+  margin-top: 10px;
+}
+
+.energy-history__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.energy-history__toolbar .section-label {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.segmented-control {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(101, 123, 171, 0.18);
+  border-radius: 7px;
+  background: #f8faff;
+}
+
+.segmented-control__button {
+  border: 0;
+  border-radius: 5px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.segmented-control__button--active {
+  background: #ffffff;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(34, 62, 112, 0.08);
+}
+
+@media (max-width: 560px) {
+  .energy-history__toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .page-toolbar__actions,
+  .report-builder__state {
+    justify-content: flex-start;
+  }
+}
+
+/* Corrective composition: let the chart and selected meter lead, with cards supporting them. */
+.dashboard__primary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.dashboard__primary-rail {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dashboard__selected-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.dashboard__selected-panel .dashboard__meter-meta {
+  gap: 6px 12px;
+  font-size: 0.78rem;
+}
+
+.dashboard__selected-panel .dashboard__status-note {
+  margin: 8px 0;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
+.dashboard__selected-panel .selected-meter__energy .metric-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dashboard__selected-panel .selected-meter__energy .metric-tile {
+  min-height: 88px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.dashboard__selected-panel .selected-meter__operating {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(101, 123, 171, 0.13);
+}
+
+.dashboard__selected-panel .selected-meter__operating .metric-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dashboard__selected-panel .selected-meter__operating .metric-tile {
+  min-height: 52px;
+  padding: 7px 8px;
+  border-radius: 7px;
+}
+
+.dashboard__selected-panel .selected-meter__operating .metric-tile__label {
+  font-size: 0.62rem;
+}
+
+.dashboard__selected-panel .selected-meter__operating .metric-tile__value {
+  font-size: 0.8rem;
+}
+
+.selected-meter__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(101, 123, 171, 0.12);
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.selected-meter__context span {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.selected-meter__context strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.dashboard__meter-overview {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard__meter-overview .dashboard__cards {
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 10px;
+}
+
+.dashboard__meter-overview .meter-card {
+  padding: 13px 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 3px 12px rgba(34, 62, 112, 0.035);
+}
+
+.dashboard__meter-overview .meter-card:hover {
+  border-color: rgba(63, 125, 243, 0.3);
+  box-shadow: 0 5px 16px rgba(34, 62, 112, 0.06);
+}
+
+.dashboard__meter-overview .meter-card__metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dashboard__meter-overview .meter-card__metrics dt {
+  font-size: 0.64rem;
+}
+
+.dashboard__meter-overview .meter-card__metrics dd {
+  font-size: 0.82rem;
+}
+
+.dashboard__meter-overview .meter-card__footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  margin-top: 10px;
+  font-size: 0.7rem;
+}
+
+.engineering-inventory {
+  border-top: 1px solid rgba(101, 123, 171, 0.13);
+  padding-top: 10px;
+}
+
+.engineering-inventory summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.engineering-inventory summary::-webkit-details-marker {
+  display: none;
+}
+
+.engineering-inventory summary::after {
+  float: right;
+  content: "+";
+}
+
+.engineering-inventory[open] summary::after {
+  content: "-";
+}
+
+.engineering-inventory[open] .meter-inventory__shell {
+  margin-top: 10px;
+}
+
+@media (max-width: 1120px) {
+  .dashboard__primary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__primary-rail {
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard__primary-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__selected-panel .selected-meter__energy .metric-strip,
+  .dashboard__selected-panel .selected-meter__operating .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 520px) {
-  .selected-meter__grid {
+  .dashboard__selected-panel .selected-meter__energy .metric-strip,
+  .dashboard__selected-panel .selected-meter__operating .metric-strip {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Space recovery pass: keep the dashboard useful instead of leaving empty grid pockets. */
+.dashboard {
+  gap: 12px;
+}
+
+.dashboard__commandbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 8px 2px 6px;
+}
+
+.dashboard__headline {
+  font-size: 1.12rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.dashboard__commandbar-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.dashboard__commandbar-copy .section-label {
+  margin: 0;
+}
+
+.dashboard__commandbar-actions {
+  display: grid;
+  grid-template-columns: auto auto minmax(280px, 420px) auto;
+  gap: 8px;
+  justify-content: end;
+  flex-wrap: nowrap;
+}
+
+.dashboard__commandbar-actions .meter-selector {
+  min-width: 0;
+}
+
+.dashboard__commandbar-actions .ghost-button {
+  white-space: nowrap;
+}
+
+.dashboard__kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dashboard__kpis .summary-card {
+  min-height: 62px;
+  padding: 9px 11px;
+}
+
+.dashboard__kpis .summary-card strong {
+  font-size: 1.05rem;
+}
+
+.dashboard__primary-grid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(350px, 0.7fr);
+  grid-template-areas:
+    "trend selected"
+    "overview attention";
+  gap: 12px;
+}
+
+.dashboard__primary-rail {
+  display: contents;
+}
+
+.dashboard__trend-panel {
+  grid-area: trend;
+}
+
+.dashboard__selected-panel {
+  grid-area: selected;
+}
+
+.dashboard__attention-panel {
+  grid-area: attention;
+}
+
+.dashboard__meter-overview {
+  grid-area: overview;
+}
+
+.dashboard__trend-panel,
+.dashboard__selected-panel,
+.dashboard__attention-panel,
+.dashboard__meter-overview {
+  padding: 14px;
+}
+
+.dashboard__trend-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 382px;
+}
+
+.dashboard__trend-panel .section-heading {
+  margin-bottom: 10px;
+}
+
+.dashboard__trend-panel > .all-meter-energy-grid {
+  flex: 1;
+  align-content: start;
+  max-height: 330px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.dashboard__trend-panel .all-meter-energy-card {
+  min-height: auto;
+}
+
+.plant-faceplate {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plant-faceplate div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(101, 123, 171, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.plant-faceplate span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.plant-faceplate strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.dashboard__meter-overview {
+  gap: 9px;
+}
+
+.dashboard__meter-overview .section-heading {
+  margin-bottom: 0;
+}
+
+.dashboard__meter-overview .dashboard__cards {
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+  gap: 8px;
+}
+
+.dashboard__meter-overview .meter-card {
+  padding: 11px 12px;
+}
+
+.dashboard__meter-overview .meter-card__metrics {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dashboard__meter-overview .meter-card__footer {
+  grid-template-columns: 1fr;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.engineering-inventory {
+  padding-top: 8px;
+}
+
+@media (min-width: 1280px) {
+  .dashboard__trend-panel > .all-meter-energy-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .dashboard__commandbar {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__commandbar-actions {
+    grid-template-columns: auto auto minmax(220px, 1fr) auto;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 1120px) {
+  .dashboard__primary-grid {
+    grid-template-areas: none;
+  }
+
+  .dashboard__primary-rail {
+    display: grid;
+    gap: 12px;
+  }
+
+  .dashboard__trend-panel,
+  .dashboard__selected-panel,
+  .dashboard__attention-panel,
+  .dashboard__meter-overview {
+    grid-area: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .dashboard__commandbar-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dashboard__commandbar-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard__commandbar-actions .meter-selector,
+  .dashboard__commandbar-actions .ghost-button {
+    grid-column: 1 / -1;
   }
 }

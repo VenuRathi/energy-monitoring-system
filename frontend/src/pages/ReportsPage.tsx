@@ -1,10 +1,11 @@
-import { CheckCircle2, Download, FileText, Gauge, ListChecks, MailCheck, SlidersHorizontal } from "lucide-react";
+import { Download, FileText, MailCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmailSettingsPanel } from "../components/reports/EmailSettingsPanel";
 import { ReportSchedulePanel } from "../components/reports/ReportSchedulePanel";
 import { SharedReportFilters } from "../components/reports/SharedReportFilters";
 import { useReportMutations } from "../hooks/useEnergyMutations";
 import { useEmailHealthData, useEmailSettingsData, useMetersData, useParameterCatalog, useReportSchedulesData } from "../hooks/useMetersData";
+import { ENERGY_PARAMETER_KEYS } from "../lib/energyParameters";
 import type { ReportFilters } from "../types/energy";
 
 type ReportsPageProps = {
@@ -38,11 +39,10 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         ? reportMutations.wordReport.error.message
         : null;
   const fallbackMeterId = selectedMeterId === "ALL" ? meters[0]?.meter_id ?? "" : selectedMeterId;
-  const enabledMeters = meters.filter((meter) => meter.enabled).length;
   const [filters, setFilters] = useState<ReportFilters>({
     meterId: fallbackMeterId,
     meterIds: fallbackMeterId ? [fallbackMeterId] : [],
-    parameterKeys: ["active_power_total", "voltage_l_minus_n_avg", "current_avg", "power_factor_total"],
+    parameterKeys: [...ENERGY_PARAMETER_KEYS, "active_power_total", "voltage_l_minus_n_avg", "current_avg", "power_factor_total"],
     startDateTime: startOfTodayIso(),
     endDateTime: nowIso(),
     intervalHours: 1,
@@ -88,63 +88,14 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
 
   return (
     <section className="page-stack">
-      <section className="dashboard__hero dashboard__hero--compact">
-        <div className="dashboard__hero-copy">
-          <p className="section-label">Reports and email</p>
-          <h3 className="dashboard__headline">Build exports and email schedules</h3>
-          <p className="dashboard__copy">
-            Review selected meters, parameters, readiness, and delivery settings before generating files.
-          </p>
+      <section className="page-toolbar">
+        <div>
+          <p className="section-label">Reports & Email</p>
+          <h3 className="page-title">Report builder</h3>
         </div>
-
-        <div className="dashboard__hero-actions">
-          <div className="dashboard__summary dashboard__summary--compact dashboard__summary--reports">
-            <div className="summary-card">
-              <span className="summary-card__icon summary-card__icon--online"><Gauge size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Enabled meters</span>
-              <strong>{enabledMeters}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon"><ListChecks size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Schedules</span>
-              <strong>{schedules.length}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon"><CheckCircle2 size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Selected meters</span>
-              <strong>{filters.meterIds.length}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="summary-card__icon"><SlidersHorizontal size={17} aria-hidden="true" /></span>
-              <span className="summary-card__label">Selected parameters</span>
-              <strong>{filters.parameterKeys.length}</strong>
-            </div>
-            <div className="summary-card">
-              <span className={`summary-card__icon ${emailReady ? "summary-card__icon--online" : "summary-card__icon--warning"}`}>
-                <MailCheck size={17} aria-hidden="true" />
-              </span>
-              <span className="summary-card__label">Email</span>
-              <strong>{emailReady ? "Ready" : "Needs setup"}</strong>
-            </div>
-          </div>
-
-          <div className="dashboard__control-card">
-            <div className="dashboard__control-copy">
-              <p className="section-label">Current export range</p>
-              <h4>{filters.meterIds.length > 0 ? `${filters.meterIds.length} meter(s) selected` : "No meter selected"}</h4>
-              <p className="dashboard__control-note">
-                {filters.startDateTime} to {filters.endDateTime}
-              </p>
-            </div>
-            <div className="dashboard__control-row">
-              <span className={`status-pill status-pill--${emailHealth?.configured ? "online" : "warning"}`}>
-                {emailHealth?.configured ? "email ready" : "email needs setup"}
-              </span>
-            </div>
-            <p className="page-copy">
-              Interval: {filters.intervalHours === null ? "All readings" : `Every ${filters.intervalHours} hour(s)`}
-            </p>
-          </div>
+        <div className="report-builder__state">
+          <span className="table-subtle">{filters.meterIds.length} meters / {filters.parameterKeys.length} parameters / {schedules.length} schedules</span>
+          <span className={`status-pill status-pill--${reportReady ? "online" : "warning"}`}>{reportReady ? "Ready to export" : "Needs selection"}</span>
         </div>
       </section>
 
@@ -152,8 +103,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className="section-heading">
           <div>
             <p className="section-label">Report setup</p>
-            <h4>Choose meter, time, and values</h4>
-            <p className="page-copy">Work from top to bottom: select the meters, choose the time range, then download or email the report.</p>
+            <h4>1. Scope and data</h4>
           </div>
         </div>
         <SharedReportFilters
@@ -164,7 +114,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
           onSelectMeter={onSelectMeter}
         />
 
-        <div className="report-inline-summary report-inline-summary--stacked">
+        <div className="report-inline-summary report-inline-summary--stacked report-builder__summary">
           <span>
             <strong>Selected meters:</strong> {selectedMeterNames.length > 0 ? selectedMeterNames.join(", ") : "none"}
           </span>
@@ -185,7 +135,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
             {dateRangeInvalid
               ? "Start date/time must be before end date/time."
               : reportReady
-              ? "You can export now or send the same selection through the email flow below."
+              ? "The selection is ready for file export or delivery."
               : "Choose at least one meter and one parameter before exporting or scheduling reports."}
           </p>
         </div>
@@ -195,7 +145,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="section-label">Download</p>
+              <p className="section-label">3. Output</p>
               <h4>Export files</h4>
             </div>
           </div>
@@ -239,7 +189,7 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="section-label">Email delivery</p>
+              <p className="section-label">3. Delivery</p>
               <h4>Send or schedule reports</h4>
             </div>
           </div>
@@ -260,33 +210,29 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
         </div>
 
         <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="section-label">SMTP readiness</p>
-              <h4>Email account settings</h4>
-            </div>
-            <span className={`status-pill status-pill--${emailReady ? "online" : "warning"}`}>
-              <MailCheck size={15} aria-hidden="true" />
-              {emailReady ? "ready" : "setup needed"}
-            </span>
-          </div>
-          <EmailSettingsPanel
-            settings={emailSettings}
-            health={emailHealth}
-            saving={reportMutations.saveEmailSettings.isPending}
-            testing={reportMutations.sendEmailTest.isPending}
-            saveError={
-              reportMutations.saveEmailSettings.error instanceof Error ? reportMutations.saveEmailSettings.error.message : null
-            }
-            testError={reportMutations.sendEmailTest.error instanceof Error ? reportMutations.sendEmailTest.error.message : null}
-            testResultMessage={
-              reportMutations.sendEmailTest.data
-                ? `Test email sent to ${reportMutations.sendEmailTest.data.recipientEmails.join(", ")} using ${reportMutations.sendEmailTest.data.source} settings.`
-                : null
-            }
-            onSave={(input) => reportMutations.saveEmailSettings.mutate(input)}
-            onSendTest={(recipientEmails) => reportMutations.sendEmailTest.mutate(recipientEmails)}
-          />
+          <details className="report-admin">
+            <summary>
+              <span><MailCheck size={15} aria-hidden="true" /> Email administration</span>
+              <span className={`status-pill status-pill--${emailReady ? "online" : "warning"}`}>{emailReady ? "ready" : "setup needed"}</span>
+            </summary>
+            <EmailSettingsPanel
+              settings={emailSettings}
+              health={emailHealth}
+              saving={reportMutations.saveEmailSettings.isPending}
+              testing={reportMutations.sendEmailTest.isPending}
+              saveError={
+                reportMutations.saveEmailSettings.error instanceof Error ? reportMutations.saveEmailSettings.error.message : null
+              }
+              testError={reportMutations.sendEmailTest.error instanceof Error ? reportMutations.sendEmailTest.error.message : null}
+              testResultMessage={
+                reportMutations.sendEmailTest.data
+                  ? `Test email sent to ${reportMutations.sendEmailTest.data.recipientEmails.join(", ")} using ${reportMutations.sendEmailTest.data.source} settings.`
+                  : null
+              }
+              onSave={(input) => reportMutations.saveEmailSettings.mutate(input)}
+              onSendTest={(recipientEmails) => reportMutations.sendEmailTest.mutate(recipientEmails)}
+            />
+          </details>
         </div>
       </section>
     </section>

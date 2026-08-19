@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useMemo, useState } from "react";
 import type { HourlyEnergyPoint } from "../../types/energy";
 import { formatChartTime, formatNumber, formatTimestamp } from "../../lib/formatters";
 
@@ -30,6 +31,26 @@ function valueText(value: number | null) {
 }
 
 export function EnergyHistoryPanel({ data, isLoading, isError, errorMessage, onRetry }: EnergyHistoryPanelProps) {
+  const [mode, setMode] = useState<"cumulative" | "increment">("cumulative");
+
+  const displayData = useMemo(() => {
+    if (mode === "cumulative") return data;
+
+    return data.map((point, index) => {
+      const previous = data[index - 1];
+      const delta = (current: number | null, prior: number | null | undefined) => {
+        if (current === null || prior == null) return null;
+        return current >= prior ? current - prior : current;
+      };
+      return {
+        ...point,
+        activeEnergy: delta(point.activeEnergy, previous?.activeEnergy),
+        reactiveEnergy: delta(point.reactiveEnergy, previous?.reactiveEnergy),
+        apparentEnergy: delta(point.apparentEnergy, previous?.apparentEnergy),
+      };
+    });
+  }, [data, mode]);
+
   if (isLoading) {
     return <div className="page-state page-state--padded">Loading 72-hour energy history...</div>;
   }
@@ -49,9 +70,19 @@ export function EnergyHistoryPanel({ data, isLoading, isError, errorMessage, onR
 
   return (
     <div className="energy-history">
+      <div className="energy-history__toolbar">
+        <div>
+          <span className="section-label">Energy interpretation</span>
+          <p className="table-subtle">{mode === "cumulative" ? "Cumulative meter totals" : "Estimated change between hourly readings"}</p>
+        </div>
+        <div className="segmented-control" role="tablist" aria-label="Energy history mode">
+          <button type="button" className={mode === "cumulative" ? "segmented-control__button segmented-control__button--active" : "segmented-control__button"} onClick={() => setMode("cumulative")}>Cumulative</button>
+          <button type="button" className={mode === "increment" ? "segmented-control__button segmented-control__button--active" : "segmented-control__button"} onClick={() => setMode("increment")}>Hourly change</button>
+        </div>
+      </div>
       <div className="energy-history__chart">
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+          <LineChart data={displayData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.18)" />
             <XAxis dataKey="hour" tickFormatter={formatChartTime} stroke="rgba(100, 116, 139, 0.8)" tickLine={false} axisLine={false} />
             <YAxis stroke="rgba(100, 116, 139, 0.8)" tickLine={false} axisLine={false} />
@@ -74,7 +105,7 @@ export function EnergyHistoryPanel({ data, isLoading, isError, errorMessage, onR
             />
             <Legend />
             {SERIES.map((series) => (
-              <Line key={series.key} type="monotone" dataKey={series.key} name={series.label} stroke={series.color} strokeWidth={2} dot={false} connectNulls />
+              <Line key={series.key} type="monotone" dataKey={series.key} name={series.label} stroke={series.color} strokeWidth={2} dot={false} connectNulls={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>
@@ -86,7 +117,7 @@ export function EnergyHistoryPanel({ data, isLoading, isError, errorMessage, onR
             <tr><th>Hour</th><th>kWh</th><th>kVARh</th><th>kVAh</th></tr>
           </thead>
           <tbody>
-            {data.map((point) => (
+            {displayData.map((point) => (
               <tr key={point.hour}>
                 <td>{formatTimestamp(point.hour)}</td>
                 <td>{valueText(point.activeEnergy)}</td>
