@@ -6,6 +6,8 @@ param(
     [switch]$SkipDesktopShortcut
 )
 
+$ErrorActionPreference = "Stop"
+
 $watchdogLauncher = Join-Path $ProjectRoot "scripts\run_backend_watchdog.vbs"
 $dashboardLauncher = Join-Path $ProjectRoot "scripts\launch_dashboard.vbs"
 if (-not (Test-Path $watchdogLauncher)) {
