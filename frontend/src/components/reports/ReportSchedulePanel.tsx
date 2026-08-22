@@ -45,8 +45,8 @@ export function ReportSchedulePanel({
 }: ReportSchedulePanelProps) {
   const [recipientText, setRecipientText] = useState("");
   const [sendTime, setSendTime] = useState("08:00");
+  const [recordTime, setRecordTime] = useState("08:00");
   const [scheduleName, setScheduleName] = useState("Daily energy report");
-  const [windowMode, setWindowMode] = useState<"previous_day" | "start_to_current">("previous_day");
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
   const [pendingDeleteSchedule, setPendingDeleteSchedule] = useState<ReportSchedule | null>(null);
   const [scheduleStartDate, setScheduleStartDate] = useState(() => {
@@ -76,7 +76,8 @@ export function ReportSchedulePanel({
       scheduleName: scheduleName.trim() || "Daily energy report",
       sendTime,
       scheduleStartDate,
-      windowMode,
+      recordTime,
+      windowMode: "start_to_current",
       intervalHours: filters.intervalHours,
       enabled: true,
     });
@@ -96,8 +97,8 @@ export function ReportSchedulePanel({
     setScheduleName(schedule.scheduleName || "Daily energy report");
     setRecipientText(schedule.recipientEmails.join(", "));
     setSendTime(schedule.sendTime || "08:00");
+    setRecordTime(schedule.recordTime || schedule.sendTime || "08:00");
     setScheduleStartDate(schedule.scheduleStartDate || scheduleStartDate);
-    setWindowMode(schedule.windowMode || "previous_day");
     onChangeFilters({
       ...filters,
       meterId: schedule.meterId,
@@ -111,6 +112,7 @@ export function ReportSchedulePanel({
     setEditingScheduleId(null);
     setScheduleName("Daily energy report");
     setRecipientText("");
+    setRecordTime("08:00");
   };
 
   const toggleSchedule = (schedule: ReportSchedule) => {
@@ -123,6 +125,7 @@ export function ReportSchedulePanel({
       scheduleName: schedule.scheduleName,
       sendTime: schedule.sendTime,
       scheduleStartDate: schedule.scheduleStartDate,
+      recordTime: schedule.recordTime || schedule.sendTime,
       windowMode: schedule.windowMode,
       intervalHours: schedule.intervalHours,
       enabled: !schedule.enabled,
@@ -198,22 +201,19 @@ export function ReportSchedulePanel({
                 <input value={scheduleName} onChange={(event) => setScheduleName(event.target.value)} placeholder="Daily energy report" />
               </label>
               <label className="editor__field">
-                <span>Start sending from</span>
+                <span>Record from date</span>
                 <input type="date" value={scheduleStartDate} onChange={(event) => setScheduleStartDate(event.target.value)} />
-                <small className="field-help">This date is also the report start when using the selected-date window.</small>
+                <small className="field-help">Records begin on this date and continue through the send time.</small>
               </label>
               <label className="editor__field">
-                <span>Report window</span>
-                <select value={windowMode} onChange={(event) => setWindowMode(event.target.value as typeof windowMode)}>
-                  <option value="previous_day">Previous calendar day</option>
-                  <option value="start_to_current">Start date through current time</option>
-                </select>
-                <small className="field-help">Use the second option to test hourly values from the selected date until delivery.</small>
+                <span>Record time</span>
+                <input type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} />
+                <small className="field-help">First record time; with a 1 hour interval the next records are 09:00, 10:00, and so on.</small>
               </label>
               <label className="editor__field">
-                <span>Daily reading time</span>
+                <span>Send time</span>
                 <input type="time" value={sendTime} onChange={(event) => setSendTime(event.target.value)} />
-                <small className="field-help">Readings close at {sendTime} · Email sends around {getDeliveryTime(sendTime)}.</small>
+                <small className="field-help">The email is sent at {getDeliveryTime(sendTime)}.</small>
               </label>
             </>
           ) : null}
@@ -237,7 +237,7 @@ export function ReportSchedulePanel({
                 type="button"
                 className="primary-button"
                 onClick={submitSchedule}
-                disabled={saving || !criteriaReady || emailConfigured === false || recipients.length === 0 || !scheduleStartDate || !sendTime}
+                disabled={saving || !criteriaReady || emailConfigured === false || recipients.length === 0 || !scheduleStartDate || !recordTime || !sendTime}
               >
                 <CalendarClock size={16} aria-hidden="true" />
                 {saving ? "Saving..." : editingScheduleId ? "Update schedule" : "Save schedule"}
@@ -262,7 +262,7 @@ export function ReportSchedulePanel({
         </span>
         {deliveryMode === "scheduled" ? (
           <span>
-            <strong>Window:</strong> {windowMode === "previous_day" ? "previous calendar day" : "start date through current time"} · starts {scheduleStartDate}
+            <strong>Range:</strong> {scheduleStartDate} {recordTime} through {sendTime}
           </span>
         ) : (
           <span>
@@ -274,7 +274,7 @@ export function ReportSchedulePanel({
         </span>
         {deliveryMode === "scheduled" ? (
           <span>
-            <strong>Daily timing:</strong> readings close at {sendTime} · email around {getDeliveryTime(sendTime)}
+            <strong>Timing:</strong> records start at {recordTime} · email at {getDeliveryTime(sendTime)}
           </span>
         ) : (
           <span>
@@ -306,7 +306,7 @@ export function ReportSchedulePanel({
               <th>Starts</th>
               <th>Interval</th>
               <th>Recipients</th>
-              <th>Reading time</th>
+              <th>Record time</th>
               <th>Email time</th>
               <th>Last sent</th>
               <th>Status</th>
@@ -331,7 +331,7 @@ export function ReportSchedulePanel({
                   <td>{schedule.scheduleStartDate || "n/a"}</td>
                   <td>{schedule.intervalHours === null ? "All readings" : `Every ${schedule.intervalHours} hour(s)`}</td>
                   <td>{schedule.recipientEmails.join(", ")}</td>
-                  <td>{schedule.sendTime}</td>
+                  <td>{schedule.recordTime || schedule.sendTime}</td>
                   <td>{schedule.deliveryTime}</td>
                   <td>{schedule.lastSentAt ? formatTimestamp(schedule.lastSentAt) : "Not sent yet"}</td>
                   <td>

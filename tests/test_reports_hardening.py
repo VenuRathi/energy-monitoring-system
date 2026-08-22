@@ -32,10 +32,10 @@ class ReportsHardeningTests(unittest.TestCase):
         with patch("app.api.service.get_runtime_settings", return_value=settings):
             next_delivery = api_service._next_schedule_delivery_at(schedule, now=now)
 
-        self.assertEqual(next_delivery.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M"), "2026-08-08 08:05")
+        self.assertEqual(next_delivery.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M"), "2026-08-08 08:00")
 
     def test_schedule_delivery_rolls_over_midnight(self) -> None:
-        self.assertEqual(api_service._schedule_delivery_time_text("23:58"), "00:03")
+        self.assertEqual(api_service._schedule_delivery_time_text("23:58"), "23:58")
 
     def test_interval_report_keeps_multiple_rows_and_collector_timestamps(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")

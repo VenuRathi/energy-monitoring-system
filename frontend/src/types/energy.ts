@@ -260,6 +260,7 @@ export type ReportSchedule = {
   deliveryTime: string;
   nextSendAt: string;
   scheduleStartDate: string;
+  recordTime: string;
   windowMode: "previous_day" | "start_to_current";
   intervalHours: number | null;
   windowHours: number;
@@ -280,6 +281,7 @@ export type ReportScheduleInput = {
   scheduleName: string;
   sendTime: string;
   scheduleStartDate: string;
+  recordTime: string;
   windowMode: "previous_day" | "start_to_current";
   intervalHours: number | null;
   enabled: boolean;

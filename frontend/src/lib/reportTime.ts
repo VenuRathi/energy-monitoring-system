@@ -16,7 +16,7 @@ export function toExplicitOffsetDateTime(value: string): string {
   return `${value}:00${sign}${hours}:${minutes}`;
 }
 
-export function getDeliveryTime(readingTime: string, delayMinutes = 5): string {
+export function getDeliveryTime(readingTime: string, delayMinutes = 0): string {
   const [hours, minutes] = readingTime.split(":").map(Number);
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
     return "--:--";

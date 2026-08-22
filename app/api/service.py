@@ -49,7 +49,7 @@ EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 REPORT_EMAIL_SUBJECT = "OSP Screen Printing ems"
 REPORT_EMAIL_BODY_LEAD = "Please find the Excel sheet attached below."
 TIME_TEXT_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
-SCHEDULE_EMAIL_DELAY_MINUTES = 5
+SCHEDULE_EMAIL_DELAY_MINUTES = 0
 MAX_EXPORT_RANGE_DAYS = 31
 MAX_EXPORT_ROWS = 50000
 
@@ -2755,6 +2755,7 @@ def _serialize_report_schedule(record: dict[str, Any], meter_map: dict[str, dict
         "recipientEmails": list(record.get("recipient_emails", [])),
         "sendTime": reading_time,
         "deliveryTime": _schedule_delivery_time_text(reading_time),
+        "recordTime": record.get("record_time") or reading_time,
         "nextSendAt": _serialize_timestamp(_next_schedule_delivery_at(record)) if enabled else "",
         "scheduleStartDate": schedule_start_date_text,
         "windowMode": record.get("window_mode") or "previous_day",
@@ -2781,6 +2782,7 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
     send_time = _normalize_text(payload.get("send_time") or payload.get("sendTime"))
     schedule_start_date_text = _normalize_text(payload.get("schedule_start_date") or payload.get("scheduleStartDate"))
     interval_value = payload.get("interval_hours", payload.get("intervalHours"))
+    record_time = _normalize_text(payload.get("record_time") or payload.get("recordTime")) or send_time
     window_mode = _normalize_text(payload.get("window_mode") or payload.get("windowMode")) or "previous_day"
     schedule_name = _normalize_text(payload.get("schedule_name") or payload.get("scheduleName")) or "Daily energy report"
     recipient_emails = _normalize_email_list(payload.get("recipient_emails") or payload.get("recipientEmails") or [])
@@ -2807,6 +2809,8 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("At least one recipient email is required.")
     if not TIME_TEXT_PATTERN.match(send_time):
         raise ValueError("sendTime must be in HH:MM 24-hour format.")
+    if not TIME_TEXT_PATTERN.match(record_time):
+        raise ValueError("recordTime must be in HH:MM 24-hour format.")
     if window_mode not in {"previous_day", "start_to_current"}:
         raise ValueError("windowMode must be 'previous_day' or 'start_to_current'.")
     if schedule_start_date_text:
@@ -2837,6 +2841,7 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
             "schedule_name": schedule_name,
             "send_time": send_time,
             "schedule_start_date": schedule_start_date,
+            "record_time": record_time,
             "interval_hours": interval_hours,
             "window_hours": 24,
             "window_mode": window_mode,
@@ -2940,11 +2945,16 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
             continue
 
         try:
-            reading_time_text = schedule["send_time"]
+            record_time_text = schedule.get("record_time") or schedule["send_time"]
+            send_time_text = schedule["send_time"]
             window_mode = schedule.get("window_mode") or "previous_day"
             if window_mode == "start_to_current":
                 schedule_start_date = schedule.get("schedule_start_date") or local_now.date()
-                report_start_local = datetime.combine(schedule_start_date, time.min, tzinfo=ZoneInfo(settings.app_timezone))
+                report_start_local = datetime.combine(
+                    schedule_start_date,
+                    _parse_time_text(record_time_text),
+                    tzinfo=ZoneInfo(settings.app_timezone),
+                )
                 report_end_local = local_now
                 report_day = report_start_local.date()
             else:
@@ -2954,7 +2964,7 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
             export = build_scheduled_report_payload(
                 meter_ids=schedule_meter_ids,
                 parameter_keys=schedule["parameter_keys"],
-                reading_time_text=reading_time_text,
+                reading_time_text=record_time_text,
                 start=report_start_local,
                 end=report_end_local,
                 interval_hours=float(schedule["interval_hours"]) if schedule.get("interval_hours") is not None else None,
@@ -2962,7 +2972,7 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
             )
             if export["rows"] <= 0:
                 raise ValueError(
-                    "No readings were found for the scheduled previous-day report; email was not sent."
+                    "No readings were found for the scheduled report window; email was not sent."
                 )
             meter_names = [meter_map[meter_id]["meter_name"] for meter_id in schedule_meter_ids]
             _send_email_with_attachment(
@@ -2972,9 +2982,9 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                     f"{REPORT_EMAIL_BODY_LEAD}\n\n"
                     f"Automated meter readings report.\n\n"
                     f"Meters: {', '.join(meter_names)}\n"
-                    f"Reading time: {reading_time_text}\n"
+                    f"Record start time: {record_time_text}\n"
                     f"Reading interval: {schedule.get('interval_hours') or 'All readings'}\n"
-                    f"Email delivery time: {_schedule_delivery_time_text(reading_time_text)}\n"
+                    f"Email delivery time: {send_time_text}\n"
                     f"Included range: {report_start_local.strftime('%d/%m/%Y %H:%M')} to {report_end_local.strftime('%d/%m/%Y %H:%M')}"
                 ),
                 attachment_bytes=export["bytes"],
@@ -3088,7 +3098,7 @@ def _select_interval_rows(
 
     interval_seconds = interval_hours * 3600.0
     selected_rows: list[dict[str, Any]] = []
-    next_target = start + timedelta(seconds=interval_seconds)
+    next_target = start
 
     for row in rows:
         row_timestamp = row.get("timestamp")

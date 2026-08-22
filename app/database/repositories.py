@@ -584,7 +584,7 @@ class ReportScheduleRepository:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, interval_hours, window_hours, window_mode, enabled,
+                    SELECT id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, record_time, interval_hours, window_hours, window_mode, enabled,
                            last_attempt_on, last_attempt_at, last_sent_on, last_sent_at, last_error, created_at, updated_at
                     FROM report_schedules
                     ORDER BY send_time, meter_id, id;
@@ -612,6 +612,7 @@ class ReportScheduleRepository:
                             schedule_name = %s,
                             send_time = %s,
                             schedule_start_date = %s,
+                            record_time = %s,
                             interval_hours = %s,
                             window_hours = %s,
                             window_mode = %s,
@@ -619,7 +620,7 @@ class ReportScheduleRepository:
                             last_error = NULL,
                             updated_at = NOW()
                         WHERE id = %s
-                        RETURNING id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, interval_hours, window_hours, window_mode, enabled, last_attempt_on, last_attempt_at,
+                        RETURNING id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, record_time, interval_hours, window_hours, window_mode, enabled, last_attempt_on, last_attempt_at,
                                   last_sent_on, last_sent_at, last_error, created_at, updated_at;
                         """,
                         (
@@ -630,6 +631,7 @@ class ReportScheduleRepository:
                             schedule.get("schedule_name") or "Daily energy report",
                             schedule["send_time"],
                             schedule.get("schedule_start_date") or date.today(),
+                            schedule.get("record_time"),
                             schedule.get("interval_hours"),
                             schedule.get("window_hours", 24),
                             schedule.get("window_mode", "previous_day"),
@@ -641,10 +643,10 @@ class ReportScheduleRepository:
                     cursor.execute(
                         """
                         INSERT INTO report_schedules (
-                            meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, interval_hours, window_hours, window_mode, enabled
+                            meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, record_time, interval_hours, window_hours, window_mode, enabled
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, interval_hours, window_hours, window_mode, enabled, last_attempt_on, last_attempt_at,
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, record_time, interval_hours, window_hours, window_mode, enabled, last_attempt_on, last_attempt_at,
                                   last_sent_on, last_sent_at, last_error, created_at, updated_at;
                         """,
                         (
@@ -655,6 +657,7 @@ class ReportScheduleRepository:
                             schedule.get("schedule_name") or "Daily energy report",
                             schedule["send_time"],
                             schedule.get("schedule_start_date") or date.today(),
+                            schedule.get("record_time"),
                             schedule.get("interval_hours"),
                             schedule.get("window_hours", 24),
                             schedule.get("window_mode", "previous_day"),
@@ -676,7 +679,7 @@ class ReportScheduleRepository:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, interval_hours, window_hours, window_mode, enabled,
+                    SELECT id, meter_id, meter_ids, parameter_keys, recipient_emails, schedule_name, send_time, schedule_start_date, record_time, interval_hours, window_hours, window_mode, enabled,
                            last_attempt_on, last_attempt_at, last_sent_on, last_sent_at, last_error, created_at, updated_at
                     FROM report_schedules
                     WHERE enabled = TRUE

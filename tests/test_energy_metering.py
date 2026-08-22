@@ -39,6 +39,18 @@ class EnergyMeteringTests(unittest.TestCase):
             stale_meter_timestamp,
         )
 
+    def test_interval_report_includes_the_record_start_target(self) -> None:
+        plant_timezone = timezone.utc
+        start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        rows = [
+            {"timestamp": start, "timestamp_source": "meter_rejected"},
+            {"timestamp": datetime(2026, 8, 21, 9, 0, tzinfo=plant_timezone), "timestamp_source": "meter_rejected"},
+        ]
+
+        selected = service._select_interval_rows(rows, start=start, end=rows[-1]["timestamp"], interval_hours=1)
+
+        self.assertEqual([row["timestamp"] for row in selected], [row["timestamp"] for row in rows])
+
     def test_scheduled_report_does_not_send_empty_attachment(self) -> None:
         schedule = {
             "id": 1,

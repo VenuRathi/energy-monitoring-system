@@ -333,6 +333,7 @@ CREATE TABLE IF NOT EXISTS report_schedules (
     schedule_name TEXT NOT NULL DEFAULT 'Daily energy report',
     send_time TEXT NOT NULL,
     schedule_start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    record_time TEXT,
     interval_hours DOUBLE PRECISION,
     window_hours INTEGER NOT NULL DEFAULT 24,
     window_mode TEXT NOT NULL DEFAULT 'previous_day',
@@ -542,6 +543,7 @@ def create_tables(connection: Connection, parameters: Iterable[dict], poll_inter
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS window_hours INTEGER NOT NULL DEFAULT 24;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS window_mode TEXT NOT NULL DEFAULT 'previous_day';")
+        cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS record_time TEXT;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS schedule_start_date DATE NOT NULL DEFAULT CURRENT_DATE;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS interval_hours DOUBLE PRECISION;")
         cursor.execute("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS schedule_name TEXT NOT NULL DEFAULT 'Daily energy report';")
