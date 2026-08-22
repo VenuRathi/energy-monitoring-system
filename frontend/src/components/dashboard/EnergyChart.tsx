@@ -17,7 +17,11 @@ type EnergyChartProps = {
 };
 
 export function EnergyChart({ data, label, unit }: EnergyChartProps) {
-  if (data.length === 0) {
+  const chartData = data
+    .map((point) => ({ ...point, value: Number(point.value) }))
+    .filter((point) => Number.isFinite(point.value));
+
+  if (chartData.length === 0) {
     return (
       <div className="chart chart--empty">
         <span className="chart__unit chart__unit--standalone">{unit || "n/a"}</span>
@@ -26,11 +30,20 @@ export function EnergyChart({ data, label, unit }: EnergyChartProps) {
     );
   }
 
+  const values = chartData.map((point) => point.value);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const observedRange = maximum - minimum;
+  const padding = observedRange > 0
+    ? Math.max(observedRange * 0.15, 0.001)
+    : Math.max(Math.abs(maximum) * 0.0005, 0.01);
+  const yDomain: [number, number] = [minimum - padding, maximum + padding];
+
   return (
     <div className="chart">
       <span className="chart__unit chart__unit--standalone">{unit || "n/a"}</span>
       <ResponsiveContainer width="100%" height={280}>
-        <AreaChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="powerGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#7dd3fc" stopOpacity={0.4} />
@@ -46,10 +59,11 @@ export function EnergyChart({ data, label, unit }: EnergyChartProps) {
             axisLine={false}
           />
           <YAxis
+            domain={yDomain}
             stroke="rgba(100, 116, 139, 0.8)"
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => `${value}`}
+            tickFormatter={(value) => formatNumber(Number(value), 3)}
           />
           <Tooltip
             content={({ active, payload, label: tooltipLabel }) => {
@@ -73,12 +87,13 @@ export function EnergyChart({ data, label, unit }: EnergyChartProps) {
             }}
           />
           <Area
-            type="monotone"
+            type="linear"
             dataKey="value"
             stroke="#7dd3fc"
             fill="url(#powerGradient)"
             strokeWidth={2}
             dot={false}
+            connectNulls={false}
           />
         </AreaChart>
       </ResponsiveContainer>
