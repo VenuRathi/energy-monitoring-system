@@ -1,6 +1,8 @@
 import io
 import unittest
 from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from openpyxl import load_workbook
 
@@ -12,6 +14,75 @@ from config.meter_loader import load_meter_config
 
 
 class EnergyMeteringTests(unittest.TestCase):
+    def test_report_uses_collector_timestamp_when_meter_timestamp_is_rejected(self) -> None:
+        collector_timestamp = datetime(2026, 8, 21, 14, 6, tzinfo=timezone.utc)
+        stale_meter_timestamp = datetime(2026, 6, 24, 21, 37, tzinfo=timezone.utc)
+
+        self.assertEqual(
+            service._report_row_timestamp(
+                {
+                    "timestamp": collector_timestamp,
+                    "meter_timestamp": stale_meter_timestamp,
+                    "timestamp_source": "meter_rejected",
+                }
+            ),
+            collector_timestamp,
+        )
+        self.assertEqual(
+            service._report_row_timestamp(
+                {
+                    "timestamp": collector_timestamp,
+                    "meter_timestamp": stale_meter_timestamp,
+                    "timestamp_source": "meter",
+                }
+            ),
+            stale_meter_timestamp,
+        )
+
+    def test_scheduled_report_does_not_send_empty_attachment(self) -> None:
+        schedule = {
+            "id": 1,
+            "meter_id": "MTR-001",
+            "meter_ids": ["MTR-001"],
+            "parameter_keys": ["active_energy_received_out_of_load"],
+            "recipient_emails": ["operator@example.com"],
+            "send_time": "08:00",
+            "interval_hours": None,
+        }
+
+        class FakeReportScheduleRepository:
+            failed = None
+
+            def __init__(self, settings=None) -> None:
+                pass
+
+            def list_due_schedules(self, today, current_time_text):
+                return [schedule]
+
+            def mark_failed(self, *args):
+                self.failed = args
+
+        repository = FakeReportScheduleRepository()
+        with patch.object(service, "get_runtime_settings", return_value=SimpleNamespace(app_timezone="Asia/Calcutta")), patch.object(
+            service, "_effective_email_settings", return_value={}
+        ), patch.object(service, "ReportScheduleRepository", return_value=repository), patch.object(
+            service,
+            "_safe_meters",
+            return_value=[{"meter_id": "MTR-001", "meter_name": "Screen Printing"}],
+        ), patch.object(
+            service,
+            "build_scheduled_report_payload",
+            return_value={"rows": 0, "bytes": b"headers-only", "filename": "empty.xlsx"},
+        ), patch.object(service, "_send_email_with_attachment") as send_email:
+            result = service.process_due_report_schedules(
+                now=datetime(2026, 8, 22, 2, 35, tzinfo=timezone.utc)
+            )
+
+        self.assertEqual(result[0]["status"], "failed")
+        self.assertIn("No readings were found", result[0]["error"])
+        self.assertIsNotNone(repository.failed)
+        send_email.assert_not_called()
+
     def test_config_uses_delivered_import_four_register_int64_counters(self) -> None:
         config = load_meter_config()
         parameters = {

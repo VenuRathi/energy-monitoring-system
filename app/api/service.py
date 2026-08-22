@@ -1259,7 +1259,11 @@ def _time_seconds(value: time) -> int:
 
 
 def _report_row_timestamp(row: dict[str, Any]) -> datetime | None:
-    value = row.get("meter_timestamp") or row.get("timestamp")
+    timestamp_source = str(row.get("timestamp_source") or "").strip().lower()
+    if timestamp_source in {"meter_rejected", "collector_fallback"}:
+        value = row.get("timestamp")
+    else:
+        value = row.get("meter_timestamp") or row.get("timestamp")
     return value if isinstance(value, datetime) else None
 
 
@@ -2944,6 +2948,10 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                 end=report_end_local,
                 interval_hours=float(schedule["interval_hours"]) if schedule.get("interval_hours") is not None else None,
             )
+            if export["rows"] <= 0:
+                raise ValueError(
+                    "No readings were found for the scheduled previous-day report; email was not sent."
+                )
             meter_names = [meter_map[meter_id]["meter_name"] for meter_id in schedule_meter_ids]
             _send_email_with_attachment(
                 recipient_emails=schedule["recipient_emails"],
@@ -3090,7 +3098,12 @@ def _fetch_report_rows(connection: Connection, meter_id: str, parameter_keys: li
     catalog_map = get_parameter_map()
     selected_keys = _report_fetch_parameter_keys(parameter_keys, catalog_map)
 
-    identifiers = [sql.Identifier("reading_date"), sql.Identifier("reading_time"), sql.Identifier("timestamp")] + [
+    identifiers = [
+        sql.Identifier("reading_date"),
+        sql.Identifier("reading_time"),
+        sql.Identifier("timestamp"),
+        sql.Identifier("timestamp_source"),
+    ] + [
         sql.Identifier(key) for key in selected_keys
     ]
     query = sql.SQL(
@@ -3218,6 +3231,7 @@ def _fetch_report_source_rows(connection: Connection, meter_id: str, parameter_k
         sql.Identifier("reading_time"),
         sql.Identifier("timestamp"),
         sql.Identifier("meter_timestamp"),
+        sql.Identifier("timestamp_source"),
     ] + [sql.Identifier(key) for key in selected_keys]
     query = sql.SQL(
         """
