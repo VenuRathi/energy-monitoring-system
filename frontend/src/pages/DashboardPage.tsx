@@ -1,7 +1,6 @@
 import { Clock3, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AttentionQueue } from "../components/dashboard/AttentionQueue";
-import { AllMetersEnergyPanel } from "../components/dashboard/AllMetersEnergyPanel";
 import { EnergyChart } from "../components/dashboard/EnergyChart";
 import { EnergyHistoryPanel } from "../components/dashboard/EnergyHistoryPanel";
 import { LatestReadingsTable } from "../components/dashboard/LatestReadingsTable";
@@ -90,13 +89,15 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
   const isAllMetersView = selectedMeterId === "ALL" || selectedMeter?.meter_id === "ALL";
   const noReadingsYet = !isAllMetersView && (!selectedMeter?.has_readings || (data.latestReadings?.length ?? 0) === 0);
   const runtimeSelectedMeter = systemStatus?.summary.meters.find((meter) => meter.meterId === selectedMeter?.meter_id);
-  const statusTone = runtimeSelectedMeter
+  const selectedStatusTone = runtimeSelectedMeter
     ? !runtimeSelectedMeter.enabled || runtimeSelectedMeter.communicationStatus === "offline"
       ? "offline"
       : runtimeSelectedMeter.communicationStatus === "warning" || runtimeSelectedMeter.staleWarning
         ? "warning"
         : "online"
     : meterTone(selectedMeter);
+  const plantStatusTone = data.summary.offlineMeters > 0 ? "offline" : data.summary.warningMeters > 0 ? "warning" : "online";
+  const statusTone = isAllMetersView ? plantStatusTone : selectedStatusTone;
   const latestUpdateText = formatTimestamp(selectedMeter?.last_update ?? "");
   const totalAlerts = data.activeAlerts.length;
   const selectedMeterAlerts = isAllMetersView
@@ -115,12 +116,49 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
     );
   }
 
+  const attentionPanel = (
+    <section className={`panel dashboard__attention-panel ${isAllMetersView ? "dashboard__attention-panel--plant" : "dashboard__attention-panel--selected"}`}>
+      <div className="section-heading"><div><p className="section-label">{isAllMetersView ? "Plant attention" : "Meter attention"}</p><h4>{isAllMetersView ? "What needs action across the plant" : "What needs action on this meter"}</h4></div><strong className="dashboard__alert-count">{isAllMetersView ? totalAlerts : selectedMeterAlerts}</strong></div>
+      <AttentionQueue alerts={data.activeAlerts} meters={data.meters} systemMeters={systemStatus?.summary.meters ?? []} meterId={isAllMetersView ? undefined : selectedMeter.meter_id} backendError={isSystemStatusError ? (systemStatusError instanceof Error ? systemStatusError.message : "Runtime status unavailable.") : undefined} />
+      {isSystemStatusError ? <button type="button" className="ghost-button ghost-button--compact" onClick={() => refetchSystemStatus()}>Retry runtime status</button> : null}
+      {isSystemStatusLoading ? <p className="table-subtle">Loading runtime status...</p> : null}
+    </section>
+  );
+
+  const meterOverview = (
+    <section className="panel dashboard__meter-overview">
+      <div className="section-heading"><div><p className="section-label">Meter overview</p><h4>Energy status by meter</h4></div><span className="table-subtle">Select a card to inspect</span></div>
+      <div className="dashboard__cards">
+        {data.meters.map((meter) => <MeterCard key={meter.meter_id} meter={meter} active={meter.meter_id === selectedMeter?.meter_id} alertCount={data.activeAlerts.filter((alert) => alert.meterId === meter.meter_id).length} onClick={onSelectMeter} />)}
+      </div>
+      <details className="engineering-inventory"><summary>Engineering inventory view</summary><MeterInventoryTable meters={data.meters} alerts={data.activeAlerts} systemMeters={systemStatus?.summary.meters} selectedMeterId={selectedMeterId} onSelect={onSelectMeter} /></details>
+    </section>
+  );
+
+  const selectedMeterFaceplate = (
+    <section className="panel dashboard__selected-panel">
+      <div className="section-heading">
+        <div><p className="section-label">Selected meter</p><h4>{selectedMeter.meter_name}</h4></div>
+        <div className="dashboard__meter-aside"><span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span><span className="dashboard__updated-at">{latestUpdateText}</span></div>
+      </div>
+      <div className="dashboard__meter-meta">
+        <span>{selectedMeter.location || "n/a"}</span><span>{selectedMeter.manufacturer || "n/a"} {selectedMeter.model || ""}</span><span>{selectedMeter.com_port || "COM n/a"} / Slave {selectedMeter.slave_id}</span>
+      </div>
+      <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>
+        {statusTone === "offline" ? "No response" : statusTone === "warning" ? "Stale data" : "Fresh readings available."}
+      </div>
+      {noReadingsYet ? <div className="dashboard__status-note dashboard__status-note--no_readings">No readings available yet for this meter.</div> : null}
+      <div className="selected-meter__energy"><MetricStrip metrics={data.metrics} energyOnly /></div>
+      <div className="selected-meter__context"><span>Data quality <strong>{selectedMeter.data_quality?.replaceAll("_", " ") ?? "n/a"}</strong></span><span>Alerts <strong>{selectedMeterAlerts}</strong></span><span>Polling <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong></span><span>Role <strong>{selectedMeter.seu ? "SEU" : "Standard"}</strong></span></div>
+    </section>
+  );
+
   return (
     <section className="dashboard">
       <section className="dashboard__commandbar">
         <div className="dashboard__commandbar-copy">
           <p className="section-label">Live View</p>
-          <h3 className="dashboard__headline">Operations overview</h3>
+          <h3 className="dashboard__headline">{isAllMetersView ? "Plant overview" : selectedMeter.meter_name}</h3>
         </div>
         <div className="dashboard__commandbar-actions">
           <span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span>
@@ -140,73 +178,21 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
         <div className="summary-card"><span className="summary-card__label">Threshold alarms</span><strong>{totalAlerts}</strong></div>
       </section>
 
-      <section className="dashboard__primary-grid">
-        <div className="panel dashboard__trend-panel">
-          <div className="section-heading">
-            <div><p className="section-label">Trend</p><h4>{isAllMetersView ? "Energy by meter" : selectedTrendLabel}</h4></div>
-            {!isAllMetersView ? (
+      <section className={`dashboard__primary-grid ${isAllMetersView ? "dashboard__primary-grid--plant" : "dashboard__primary-grid--meter"}`}>
+        {isAllMetersView ? <>{meterOverview}{attentionPanel}</> : <>
+          <div className="panel dashboard__trend-panel">
+            <div className="section-heading">
+              <div><p className="section-label">Trend</p><h4>{selectedTrendLabel}</h4></div>
               <div className="trend-controls">
                 <label className="trend-parameter-select"><span className="sr-only">Trend parameter</span><select value={trendParameterKey} onChange={(event) => setTrendParameterKey(event.target.value)}>{trendParameters.map((parameter) => <option key={parameter.key} value={parameter.key}>{parameter.label} {parameter.unit ? `(${parameter.unit})` : ""}</option>)}</select></label>
                 <div className="trend-range" role="tablist" aria-label="Trend range">{TREND_RANGES.map((range) => <button key={range.label} type="button" className={`trend-range__button ${trendHours === range.hours ? "trend-range__button--active" : ""}`} onClick={() => setTrendHours(range.hours)}>{range.label}</button>)}</div>
               </div>
-            ) : null}
-          </div>
-          {isAllMetersView ? (
-            <AllMetersEnergyPanel meters={data.meterEnergySummaries ?? []} />
-          ) : (
+            </div>
             <EnergyChart data={data.trendSeries ?? []} label={selectedTrendLabel} unit={data.trendParameter?.unit ?? ""} />
-          )}
-        </div>
-        <aside className="dashboard__primary-rail">
-          <section className="panel dashboard__selected-panel">
-            <div className="section-heading">
-              <div><p className="section-label">Selected meter</p><h4>{isAllMetersView ? "All meters energy summary" : selectedMeter.meter_name}</h4></div>
-              <div className="dashboard__meter-aside"><span className={`status-pill status-pill--${statusTone}`}>{statusTone}</span><span className="dashboard__updated-at">{latestUpdateText}</span></div>
-            </div>
-            <div className="dashboard__meter-meta">
-              {isAllMetersView ? <><span>{data.meterEnergySummaries?.length ?? data.meters.length} meters</span><span>Energy totals</span><span>kWh / kVARh / kVAh</span></> : <><span>{selectedMeter.location || "n/a"}</span><span>{selectedMeter.manufacturer || "n/a"} {selectedMeter.model || ""}</span><span>{selectedMeter.com_port || "COM n/a"} / Slave {selectedMeter.slave_id}</span></>}
-            </div>
-            {selectedMeter.status_detail && !isAllMetersView ? <div className={`dashboard__status-note dashboard__status-note--${statusTone}`}>{selectedMeter.status_detail}</div> : null}
-            {noReadingsYet ? <div className="dashboard__status-note dashboard__status-note--no_readings">No readings available yet for this meter.</div> : null}
-            {isAllMetersView ? (
-              <div className="plant-faceplate">
-                <div>
-                  <span>Meters watched</span>
-                  <strong>{data.summary.totalMeters}</strong>
-                </div>
-                <div>
-                  <span>Healthy</span>
-                  <strong>{data.summary.onlineMeters}</strong>
-                </div>
-                <div>
-                  <span>Attention</span>
-                  <strong>{data.summary.warningMeters + data.summary.offlineMeters}</strong>
-                </div>
-                <div>
-                  <span>Threshold alarms</span>
-                  <strong>{totalAlerts}</strong>
-                </div>
-              </div>
-            ) : <>
-              <div className="selected-meter__energy"><MetricStrip metrics={data.metrics} energyOnly /></div>
-              <div className="selected-meter__context"><span>Data quality <strong>{selectedMeter.data_quality?.replaceAll("_", " ") ?? "n/a"}</strong></span><span>Alerts <strong>{selectedMeterAlerts}</strong></span><span>Polling <strong>{selectedMeter.enabled ? "Included" : "Disabled"}</strong></span><span>Role <strong>{selectedMeter.seu ? "SEU" : "Standard"}</strong></span></div>
-            </>}
-          </section>
-          <section className="panel dashboard__attention-panel">
-            <div className="section-heading"><div><p className="section-label">Attention queue</p><h4>What needs action</h4></div><strong className="dashboard__alert-count">{totalAlerts}</strong></div>
-            <AttentionQueue alerts={data.activeAlerts} meters={data.meters} systemMeters={systemStatus?.summary.meters ?? []} backendError={isSystemStatusError ? (systemStatusError instanceof Error ? systemStatusError.message : "Runtime status unavailable.") : undefined} />
-            {isSystemStatusError ? <button type="button" className="ghost-button ghost-button--compact" onClick={() => refetchSystemStatus()}>Retry runtime status</button> : null}
-            {isSystemStatusLoading ? <p className="table-subtle">Loading runtime status...</p> : null}
-          </section>
-        </aside>
-
-        <section className="panel dashboard__meter-overview">
-          <div className="section-heading"><div><p className="section-label">Meter overview</p><h4>Energy status by meter</h4></div><span className="table-subtle">Select a card to inspect</span></div>
-          <div className="dashboard__cards">
-            {data.meters.map((meter) => <MeterCard key={meter.meter_id} meter={meter} active={meter.meter_id === selectedMeter?.meter_id} alertCount={data.activeAlerts.filter((alert) => alert.meterId === meter.meter_id).length} onClick={onSelectMeter} />)}
           </div>
-          <details className="engineering-inventory"><summary>Engineering inventory view</summary><MeterInventoryTable meters={data.meters} alerts={data.activeAlerts} systemMeters={systemStatus?.summary.meters} selectedMeterId={selectedMeterId} onSelect={onSelectMeter} /></details>
-        </section>
+          {selectedMeterFaceplate}
+          {attentionPanel}
+        </>}
       </section>
 
       {!isAllMetersView ? (

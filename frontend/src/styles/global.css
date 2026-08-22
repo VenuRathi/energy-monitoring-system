@@ -3697,6 +3697,38 @@ body {
   }
 }
 
+/* Live View scope modes: plant overview and selected-meter detail have different surfaces. */
+.dashboard__primary-grid--plant {
+  grid-template-areas:
+    "overview attention";
+}
+
+.dashboard__primary-grid--meter {
+  grid-template-areas:
+    "trend selected"
+    "attention attention";
+}
+
+.dashboard__primary-grid--plant .dashboard__meter-overview {
+  min-width: 0;
+}
+
+.dashboard__primary-grid--meter .dashboard__trend-panel {
+  min-height: 0;
+}
+
+.dashboard__primary-grid--meter .dashboard__attention-panel--selected {
+  padding-block: 12px;
+}
+
+@media (max-width: 1120px) {
+  .dashboard__primary-grid--plant,
+  .dashboard__primary-grid--meter {
+    grid-template-areas: none;
+  }
+}
+
+
 /* Space recovery pass: keep the dashboard useful instead of leaving empty grid pockets. */
 .dashboard {
   gap: 12px;
@@ -3925,6 +3957,59 @@ body {
   .dashboard__commandbar-actions .meter-selector,
   .dashboard__commandbar-actions .ghost-button {
     grid-column: 1 / -1;
+  }
+}
+
+/* Final Live View packing: selected-meter mode should not reserve an empty second-row cell. */
+.dashboard__primary-grid--meter {
+  grid-template-areas:
+    "trend selected"
+    "attention attention";
+  align-items: start;
+}
+
+.dashboard__primary-grid--meter .dashboard__trend-panel {
+  min-height: 0;
+  align-self: start;
+}
+
+.dashboard__primary-grid--meter .dashboard__attention-panel--selected {
+  padding-block: 12px;
+}
+
+.dashboard__primary-grid--plant {
+  grid-template-areas: "overview attention";
+}
+
+.dashboard__primary-grid--plant .dashboard__meter-overview {
+  min-width: 0;
+}
+
+.dashboard__primary-grid--plant .dashboard__meter-overview .dashboard__cards {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.dashboard__primary-grid--plant .dashboard__meter-overview .section-heading .table-subtle {
+  display: none;
+}
+
+.meter-card__alert-note {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 9px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1120px) {
+  .dashboard__primary-grid--plant,
+  .dashboard__primary-grid--meter {
+    grid-template-areas: none;
+    align-items: start;
   }
 }
 
@@ -4190,5 +4275,17 @@ body {
 
   .report-delete-confirm__actions button {
     flex: 1 1 0;
+  }
+}
+
+/* Match the selected-meter faceplate height to the trend card on desktop. */
+@media (min-width: 1121px) {
+  .dashboard__primary-grid--meter {
+    align-items: stretch;
+  }
+
+  .dashboard__primary-grid--meter .dashboard__selected-panel {
+    align-self: stretch;
+    min-height: 100%;
   }
 }

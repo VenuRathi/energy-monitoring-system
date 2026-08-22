@@ -6,6 +6,7 @@ type AttentionQueueProps = {
   alerts: AlertEvent[];
   meters: MeterRecord[];
   systemMeters: SystemStatusMeter[];
+  meterId?: string;
   backendError?: string;
 };
 
@@ -27,7 +28,7 @@ function thresholdText(alert: AlertEvent) {
   return "configured threshold";
 }
 
-export function AttentionQueue({ alerts, meters, systemMeters, backendError }: AttentionQueueProps) {
+export function AttentionQueue({ alerts, meters, systemMeters, meterId, backendError }: AttentionQueueProps) {
   const items: AttentionItem[] = [];
 
   if (backendError) {
@@ -43,7 +44,7 @@ export function AttentionQueue({ alerts, meters, systemMeters, backendError }: A
     });
   }
 
-  alerts.forEach((alert) => {
+  alerts.filter((alert) => !meterId || alert.meterId === meterId).forEach((alert) => {
     items.push({
       key: `alert-${alert.id}`,
       tone: "warning",
@@ -57,7 +58,7 @@ export function AttentionQueue({ alerts, meters, systemMeters, backendError }: A
   });
 
   const meterById = new Map(meters.map((meter) => [meter.meter_id, meter]));
-  systemMeters.forEach((systemMeter) => {
+  systemMeters.filter((systemMeter) => !meterId || systemMeter.meterId === meterId).forEach((systemMeter) => {
     const meter = meterById.get(systemMeter.meterId);
     if (!meter || (systemMeter.communicationStatus === "online" && !systemMeter.staleWarning)) return;
     const offline = !systemMeter.enabled || systemMeter.communicationStatus === "offline";

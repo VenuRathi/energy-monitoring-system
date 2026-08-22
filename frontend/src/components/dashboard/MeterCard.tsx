@@ -1,6 +1,6 @@
-import { Clock3, Cpu, MapPin, Zap } from "lucide-react";
+import { MapPin, Zap } from "lucide-react";
 import type { MeterRecord } from "../../types/energy";
-import { formatNumber, formatTimestamp } from "../../lib/formatters";
+import { formatNumber } from "../../lib/formatters";
 
 type MeterCardProps = {
   meter: MeterRecord;
@@ -45,12 +45,7 @@ export function MeterCard({ meter, active = false, alertCount = 0, onClick }: Me
         </div>
       </dl>
 
-      <div className="meter-card__footer">
-        <span><Cpu size={14} aria-hidden="true" /> {meter.com_port || "COM n/a"} - Slave {meter.slave_id}</span>
-        <span><Clock3 size={14} aria-hidden="true" /> {meter.data_quality === "live" ? "Fresh" : meter.data_quality?.replaceAll("_", " ") || "Needs review"}</span>
-        <span>{alertCount > 0 ? `${alertCount} alert${alertCount === 1 ? "" : "s"}` : "No alerts"}</span>
-        <span>Updated {formatTimestamp(meter.last_update)}</span>
-      </div>
+      {alertCount > 0 ? <span className="meter-card__alert-note">{alertCount} active alert{alertCount === 1 ? "" : "s"}</span> : null}
     </button>
   );
 }
