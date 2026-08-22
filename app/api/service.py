@@ -3190,7 +3190,7 @@ def _derived_column_kind(parameter_key: str) -> str | None:
 def _derived_column_header(parameter_key: str, base_label: str) -> str | None:
     kind = _derived_column_kind(parameter_key)
     if kind == "consumption":
-        return f"{base_label} daily consumption"
+        return f"{base_label} usage"
     return None
 
 
@@ -3409,7 +3409,7 @@ def _build_scheduled_excel_bytes(
 
         section_end = current_column - 1
         sheet.merge_cells(start_row=1, start_column=section_start, end_row=1, end_column=section_end)
-        meter_cell = sheet.cell(row=1, column=section_start, value=meter["meter_name"])
+        meter_cell = sheet.cell(row=1, column=section_start, value=meter.get("location") or meter["meter_name"])
         meter_cell.border = cell_border
         meter_cell.alignment = centered
         meter_cell.font = Font(bold=True, color="FFFFFF")
@@ -3619,7 +3619,7 @@ def _build_excel_bytes_multi(
 
         section_end = current_column - 1
         sheet.merge_cells(start_row=1, start_column=section_start, end_row=1, end_column=section_end)
-        meter_cell = sheet.cell(row=1, column=section_start, value=meter["meter_name"])
+        meter_cell = sheet.cell(row=1, column=section_start, value=meter.get("location") or meter["meter_name"])
         meter_cell.border = cell_border
         meter_cell.alignment = centered
         meter_cell.font = Font(bold=True, color="FFFFFF")
@@ -3929,10 +3929,7 @@ def build_scheduled_report_payload(
     meter_label = meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)}_meters"
     filename = _daily_report_filename(meter_label, timestamp)
     if interval_hours is not None:
-        if len(meter_rows) == 1:
-            file_bytes = _build_excel_bytes(meter_rows[0][0]["meter_name"], meter_rows[0][1], selected_parameter_keys, start, end)
-        else:
-            file_bytes = _build_excel_bytes_multi(meter_rows, selected_parameter_keys, start, end)
+        file_bytes = _build_excel_bytes_multi(meter_rows, selected_parameter_keys, start, end)
     else:
         file_bytes = _build_scheduled_excel_bytes(meter_rows, selected_parameter_keys, reading_time_text)
     total_rows = max((len(rows) for _, rows in meter_rows), default=0)

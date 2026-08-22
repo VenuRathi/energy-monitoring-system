@@ -60,6 +60,49 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertEqual(sheet.cell(row=6, column=2).value, "14:06:47")
         self.assertEqual(sheet.cell(row=7, column=2).value, "15:06:47")
 
+    def test_hourly_scheduled_layout_has_line_title_and_usage_columns(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        rows = [
+            {
+                "timestamp": datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 10.0,
+                "reactive_energy_received": 20.0,
+                "apparent_energy_received": 30.0,
+                "power_factor_total": 0.75,
+            },
+            {
+                "timestamp": datetime(2026, 8, 21, 9, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 11.5,
+                "reactive_energy_received": 21.25,
+                "apparent_energy_received": 32.0,
+                "power_factor_total": 0.78,
+            },
+        ]
+        meter = {"meter_id": "MTR-001", "meter_name": "Screen Printing", "location": "Old Spin On Line"}
+
+        workbook_bytes = api_service._build_excel_bytes_multi(
+            [(meter, rows)],
+            [
+                "active_energy_received_out_of_load",
+                "reactive_energy_received",
+                "apparent_energy_received",
+                "power_factor_total",
+            ],
+            rows[0]["timestamp"],
+            rows[-1]["timestamp"],
+        )
+        sheet = load_workbook(BytesIO(workbook_bytes), data_only=False).active
+
+        self.assertEqual(sheet.cell(row=1, column=3).value, "Old Spin On Line")
+        self.assertIn("usage", str(sheet.cell(row=2, column=4).value).lower())
+        self.assertIn("usage", str(sheet.cell(row=2, column=6).value).lower())
+        self.assertIn("usage", str(sheet.cell(row=2, column=8).value).lower())
+        self.assertIn("C4-C3", sheet.cell(row=4, column=4).value)
+        self.assertIn("E4-E3", sheet.cell(row=4, column=6).value)
+        self.assertIn("G4-G3", sheet.cell(row=4, column=8).value)
+
     def test_report_interval_rejects_non_positive_values(self) -> None:
         base_filters = {
             "meterIds": ["MTR-001"],
