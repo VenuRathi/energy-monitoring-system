@@ -196,7 +196,7 @@ export function ReportSchedulePanel({
               <label className="editor__field">
                 <span>Start sending from</span>
                 <input type="date" value={scheduleStartDate} onChange={(event) => setScheduleStartDate(event.target.value)} />
-                <small className="field-help">The first delivery is the next day and contains the previous calendar day.</small>
+                <small className="field-help">The first delivery can run on this date and contains the previous calendar day.</small>
               </label>
               <label className="editor__field">
                 <span>Daily reading time</span>

@@ -679,7 +679,7 @@ class ReportScheduleRepository:
                     WHERE enabled = TRUE
                       AND send_time <= %s
                       AND (last_attempt_on IS NULL OR last_attempt_on < %s)
-                      AND schedule_start_date < %s
+                      AND schedule_start_date <= %s
                     ORDER BY send_time, id;
                     """,
                     (current_time_text, today, today),

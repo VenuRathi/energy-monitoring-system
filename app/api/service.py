@@ -1240,7 +1240,7 @@ def _next_schedule_delivery_at(schedule: dict[str, Any], now: datetime | None = 
         schedule_start_date = local_now.date()
 
     delivery_time = _parse_time_text(_schedule_delivery_time_text(schedule["send_time"]))
-    candidate_date = max(local_now.date(), schedule_start_date + timedelta(days=1))
+    candidate_date = max(local_now.date(), schedule_start_date)
     candidate = datetime.combine(candidate_date, delivery_time, tzinfo=app_timezone)
     last_sent_on = schedule.get("last_sent_on")
     if isinstance(last_sent_on, str):

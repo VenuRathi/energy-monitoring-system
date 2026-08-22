@@ -17,19 +17,19 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertEqual(parsed.tzinfo, ZoneInfo("Asia/Kolkata"))
         self.assertEqual(parsed.isoformat(), "2026-08-08T08:00:00+05:30")
 
-    def test_next_schedule_delivery_uses_previous_day_start_boundary(self) -> None:
+    def test_next_schedule_delivery_allows_start_date_delivery(self) -> None:
         settings = SimpleNamespace(app_timezone="Asia/Kolkata")
         schedule = {
             "send_time": "08:00",
             "schedule_start_date": "2026-08-08",
             "last_sent_on": None,
         }
-        now = datetime(2026, 8, 9, 2, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 8, 8, 2, 0, tzinfo=timezone.utc)
 
         with patch("app.api.service.get_runtime_settings", return_value=settings):
             next_delivery = api_service._next_schedule_delivery_at(schedule, now=now)
 
-        self.assertEqual(next_delivery.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M"), "2026-08-09 08:05")
+        self.assertEqual(next_delivery.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M"), "2026-08-08 08:05")
 
     def test_schedule_delivery_rolls_over_midnight(self) -> None:
         self.assertEqual(api_service._schedule_delivery_time_text("23:58"), "00:03")
