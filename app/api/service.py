@@ -2757,7 +2757,7 @@ def _serialize_report_schedule(record: dict[str, Any], meter_map: dict[str, dict
         "deliveryTime": _schedule_delivery_time_text(reading_time),
         "nextSendAt": _serialize_timestamp(_next_schedule_delivery_at(record)) if enabled else "",
         "scheduleStartDate": schedule_start_date_text,
-        "windowMode": "previous_day",
+        "windowMode": record.get("window_mode") or "previous_day",
         "intervalHours": float(record["interval_hours"]) if record.get("interval_hours") is not None else None,
         "windowHours": int(record.get("window_hours", 24) or 24),
         "enabled": enabled,
@@ -2781,6 +2781,7 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
     send_time = _normalize_text(payload.get("send_time") or payload.get("sendTime"))
     schedule_start_date_text = _normalize_text(payload.get("schedule_start_date") or payload.get("scheduleStartDate"))
     interval_value = payload.get("interval_hours", payload.get("intervalHours"))
+    window_mode = _normalize_text(payload.get("window_mode") or payload.get("windowMode")) or "previous_day"
     schedule_name = _normalize_text(payload.get("schedule_name") or payload.get("scheduleName")) or "Daily energy report"
     recipient_emails = _normalize_email_list(payload.get("recipient_emails") or payload.get("recipientEmails") or [])
     schedule_id = payload.get("id")
@@ -2806,6 +2807,8 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("At least one recipient email is required.")
     if not TIME_TEXT_PATTERN.match(send_time):
         raise ValueError("sendTime must be in HH:MM 24-hour format.")
+    if window_mode not in {"previous_day", "start_to_current"}:
+        raise ValueError("windowMode must be 'previous_day' or 'start_to_current'.")
     if schedule_start_date_text:
         try:
             schedule_start_date = date.fromisoformat(schedule_start_date_text)
@@ -2836,6 +2839,7 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
             "schedule_start_date": schedule_start_date,
             "interval_hours": interval_hours,
             "window_hours": 24,
+            "window_mode": window_mode,
             "enabled": enabled,
         }
     )
@@ -2937,9 +2941,16 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
 
         try:
             reading_time_text = schedule["send_time"]
-            report_day = local_now.date() - timedelta(days=1)
-            report_start_local = datetime.combine(report_day, time.min, tzinfo=ZoneInfo(settings.app_timezone))
-            report_end_local = datetime.combine(report_day, time.max, tzinfo=ZoneInfo(settings.app_timezone))
+            window_mode = schedule.get("window_mode") or "previous_day"
+            if window_mode == "start_to_current":
+                schedule_start_date = schedule.get("schedule_start_date") or local_now.date()
+                report_start_local = datetime.combine(schedule_start_date, time.min, tzinfo=ZoneInfo(settings.app_timezone))
+                report_end_local = local_now
+                report_day = report_start_local.date()
+            else:
+                report_day = local_now.date() - timedelta(days=1)
+                report_start_local = datetime.combine(report_day, time.min, tzinfo=ZoneInfo(settings.app_timezone))
+                report_end_local = datetime.combine(report_day, time.max, tzinfo=ZoneInfo(settings.app_timezone))
             export = build_scheduled_report_payload(
                 meter_ids=schedule_meter_ids,
                 parameter_keys=schedule["parameter_keys"],
@@ -2947,6 +2958,7 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                 start=report_start_local,
                 end=report_end_local,
                 interval_hours=float(schedule["interval_hours"]) if schedule.get("interval_hours") is not None else None,
+                window_mode=window_mode,
             )
             if export["rows"] <= 0:
                 raise ValueError(
@@ -2958,12 +2970,12 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                 subject=REPORT_EMAIL_SUBJECT,
                 body=(
                     f"{REPORT_EMAIL_BODY_LEAD}\n\n"
-                    f"Automated previous-day meter readings report.\n\n"
+                    f"Automated meter readings report.\n\n"
                     f"Meters: {', '.join(meter_names)}\n"
                     f"Reading time: {reading_time_text}\n"
                     f"Reading interval: {schedule.get('interval_hours') or 'All readings'}\n"
                     f"Email delivery time: {_schedule_delivery_time_text(reading_time_text)}\n"
-                    f"Included day: {report_day.strftime('%d/%m/%Y')}"
+                    f"Included range: {report_start_local.strftime('%d/%m/%Y %H:%M')} to {report_end_local.strftime('%d/%m/%Y %H:%M')}"
                 ),
                 attachment_bytes=export["bytes"],
                 filename=export["filename"],
@@ -3483,8 +3495,9 @@ def _build_excel_bytes(meter_name: str, rows: list[dict[str, Any]], parameter_ke
         cell.fill = PatternFill(fill_type="solid", fgColor="1F4E78")
 
     for row_index, row in enumerate(rows, start=header_row + 1):
-        sheet.cell(row=row_index, column=1, value=row.get("reading_date") or _format_date_text(row["timestamp"]))
-        sheet.cell(row=row_index, column=2, value=row.get("reading_time") or _format_time_text(row["timestamp"]))
+        row_timestamp = _report_row_timestamp(row)
+        sheet.cell(row=row_index, column=1, value=_format_date_text(row_timestamp) if row_timestamp else row.get("reading_date", ""))
+        sheet.cell(row=row_index, column=2, value=_format_time_text(row_timestamp) if row_timestamp else row.get("reading_time", ""))
         for column_index, key in enumerate(parameter_keys, start=3):
             sheet.cell(row=row_index, column=column_index, value=row.get(key))
 
@@ -3851,6 +3864,7 @@ def build_scheduled_report_payload(
     start: datetime,
     end: datetime,
     interval_hours: float | None = None,
+    window_mode: str = "previous_day",
 ) -> dict[str, Any]:
     meters = _require_known_meters(meter_ids)
     selected_parameter_keys = [
@@ -3861,7 +3875,7 @@ def build_scheduled_report_payload(
     if not selected_parameter_keys:
         selected_parameter_keys = [key for key in get_parameter_map() if get_parameter_map()[key]["common"]][:4]
 
-    report_start = start - timedelta(days=1)
+    report_start = start - timedelta(days=1) if window_mode == "previous_day" else start
     range_start, range_end = _daily_report_range(report_start, end)
     with _open_connection() as connection:
         meter_rows = []
@@ -3904,7 +3918,13 @@ def build_scheduled_report_payload(
     timestamp = datetime.now(timezone.utc)
     meter_label = meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)}_meters"
     filename = _daily_report_filename(meter_label, timestamp)
-    file_bytes = _build_scheduled_excel_bytes(meter_rows, selected_parameter_keys, reading_time_text)
+    if interval_hours is not None:
+        if len(meter_rows) == 1:
+            file_bytes = _build_excel_bytes(meter_rows[0][0]["meter_name"], meter_rows[0][1], selected_parameter_keys, start, end)
+        else:
+            file_bytes = _build_excel_bytes_multi(meter_rows, selected_parameter_keys, start, end)
+    else:
+        file_bytes = _build_scheduled_excel_bytes(meter_rows, selected_parameter_keys, reading_time_text)
     total_rows = max((len(rows) for _, rows in meter_rows), default=0)
     return {
         "bytes": file_bytes,

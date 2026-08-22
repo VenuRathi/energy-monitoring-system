@@ -1,8 +1,11 @@
 import unittest
 from datetime import datetime, timezone
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
+
+from openpyxl import load_workbook
 
 from app.api import service as api_service
 
@@ -33,6 +36,29 @@ class ReportsHardeningTests(unittest.TestCase):
 
     def test_schedule_delivery_rolls_over_midnight(self) -> None:
         self.assertEqual(api_service._schedule_delivery_time_text("23:58"), "00:03")
+
+    def test_interval_report_keeps_multiple_rows_and_collector_timestamps(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        first_timestamp = datetime(2026, 8, 21, 14, 6, 47, tzinfo=plant_timezone)
+        second_timestamp = datetime(2026, 8, 21, 15, 6, 47, tzinfo=plant_timezone)
+        rows = [
+            {"timestamp": first_timestamp, "timestamp_source": "meter_rejected", "active_power_total": 1.25},
+            {"timestamp": second_timestamp, "timestamp_source": "meter_rejected", "active_power_total": 1.5},
+        ]
+
+        workbook_bytes = api_service._build_excel_bytes(
+            "Screen Printing",
+            rows,
+            ["active_power_total"],
+            first_timestamp,
+            second_timestamp,
+        )
+        sheet = load_workbook(BytesIO(workbook_bytes), data_only=True).active
+
+        self.assertEqual(sheet.max_row, 7)
+        self.assertEqual(sheet.cell(row=6, column=1).value, "21/08/2026")
+        self.assertEqual(sheet.cell(row=6, column=2).value, "14:06:47")
+        self.assertEqual(sheet.cell(row=7, column=2).value, "15:06:47")
 
     def test_report_interval_rejects_non_positive_values(self) -> None:
         base_filters = {

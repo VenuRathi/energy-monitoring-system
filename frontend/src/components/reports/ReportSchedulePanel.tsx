@@ -46,6 +46,7 @@ export function ReportSchedulePanel({
   const [recipientText, setRecipientText] = useState("");
   const [sendTime, setSendTime] = useState("08:00");
   const [scheduleName, setScheduleName] = useState("Daily energy report");
+  const [windowMode, setWindowMode] = useState<"previous_day" | "start_to_current">("previous_day");
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
   const [pendingDeleteSchedule, setPendingDeleteSchedule] = useState<ReportSchedule | null>(null);
   const [scheduleStartDate, setScheduleStartDate] = useState(() => {
@@ -75,6 +76,7 @@ export function ReportSchedulePanel({
       scheduleName: scheduleName.trim() || "Daily energy report",
       sendTime,
       scheduleStartDate,
+      windowMode,
       intervalHours: filters.intervalHours,
       enabled: true,
     });
@@ -95,6 +97,7 @@ export function ReportSchedulePanel({
     setRecipientText(schedule.recipientEmails.join(", "));
     setSendTime(schedule.sendTime || "08:00");
     setScheduleStartDate(schedule.scheduleStartDate || scheduleStartDate);
+    setWindowMode(schedule.windowMode || "previous_day");
     onChangeFilters({
       ...filters,
       meterId: schedule.meterId,
@@ -120,6 +123,7 @@ export function ReportSchedulePanel({
       scheduleName: schedule.scheduleName,
       sendTime: schedule.sendTime,
       scheduleStartDate: schedule.scheduleStartDate,
+      windowMode: schedule.windowMode,
       intervalHours: schedule.intervalHours,
       enabled: !schedule.enabled,
     });
@@ -196,7 +200,15 @@ export function ReportSchedulePanel({
               <label className="editor__field">
                 <span>Start sending from</span>
                 <input type="date" value={scheduleStartDate} onChange={(event) => setScheduleStartDate(event.target.value)} />
-                <small className="field-help">The first delivery can run on this date and contains the previous calendar day.</small>
+                <small className="field-help">This date is also the report start when using the selected-date window.</small>
+              </label>
+              <label className="editor__field">
+                <span>Report window</span>
+                <select value={windowMode} onChange={(event) => setWindowMode(event.target.value as typeof windowMode)}>
+                  <option value="previous_day">Previous calendar day</option>
+                  <option value="start_to_current">Start date through current time</option>
+                </select>
+                <small className="field-help">Use the second option to test hourly values from the selected date until delivery.</small>
               </label>
               <label className="editor__field">
                 <span>Daily reading time</span>
@@ -250,7 +262,7 @@ export function ReportSchedulePanel({
         </span>
         {deliveryMode === "scheduled" ? (
           <span>
-            <strong>Window:</strong> previous calendar day · starts {scheduleStartDate}
+            <strong>Window:</strong> {windowMode === "previous_day" ? "previous calendar day" : "start date through current time"} · starts {scheduleStartDate}
           </span>
         ) : (
           <span>
@@ -315,7 +327,7 @@ export function ReportSchedulePanel({
                   </td>
                   <td>{schedule.meterName}</td>
                   <td>{schedule.parameterKeys.length}</td>
-                  <td>Previous day</td>
+                  <td>{schedule.windowMode === "start_to_current" ? "Start to current" : "Previous day"}</td>
                   <td>{schedule.scheduleStartDate || "n/a"}</td>
                   <td>{schedule.intervalHours === null ? "All readings" : `Every ${schedule.intervalHours} hour(s)`}</td>
                   <td>{schedule.recipientEmails.join(", ")}</td>
