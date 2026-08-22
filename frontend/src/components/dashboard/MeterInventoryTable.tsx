@@ -33,7 +33,7 @@ function freshnessLabel(meter: MeterRecord, runtime?: SystemStatusMeter) {
 }
 
 function valueText(value: number | null | undefined, unit: string) {
-  return value == null ? "n/a" : `${formatNumber(value, 2)} ${unit}`;
+  return value == null ? "n/a" : `${formatNumber(value, 3)} ${unit}`;
 }
 
 export function MeterInventoryTable({ meters, alerts, systemMeters = [], selectedMeterId, onSelect }: MeterInventoryTableProps) {

@@ -81,9 +81,9 @@ class SettingsAndModelsTests(unittest.TestCase):
             [
                 {"name": "Frequency", "type": "float32"},
                 {"name": "Frequency", "type": "float32"},
-                {"name": "Active Energy Received (Out of Load)", "type": "uint32"},
-                {"name": "Reactive Energy Received", "type": "uint32"},
-                {"name": "Apparent Energy Received", "type": "uint32"},
+                {"name": "Active Energy Delivered / Import", "type": "int64"},
+                {"name": "Reactive Energy Delivered / Import", "type": "int64"},
+                {"name": "Apparent Energy Delivered / Import", "type": "int64"},
             ]
         )
 
@@ -92,6 +92,7 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertIn("UNIQUE (meter_id, timestamp, timestamp_source)", ddl)
         self.assertIn("frequency NUMERIC(20,2)", ddl)
         self.assertEqual(ddl.count("frequency NUMERIC(20,2)"), 1)
+        self.assertIn("active_energy_received_out_of_load NUMERIC(20,3)", ddl)
         self.assertIn("meter_id TEXT NOT NULL REFERENCES meters(meter_id),\n    meter_name TEXT", ddl)
         self.assertLess(ddl.index("timestamp_source"), ddl.index("active_energy_received_out_of_load"))
         self.assertLess(
@@ -608,6 +609,43 @@ class SettingsAndModelsTests(unittest.TestCase):
 
         self.assertIn("SMTP authentication failed", str(context.exception))
         self.assertIn("Google app password", str(context.exception))
+
+    def test_report_email_uses_screen_printing_subject_and_excel_attachment(self) -> None:
+        captured_email = {}
+
+        def fake_send_email(**kwargs) -> None:
+            captured_email.update(kwargs)
+
+        payload = {
+            "meterIds": ["MTR-001"],
+            "parameterKeys": ["active_power_total"],
+            "recipientEmails": ["operator@example.com"],
+            "startDateTime": "2026-08-01T00:00:00+05:30",
+            "endDateTime": "2026-08-01T01:00:00+05:30",
+        }
+        export_payload = {
+            "bytes": b"xlsx-bytes",
+            "filename": "screen_printing.xlsx",
+            "meter_name": "Screen Printing",
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "rows": 1,
+        }
+
+        with patch("app.api.service.build_export_payload", return_value=export_payload), patch(
+            "app.api.service._send_email_with_attachment",
+            side_effect=fake_send_email,
+        ):
+            result = api_service.send_report_email(payload)
+
+        self.assertTrue(result["sent"])
+        self.assertEqual(captured_email["subject"], "OSP Screen Printing ems")
+        self.assertTrue(captured_email["body"].startswith("Please find the Excel sheet attached below."))
+        self.assertEqual(captured_email["attachment_bytes"], b"xlsx-bytes")
+        self.assertEqual(captured_email["filename"], "screen_printing.xlsx")
+        self.assertEqual(
+            captured_email["mime_type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
     def test_email_route_maps_smtp_auth_failure_without_internal_server_error(self) -> None:
         with patch("app.api.server.ensure_schema"):

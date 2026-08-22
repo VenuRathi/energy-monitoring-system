@@ -12,7 +12,7 @@ const ENERGY_FIELDS = [
 ] as const;
 
 function formatEnergyValue(value: number | null) {
-  return value === null ? "n/a" : formatNumber(value, 2);
+  return value === null ? "n/a" : formatNumber(value, 3);
 }
 
 export function AllMetersEnergyPanel({ meters }: AllMetersEnergyPanelProps) {

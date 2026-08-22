@@ -13,7 +13,12 @@ def parameter_name_to_column_name(parameter_name: str) -> str:
     value = value.replace("&", "and")
     value = re.sub(r"[()]", "", value)
     value = re.sub(r"[^a-z0-9]+", "_", value)
-    return value.strip("_")
+    value = value.strip("_")
+    return {
+        "active_energy_delivered_import": "active_energy_received_out_of_load",
+        "reactive_energy_delivered_import": "reactive_energy_received",
+        "apparent_energy_delivered_import": "apparent_energy_received",
+    }.get(value, value)
 
 
 def sql_type_for_parameter(parameter_type: str) -> str:
@@ -21,6 +26,8 @@ def sql_type_for_parameter(parameter_type: str) -> str:
     parameter_type = parameter_type.lower().strip()
     if parameter_type == "datetime4":
         return "TEXT"
+    if parameter_type == "int64":
+        return "NUMERIC(20,3)"
     return "NUMERIC(20,2)"
 
 
@@ -28,6 +35,21 @@ READINGS_FIRST_PARAMETER_COLUMNS = (
     "active_energy_received_out_of_load",
     "reactive_energy_received",
     "apparent_energy_received",
+)
+
+# The register names are delivered/import, but the existing readings table is
+# the system of record. Keep its established energy columns and only replace
+# the values written into them.
+ENERGY_STORAGE_COLUMNS = (
+    "active_energy_received_out_of_load",
+    "reactive_energy_received",
+    "apparent_energy_received",
+)
+
+ENERGY_NEW_COLUMNS = (
+    "active_energy_delivered_import",
+    "reactive_energy_delivered_import",
+    "apparent_energy_delivered_import",
 )
 
 
@@ -383,6 +405,61 @@ def create_tables(connection: Connection, parameters: Iterable[dict], poll_inter
             cursor.execute("SELECT ensure_daily_reading_partitions(1, 7);")
         for column_name, column_type in expected_columns.items():
             cursor.execute(f"ALTER TABLE readings ADD COLUMN IF NOT EXISTS {column_name} {column_type};")
+
+        # Migrate any values written by the interim delivered/import-column
+        # version into the established readings columns, then remove those
+        # interim columns. Existing installations may also have the original
+        # energy columns at NUMERIC(20,2), so widen those to preserve the
+        # meter's three-decimal cumulative values.
+        migration_columns = list(ENERGY_STORAGE_COLUMNS + ENERGY_NEW_COLUMNS)
+        if any(str(parameter.get("type", "")).lower() == "int64" for parameter in parameter_list):
+            placeholders = ", ".join("%s" for _ in migration_columns)
+            cursor.execute(
+                f"""
+                SELECT column_name, numeric_scale
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'readings'
+                  AND column_name IN ({placeholders});
+                """,
+                migration_columns,
+            )
+            existing_columns = {
+                row[0]: row[1]
+                for row in cursor.fetchall()
+            }
+            has_interim_columns = any(column in existing_columns for column in ENERGY_NEW_COLUMNS)
+            columns_to_upgrade = [
+                row[0]
+                for row in existing_columns.items()
+                if row[0] in ENERGY_STORAGE_COLUMNS and row[1] is not None and int(row[1]) < 3
+            ]
+            if has_interim_columns or columns_to_upgrade:
+                cursor.execute("DROP VIEW IF EXISTS meter_latest_readings;")
+                cursor.execute("DROP VIEW IF EXISTS vw_latest_readings;")
+
+                for source_column, target_column in zip(ENERGY_NEW_COLUMNS, ENERGY_STORAGE_COLUMNS):
+                    if source_column in existing_columns and target_column in existing_columns:
+                        cursor.execute(
+                            f"""
+                            UPDATE readings
+                            SET {target_column} = {source_column}
+                            WHERE {source_column} IS NOT NULL
+                              AND ABS({source_column}) < 1000000000;
+                            """
+                        )
+
+                for column_name in columns_to_upgrade:
+                    cursor.execute(
+                        f"""
+                        ALTER TABLE readings
+                        ALTER COLUMN {column_name} TYPE NUMERIC(20,3)
+                        USING ROUND({column_name}::numeric, 3);
+                        """
+                    )
+                for column_name in ENERGY_NEW_COLUMNS:
+                    if column_name in existing_columns:
+                        cursor.execute(f"ALTER TABLE readings DROP COLUMN IF EXISTS {column_name};")
         cursor.execute("ALTER TABLE readings ADD COLUMN IF NOT EXISTS meter_timestamp TIMESTAMPTZ;")
         cursor.execute("ALTER TABLE readings ADD COLUMN IF NOT EXISTS meter_name TEXT NOT NULL DEFAULT '';")
         cursor.execute("ALTER TABLE readings ADD COLUMN IF NOT EXISTS collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")

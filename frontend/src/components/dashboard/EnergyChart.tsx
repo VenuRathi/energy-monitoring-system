@@ -65,7 +65,7 @@ export function EnergyChart({ data, label, unit }: EnergyChartProps) {
                     {formatChartTime(String(tooltipLabel ?? ""))}
                   </div>
                   <div className="chart-tooltip__value">
-                    {formatNumber(value, 2)} {unit}
+                    {formatNumber(value, 3)} {unit}
                   </div>
                   <div className="chart-tooltip__series">{label}</div>
                 </div>

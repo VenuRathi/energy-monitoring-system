@@ -16,6 +16,14 @@ export const ENERGY_PARAMETER_DEFINITIONS: Record<EnergyParameterKey, { label: s
 
 const ENERGY_PRIORITY = new Map<string, number>(ENERGY_PARAMETER_KEYS.map((key, index) => [key, index]));
 
+export function isEnergyParameterKey(key: string) {
+  return ENERGY_PRIORITY.has(key);
+}
+
+export function energyDisplayDecimals(key: string) {
+  return isEnergyParameterKey(key) ? 3 : 2;
+}
+
 export function energyParameterPriority(key: string) {
   return ENERGY_PRIORITY.get(key) ?? ENERGY_PARAMETER_KEYS.length;
 }

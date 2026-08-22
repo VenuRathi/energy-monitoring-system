@@ -1,6 +1,6 @@
 import type { LatestReadingRow } from "../../types/energy";
 import { formatNumber } from "../../lib/formatters";
-import { sortLatestReadingsByEnergyPriority } from "../../lib/energyParameters";
+import { energyDisplayDecimals, sortLatestReadingsByEnergyPriority } from "../../lib/energyParameters";
 
 type LatestReadingsTableProps = {
   rows: LatestReadingRow[];
@@ -34,7 +34,7 @@ export function LatestReadingsTable({ rows }: LatestReadingsTableProps) {
                 <div className="table-subtle">{row.parameterKey}</div>
               </td>
               <td className="latest-table__value">
-                {typeof row.value === "number" ? formatNumber(row.value, 2) : row.value}
+                {typeof row.value === "number" ? formatNumber(row.value, energyDisplayDecimals(row.parameterKey)) : row.value}
               </td>
               <td className="latest-table__unit">{row.unit || "n/a"}</td>
               <td className="latest-table__updated">{row.date || "n/a"}</td>

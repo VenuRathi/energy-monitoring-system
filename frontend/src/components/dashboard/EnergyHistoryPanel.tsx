@@ -27,7 +27,7 @@ const SERIES = [
 ] as const;
 
 function valueText(value: number | null) {
-  return value === null ? "n/a" : formatNumber(value, 2);
+  return value === null ? "n/a" : formatNumber(value, 3);
 }
 
 export function EnergyHistoryPanel({ data, isLoading, isError, errorMessage, onRetry }: EnergyHistoryPanelProps) {

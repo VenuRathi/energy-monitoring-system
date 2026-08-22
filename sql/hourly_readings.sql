@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS hourly_readings (
 CREATE INDEX IF NOT EXISTS idx_hourly_readings_meter_hour_desc
 ON hourly_readings (meter_id, hour_ts DESC);
 
+-- Keep an existing hourly table compatible with the established energy columns.
+ALTER TABLE hourly_readings
+    ADD COLUMN IF NOT EXISTS active_energy_received_out_of_load_min DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS active_energy_received_out_of_load_max DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS reactive_energy_received_min DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS reactive_energy_received_max DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS apparent_energy_received_min DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS apparent_energy_received_max DOUBLE PRECISION;
+
 CREATE OR REPLACE FUNCTION refresh_hourly_readings(p_hours_back integer DEFAULT 2)
 RETURNS integer
 LANGUAGE plpgsql

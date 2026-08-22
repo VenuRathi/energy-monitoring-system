@@ -57,6 +57,8 @@ class PM5000Collector(BaseMeter):
             raw_value = self._read_float32(register, register_state)
         elif data_type == "int32":
             raw_value = self._read_int32_lsw(register, register_state)
+        elif data_type == "int64":
+            raw_value = self._read_int64_lsw(register, register_state)
         elif data_type == "uint16":
             raw_value = self._read_uint16(register, register_state)
         elif data_type == "datetime4":
@@ -94,8 +96,6 @@ class PM5000Collector(BaseMeter):
             return None
         if name.startswith("current") and numeric < 0:
             return None
-        if "energy received" in name and numeric < 0:
-            return None
         if "demand" in name and "datetime" not in name and numeric < 0:
             return None
 
@@ -103,6 +103,8 @@ class PM5000Collector(BaseMeter):
 
     def _word_count_for_type(self, data_type: str) -> int:
         if data_type == "datetime4":
+            return 4
+        if data_type == "int64":
             return 4
         if data_type == "uint16":
             return 1
@@ -261,6 +263,33 @@ class PM5000Collector(BaseMeter):
             return None
         if unsigned_value & 0x80000000:
             return unsigned_value - 0x100000000
+        return unsigned_value
+
+    def _read_int64_lsw(
+        self,
+        register: int,
+        register_state: Optional[dict[str, object]] = None,
+    ) -> Optional[int]:
+        regs = self._read_registers(register, 4, register_state)
+        if regs is None:
+            return None
+
+        # Schneider's register-list definition labels the first register as
+        # register 1 but places it in the most-significant 16-bit position:
+        # (register 1 << 48) + (register 2 << 32) + (register 3 << 16)
+        # + register 4.  The name of this helper is retained for the existing
+        # driver interface; this is not the old two-register uint32 decoder.
+        unsigned_value = sum(
+            (word & 0xFFFF) << (16 * (3 - index))
+            for index, word in enumerate(regs)
+        )
+
+        # Schneider's unavailable sentinel is 0x8000000000000000, the
+        # minimum signed INT64 value.
+        if unsigned_value == 0x8000000000000000:
+            return None
+        if unsigned_value & 0x8000000000000000:
+            return unsigned_value - 0x10000000000000000
         return unsigned_value
 
 

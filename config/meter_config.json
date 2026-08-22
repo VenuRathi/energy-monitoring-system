@@ -81,11 +81,11 @@
         {"name": "Accumulated Energy Reset Date/Time", "register": 3200, "type": "datetime4", "unit": "raw", "scale": 1.0},
         {"name": "Present Date & Time", "register": 1845, "type": "datetime4", "unit": "raw", "scale": 1.0},
 
-        {"name": "Active Energy Received (Out of Load)", "register": 3207, "type": "uint32", "unit": "kWh", "scale": 0.001},
+        {"name": "Active Energy Delivered / Import", "register": 3204, "type": "int64", "unit": "kWh", "scale": 0.001},
 
-        {"name": "Reactive Energy Received", "register": 3223, "type": "uint32", "unit": "kVARh", "scale": 0.001},
+        {"name": "Reactive Energy Delivered / Import", "register": 3220, "type": "int64", "unit": "kVARh", "scale": 0.001},
 
-        {"name": "Apparent Energy Received", "register": 3239, "type": "uint32", "unit": "kVAh", "scale": 0.001},
+        {"name": "Apparent Energy Delivered / Import", "register": 3236, "type": "int64", "unit": "kVAh", "scale": 0.001},
 
         {"name": "Demand System Assignment", "register": 3793, "type": "uint16", "unit": "code", "scale": 1.0},
         {"name": "Register Number of Metered Quantity", "register": 3794, "type": "uint16", "unit": "count", "scale": 1.0},
@@ -101,24 +101,13 @@
   "meters": [
     {
       "meter_id": "MTR-001",
-      "meter_name": "Main Schneider Meter",
-      "location": "Panel-1",
+      "meter_name": "Screen Printing",
+      "location": "Old Spin On Line",
       "enabled": true,
       "parameter_set": "schneider_pm5000_core",
       "connection": {
         "port": "COM5",
         "slave_id": 1
-      }
-    },
-    {
-      "meter_id": "MTR-002",
-      "meter_name": "Second Meter Template",
-      "location": "Panel-2",
-      "enabled": true,
-      "parameter_set": "schneider_pm5000_core",
-      "connection": {
-        "port": "COM5",
-        "slave_id": 2
       }
     },
     {

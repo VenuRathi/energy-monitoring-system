@@ -1,7 +1,7 @@
 import { Activity, BatteryCharging, Gauge, Zap } from "lucide-react";
 import type { MetricCard } from "../../types/energy";
 import { formatNumber } from "../../lib/formatters";
-import { sortMetricsByEnergyPriority } from "../../lib/energyParameters";
+import { energyDisplayDecimals, sortMetricsByEnergyPriority } from "../../lib/energyParameters";
 
 type MetricStripProps = {
   metrics: MetricCard[];
@@ -33,7 +33,7 @@ export function MetricStrip({ metrics, energyOnly = false, excludeEnergy = false
             </span>
             <p className="metric-tile__label">{metric.label}</p>
             <strong className="metric-tile__value">
-              {typeof metric.value === "number" ? formatNumber(metric.value, 2) : metric.value}
+              {typeof metric.value === "number" ? formatNumber(metric.value, energyDisplayDecimals(metric.key)) : metric.value}
             </strong>
             <span className="metric-tile__unit">{metric.unit}</span>
           </article>

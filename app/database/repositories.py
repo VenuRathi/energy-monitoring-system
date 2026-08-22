@@ -217,7 +217,8 @@ class ReadingRepository:
             parameter = parameter_by_column[column_name]
             value = readings.get(parameter["name"])
             if isinstance(value, (int, float)) and not isinstance(value, bool):
-                value = round(value, 2)
+                decimals = 3 if str(parameter.get("type", "")).lower() == "int64" else 2
+                value = round(value, decimals)
             values.append(value)
         return values
 

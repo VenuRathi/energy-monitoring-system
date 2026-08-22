@@ -46,6 +46,8 @@ from utils.coercion import coerce_bool
 METER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 VALID_PARITY = {"N", "E", "O"}
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+REPORT_EMAIL_SUBJECT = "OSP Screen Printing ems"
+REPORT_EMAIL_BODY_LEAD = "Please find the Excel sheet attached below."
 TIME_TEXT_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 SCHEDULE_EMAIL_DELAY_MINUTES = 5
 MAX_EXPORT_RANGE_DAYS = 31
@@ -66,6 +68,23 @@ COMMON_PARAMETER_KEYS = {
     "apparent_energy_received",
     "peak_demand",
 }
+
+ENERGY_PARAMETER_KEYS = (
+    "active_energy_received_out_of_load",
+    "reactive_energy_received",
+    "apparent_energy_received",
+)
+
+PARAMETER_KEY_ALIASES = {
+    "active_energy_delivered_import": "active_energy_received_out_of_load",
+    "reactive_energy_delivered_import": "reactive_energy_received",
+    "apparent_energy_delivered_import": "apparent_energy_received",
+}
+
+
+def _canonical_parameter_key(parameter_key: Any) -> str:
+    key = str(parameter_key)
+    return PARAMETER_KEY_ALIASES.get(key, key)
 
 
 COMMON_ORDER = {
@@ -1244,6 +1263,89 @@ def _report_row_timestamp(row: dict[str, Any]) -> datetime | None:
     return value if isinstance(value, datetime) else None
 
 
+def calculate_daily_energy_delta(current_value: Any, previous_value: Any) -> tuple[float | None, str | None]:
+    """Calculate usage from cumulative readings, rejecting resets and invalid values."""
+    if not isinstance(current_value, (int, float)) or isinstance(current_value, bool) or not math.isfinite(float(current_value)):
+        return None, "INVALID CURRENT CUMULATIVE READING"
+    if not isinstance(previous_value, (int, float)) or isinstance(previous_value, bool) or not math.isfinite(float(previous_value)):
+        return None, "NO PREVIOUS DAY READING"
+
+    current = float(current_value)
+    previous = float(previous_value)
+    if current < previous:
+        return None, "RESET/INVALID: CUMULATIVE COUNTER DECREASED"
+    return current - previous, None
+
+
+def _daily_energy_delta_key(parameter_key: str) -> str:
+    return f"{parameter_key}__daily_consumption"
+
+
+def _daily_energy_status_key(parameter_key: str) -> str:
+    return f"{parameter_key}__daily_status"
+
+
+def _select_latest_daily_snapshot_rows(rows: list[dict[str, Any]], start: datetime, end: datetime) -> list[dict[str, Any]]:
+    """Return the latest cumulative counter reading for each local calendar day."""
+    app_timezone = _app_timezone()
+    start_local = start.astimezone(app_timezone).date()
+    end_local = end.astimezone(app_timezone).date()
+    rows_by_day: dict[date, list[dict[str, Any]]] = {}
+
+    for row in rows:
+        row_timestamp = _report_row_timestamp(row)
+        if row_timestamp is None:
+            continue
+        local_date = row_timestamp.astimezone(app_timezone).date()
+        if start_local <= local_date <= end_local:
+            rows_by_day.setdefault(local_date, []).append(row)
+
+    return [
+        max(day_rows, key=lambda row: _report_row_timestamp(row) or datetime.min.replace(tzinfo=timezone.utc))
+        for local_date, day_rows in sorted(rows_by_day.items())
+    ]
+
+
+def _annotate_daily_energy_deltas(
+    meter_id: str,
+    rows: list[dict[str, Any]],
+    parameter_keys: Iterable[str],
+) -> list[dict[str, Any]]:
+    app_timezone = _app_timezone()
+    rows_by_day: dict[date, dict[str, Any]] = {}
+    for row in rows:
+        row_timestamp = _report_row_timestamp(row)
+        if row_timestamp is not None:
+            rows_by_day[row_timestamp.astimezone(app_timezone).date()] = row
+
+    annotated_rows: list[dict[str, Any]] = []
+    for row in sorted(rows, key=lambda item: _report_row_timestamp(item) or datetime.min.replace(tzinfo=timezone.utc)):
+        row_timestamp = _report_row_timestamp(row)
+        if row_timestamp is None:
+            continue
+        local_date = row_timestamp.astimezone(app_timezone).date()
+        previous_row = rows_by_day.get(local_date - timedelta(days=1))
+        annotated = dict(row)
+        for parameter_key in parameter_keys:
+            delta, status = calculate_daily_energy_delta(
+                row.get(parameter_key),
+                previous_row.get(parameter_key) if previous_row else None,
+            )
+            annotated[_daily_energy_delta_key(parameter_key)] = delta
+            annotated[_daily_energy_status_key(parameter_key)] = status
+            if status and status.startswith("RESET/INVALID"):
+                logger.warning(
+                    "Energy counter reset/invalid delta for meter %s, parameter %s, date %s: current=%r previous=%r.",
+                    meter_id,
+                    parameter_key,
+                    local_date.isoformat(),
+                    row.get(parameter_key),
+                    previous_row.get(parameter_key) if previous_row else None,
+                )
+        annotated_rows.append(annotated)
+    return annotated_rows
+
+
 def _reading_date_text(row: dict[str, Any] | None) -> str:
     if not row:
         return ""
@@ -1366,10 +1468,12 @@ def _meter_status(enabled: bool, last_update: Any) -> str:
 def _numeric_value(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
-    if isinstance(value, (int, float)):
+    try:
         numeric = float(value)
-        if math.isfinite(numeric):
-            return numeric
+    except (TypeError, ValueError):
+        return None
+    if math.isfinite(numeric):
+        return numeric
     return None
 
 
@@ -2688,7 +2792,7 @@ def save_report_schedule(payload: dict[str, Any]) -> dict[str, Any]:
     known_parameters = get_parameter_map()
     normalized_parameter_keys = []
     for key in parameter_keys:
-        key_text = str(key)
+        key_text = _canonical_parameter_key(key)
         if key_text not in known_parameters:
             raise ValueError(f"Unknown parameter '{key_text}'.")
         if key_text not in normalized_parameter_keys:
@@ -2843,8 +2947,9 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
             meter_names = [meter_map[meter_id]["meter_name"] for meter_id in schedule_meter_ids]
             _send_email_with_attachment(
                 recipient_emails=schedule["recipient_emails"],
-                subject=f"Energy report - {export['meter_name']} - {report_day.strftime('%d/%m/%Y')}",
+                subject=REPORT_EMAIL_SUBJECT,
                 body=(
+                    f"{REPORT_EMAIL_BODY_LEAD}\n\n"
                     f"Automated previous-day meter readings report.\n\n"
                     f"Meters: {', '.join(meter_names)}\n"
                     f"Reading time: {reading_time_text}\n"
@@ -2881,8 +2986,9 @@ def send_report_email(payload: dict[str, Any]) -> dict[str, Any]:
     meter_summary = export["meter_name"]
     _send_email_with_attachment(
         recipient_emails=recipient_emails,
-        subject=f"Energy report - {meter_summary} - {normalized['end'].strftime('%d/%m/%Y')}",
+        subject=REPORT_EMAIL_SUBJECT,
         body=(
+            f"{REPORT_EMAIL_BODY_LEAD}\n\n"
             f"Energy report for {meter_summary}.\n\n"
             f"Start: {normalized['start'].astimezone(_app_timezone()).strftime('%d/%m/%Y %H:%M')}\n"
             f"End: {normalized['end'].astimezone(_app_timezone()).strftime('%d/%m/%Y %H:%M')}\n"
@@ -3067,8 +3173,10 @@ def _daily_consumption_formula(row_index: int, raw_column: int, first_data_row: 
     column_letter = get_column_letter(raw_column)
     previous_row = row_index - 1
     return (
-        f'=IF(OR({column_letter}{row_index}="",{column_letter}{previous_row}=""),"",'
-        f"{column_letter}{row_index}-{column_letter}{previous_row})"
+        f'=IF(OR({column_letter}{row_index}="",{column_letter}{previous_row}="",'
+        f'NOT(ISNUMBER({column_letter}{row_index})),NOT(ISNUMBER({column_letter}{previous_row}))),"",'
+        f'IF({column_letter}{row_index}<{column_letter}{previous_row},"RESET/INVALID",'
+        f"{column_letter}{row_index}-{column_letter}{previous_row}))"
     )
 
 
@@ -3078,14 +3186,15 @@ def _pf_formula(row_index: int, kwh_consumption_column: int | None, kvah_consump
     kwh_column_letter = get_column_letter(kwh_consumption_column)
     kvah_column_letter = get_column_letter(kvah_consumption_column)
     return (
-        f'=IF(OR({kwh_column_letter}{row_index}="",{kvah_column_letter}{row_index}="",'
+        f'=IF(OR(NOT(ISNUMBER({kwh_column_letter}{row_index})),NOT(ISNUMBER({kvah_column_letter}{row_index})), '
         f"{kvah_column_letter}{row_index}=0),\"\","
         f"{kwh_column_letter}{row_index}/{kvah_column_letter}{row_index})"
     )
 
 
 def _report_fetch_parameter_keys(parameter_keys: list[str], catalog_map: dict[str, Any]) -> list[str]:
-    selected_keys = [key for key in parameter_keys if key in catalog_map]
+    selected_keys = [_canonical_parameter_key(key) for key in parameter_keys]
+    selected_keys = [key for key in selected_keys if key in catalog_map]
     if not selected_keys:
         selected_keys = [key for key in catalog_map if catalog_map[key]["common"]][:4]
     return list(selected_keys)
@@ -3307,8 +3416,11 @@ def _build_scheduled_excel_bytes(
                 current_column += 1
 
                 if derived_kind is not None:
-                    diff_formula = _daily_consumption_formula(row_index, raw_column, first_data_row)
-                    diff_cell = sheet.cell(row=row_index, column=current_column, value=diff_formula)
+                    daily_value = None
+                    if meter_day_row is not None:
+                        status = meter_day_row.get(_daily_energy_status_key(key))
+                        daily_value = status or meter_day_row.get(_daily_energy_delta_key(key))
+                    diff_cell = sheet.cell(row=row_index, column=current_column, value=daily_value)
                     diff_cell.border = cell_border
                     diff_cell.alignment = centered
                     diff_cell.fill = meter_fill
@@ -3727,16 +3839,52 @@ def build_scheduled_report_payload(
     interval_hours: float | None = None,
 ) -> dict[str, Any]:
     meters = _require_known_meters(meter_ids)
-    selected_parameter_keys = [key for key in parameter_keys if key in get_parameter_map()]
+    selected_parameter_keys = [
+        _canonical_parameter_key(key)
+        for key in parameter_keys
+        if _canonical_parameter_key(key) in get_parameter_map()
+    ]
     if not selected_parameter_keys:
         selected_parameter_keys = [key for key in get_parameter_map() if get_parameter_map()[key]["common"]][:4]
 
-    range_start, range_end = _daily_report_range(start, end)
+    report_start = start - timedelta(days=1)
+    range_start, range_end = _daily_report_range(report_start, end)
     with _open_connection() as connection:
         meter_rows = []
         for meter in meters:
             source_rows = _fetch_report_source_rows(connection, meter["meter_id"], selected_parameter_keys, range_start, range_end)
-            snapshot_rows = _select_interval_rows(source_rows, start=start, end=end, interval_hours=interval_hours)
+            if interval_hours is not None:
+                snapshot_rows = _select_interval_rows(source_rows, start=start, end=end, interval_hours=interval_hours)
+            else:
+                target_rows = _select_daily_snapshot_rows(source_rows, report_start, end, reading_time_text)
+                latest_energy_rows = _select_latest_daily_snapshot_rows(source_rows, report_start, end)
+                latest_by_day = {
+                    _report_row_timestamp(row).astimezone(_app_timezone()).date(): row
+                    for row in latest_energy_rows
+                    if _report_row_timestamp(row) is not None
+                }
+                merged_rows: list[dict[str, Any]] = []
+                for target_row in target_rows:
+                    target_timestamp = _report_row_timestamp(target_row)
+                    if target_timestamp is None:
+                        continue
+                    target_date = target_timestamp.astimezone(_app_timezone()).date()
+                    latest_row = latest_by_day.get(target_date)
+                    merged_row = dict(target_row)
+                    if latest_row is not None:
+                        for parameter_key in ENERGY_PARAMETER_KEYS:
+                            if parameter_key in selected_parameter_keys:
+                                merged_row[parameter_key] = latest_row.get(parameter_key)
+                    merged_rows.append(merged_row)
+
+                energy_keys = [key for key in selected_parameter_keys if _supports_consumption_column(key)]
+                annotated_rows = _annotate_daily_energy_deltas(meter["meter_id"], merged_rows, energy_keys)
+                visible_start = start.astimezone(_app_timezone()).date()
+                snapshot_rows = [
+                    row
+                    for row in annotated_rows
+                    if (_report_row_timestamp(row) is not None and _report_row_timestamp(row).astimezone(_app_timezone()).date() >= visible_start)
+                ]
             meter_rows.append((meter, snapshot_rows))
 
     timestamp = datetime.now(timezone.utc)
@@ -3786,7 +3934,11 @@ def build_export_payload(filters: dict[str, Any], format_name: str) -> dict[str,
         for meter, rows in meter_rows
     ]
 
-    parameter_keys = [key for key in normalized["parameter_keys"] if key in get_parameter_map()]
+    parameter_keys = [
+        _canonical_parameter_key(key)
+        for key in normalized["parameter_keys"]
+        if _canonical_parameter_key(key) in get_parameter_map()
+    ]
     if not parameter_keys:
         parameter_keys = [key for key in get_parameter_map() if get_parameter_map()[key]["common"]][:4]
 
