@@ -59,6 +59,8 @@ class PM5000Collector(BaseMeter):
             raw_value = self._read_int32_lsw(register, register_state)
         elif data_type == "int64":
             raw_value = self._read_int64_lsw(register, register_state)
+        elif data_type == "uint64":
+            raw_value = self._read_uint64(register, register_state)
         elif data_type == "uint16":
             raw_value = self._read_uint16(register, register_state)
         elif data_type == "datetime4":
@@ -108,6 +110,8 @@ class PM5000Collector(BaseMeter):
             return 4
         if data_type == "uint16":
             return 1
+        if data_type == "uint64":
+            return 4
         return 2
 
     def _build_read_plan(self) -> list[tuple[int, int]]:
@@ -291,6 +295,26 @@ class PM5000Collector(BaseMeter):
         if unsigned_value & 0x8000000000000000:
             return unsigned_value - 0x10000000000000000
         return unsigned_value
+
+    def _read_uint64(
+        self,
+        register: int,
+        register_state: Optional[dict[str, object]] = None,
+    ) -> Optional[int]:
+        regs = self._read_registers(register, 4, register_state)
+        if regs is None:
+            return None
+
+        # Schneider PM3200/PM3250 energy counters are four consecutive
+        # 16-bit words in network order, representing Wh/VARh/VAh.
+        if all(word == 0xFFFF for word in regs):
+            return None
+        return (
+            (regs[0] << 48)
+            | (regs[1] << 32)
+            | (regs[2] << 16)
+            | regs[3]
+        )
 
 
 """

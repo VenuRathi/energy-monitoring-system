@@ -76,7 +76,25 @@ if (-not (Test-Path $watchdogPath)) {
     throw "Backend watchdog not found: $watchdogPath"
 }
 
-$backendReady = Test-BackendHealth -BaseUrl $appUrl
+function Test-BackendHourlyEnergyRoute {
+    param([string]$BaseUrl)
+
+    try {
+        # Probe a meter id that does not need to exist. A current backend returns
+        # an empty JSON array; a pre-hourly-history backend returns 404.
+        $response = Invoke-WebRequest `
+            -Uri "$BaseUrl/api/meters/__startup_probe__/hourly-energy?hours=1" `
+            -Method Get `
+            -TimeoutSec 4 `
+            -UseBasicParsing
+        return $response.StatusCode -eq 200
+    }
+    catch {
+        return $false
+    }
+}
+
+$backendReady = (Test-BackendHealth -BaseUrl $appUrl) -and (Test-BackendHourlyEnergyRoute -BaseUrl $appUrl)
 
 if (-not $backendReady) {
     Write-Host "Backend is not reachable at $appUrl. Starting hidden backend watchdog..." -ForegroundColor Cyan

@@ -2181,7 +2181,7 @@ def _probe_modbus_slave(
 ) -> dict[str, Any] | None:
     probe_points = [
         {"register": 1845, "count": 4, "label": "Present Date & Time"},
-        {"register": 3207, "count": 2, "label": "Active Energy Received (Out of Load)"},
+        {"register": 3204, "count": 4, "label": "Active Energy Received (Out of Load)"},
     ]
     for probe in probe_points:
         registers = modbus_client.read_holding_registers(
