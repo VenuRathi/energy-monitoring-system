@@ -37,6 +37,33 @@ class ReportsHardeningTests(unittest.TestCase):
     def test_schedule_delivery_rolls_over_midnight(self) -> None:
         self.assertEqual(api_service._schedule_delivery_time_text("23:58"), "23:58")
 
+    def test_scheduled_email_uses_compact_osp_format(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        delivery_time = datetime(2026, 8, 25, 9, 11, tzinfo=plant_timezone)
+        report_start = datetime(2026, 8, 24, 8, 0, tzinfo=plant_timezone)
+
+        subject = api_service._scheduled_report_email_subject(["Screen Printing"], delivery_time)
+        body = api_service._scheduled_report_email_body(
+            meter_names=["Screen Printing"],
+            record_time_text="08:00",
+            interval_hours=24,
+            send_time_text="08:02",
+            report_start=report_start,
+            report_end=delivery_time,
+        )
+
+        self.assertEqual(subject, "EMS - OSP - Screen Printing - 25/8/26")
+        self.assertEqual(
+            body,
+            "Please find the Excel sheet attached below.\n\n"
+            "Automated meter readings report.\n\n"
+            "Meters: Screen Printing\n"
+            "Record start time: 08:00\n"
+            "Reading interval: 24.0\n"
+            "Email delivery time: 08:02\n"
+            "Included range: 24/08/2026 08:00 to 25/08/2026 09:11",
+        )
+
     def test_interval_report_keeps_multiple_rows_and_collector_timestamps(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")
         first_timestamp = datetime(2026, 8, 21, 14, 6, 47, tzinfo=plant_timezone)
@@ -102,6 +129,49 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertIn("C4-C3", sheet.cell(row=4, column=4).value)
         self.assertIn("E4-E3", sheet.cell(row=4, column=6).value)
         self.assertIn("G4-G3", sheet.cell(row=4, column=8).value)
+        self.assertEqual(sheet.cell(row=2, column=10).value, "Screen Printing - PF usage")
+        self.assertIn("D4/H4", sheet.cell(row=4, column=10).value)
+
+    def test_single_meter_export_includes_usage_and_usage_based_pf(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        end = datetime(2026, 8, 21, 9, 0, tzinfo=plant_timezone)
+        rows = [
+            {
+                "timestamp": start,
+                "active_energy_received_out_of_load": 10.0,
+                "apparent_energy_received": 20.0,
+            },
+            {
+                "timestamp": end,
+                "active_energy_received_out_of_load": 12.0,
+                "apparent_energy_received": 24.0,
+            },
+        ]
+        meter = {"meter_id": "MTR-001", "meter_name": "Screen Printing", "location": "Old Spin On Line"}
+        filters = {
+            "meterIds": ["MTR-001"],
+            "parameterKeys": ["active_energy_received_out_of_load", "apparent_energy_received"],
+            "startDateTime": start.isoformat(),
+            "endDateTime": end.isoformat(),
+        }
+
+        with (
+            patch("app.api.service._require_known_meters", return_value=[meter]),
+            patch("app.api.service._open_connection") as open_connection,
+            patch("app.api.service._fetch_report_rows", return_value=rows),
+        ):
+            open_connection.return_value.__enter__.return_value = object()
+            export = api_service.build_export_payload(filters, "xlsx")
+
+        sheet = load_workbook(BytesIO(export["bytes"]), data_only=False).active
+        self.assertIn("usage", str(sheet.cell(row=2, column=4).value).lower())
+        self.assertIn("usage", str(sheet.cell(row=2, column=6).value).lower())
+        self.assertEqual(sheet.cell(row=2, column=7).value, "Screen Printing - PF usage")
+        self.assertEqual(
+            sheet.cell(row=4, column=7).value,
+            '=IF(OR(NOT(ISNUMBER(D4)),NOT(ISNUMBER(F4)), F4=0),"",D4/F4)',
+        )
 
     def test_report_interval_rejects_non_positive_values(self) -> None:
         base_filters = {

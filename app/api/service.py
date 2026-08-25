@@ -1225,6 +1225,33 @@ def _schedule_delivery_time_text(reading_time_text: str) -> str:
     return _minutes_to_time_text(total_minutes)
 
 
+def _scheduled_report_email_subject(meter_names: list[str], delivery_time: datetime) -> str:
+    meter_scope = ", ".join(meter_names)
+    date_text = f"{delivery_time.day}/{delivery_time.month}/{delivery_time.year % 100:02d}"
+    return f"EMS - OSP - {meter_scope} - {date_text}"
+
+
+def _scheduled_report_email_body(
+    *,
+    meter_names: list[str],
+    record_time_text: str,
+    interval_hours: Any,
+    send_time_text: str,
+    report_start: datetime,
+    report_end: datetime,
+) -> str:
+    interval_text = "All readings" if interval_hours is None else f"{float(interval_hours):.1f}"
+    return (
+        f"{REPORT_EMAIL_BODY_LEAD}\n\n"
+        f"Automated meter readings report.\n\n"
+        f"Meters: {', '.join(meter_names)}\n"
+        f"Record start time: {record_time_text}\n"
+        f"Reading interval: {interval_text}\n"
+        f"Email delivery time: {send_time_text}\n"
+        f"Included range: {report_start.strftime('%d/%m/%Y %H:%M')} to {report_end.strftime('%d/%m/%Y %H:%M')}"
+    )
+
+
 def _next_schedule_delivery_at(schedule: dict[str, Any], now: datetime | None = None) -> datetime:
     app_timezone = _app_timezone()
     local_now = (now or datetime.now(timezone.utc)).astimezone(app_timezone)
@@ -2977,15 +3004,14 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
             meter_names = [meter_map[meter_id]["meter_name"] for meter_id in schedule_meter_ids]
             _send_email_with_attachment(
                 recipient_emails=schedule["recipient_emails"],
-                subject=REPORT_EMAIL_SUBJECT,
-                body=(
-                    f"{REPORT_EMAIL_BODY_LEAD}\n\n"
-                    f"Automated meter readings report.\n\n"
-                    f"Meters: {', '.join(meter_names)}\n"
-                    f"Record start time: {record_time_text}\n"
-                    f"Reading interval: {schedule.get('interval_hours') or 'All readings'}\n"
-                    f"Email delivery time: {send_time_text}\n"
-                    f"Included range: {report_start_local.strftime('%d/%m/%Y %H:%M')} to {report_end_local.strftime('%d/%m/%Y %H:%M')}"
+                subject=_scheduled_report_email_subject(meter_names, local_now),
+                body=_scheduled_report_email_body(
+                    meter_names=meter_names,
+                    record_time_text=record_time_text,
+                    interval_hours=schedule.get("interval_hours"),
+                    send_time_text=send_time_text,
+                    report_start=report_start_local,
+                    report_end=report_end_local,
                 ),
                 attachment_bytes=export["bytes"],
                 filename=export["filename"],
@@ -3400,7 +3426,7 @@ def _build_scheduled_excel_bytes(
         if include_pf_column:
             pf_column = current_column
             sheet.column_dimensions[get_column_letter(pf_column)].width = 12.0
-            pf_header = sheet.cell(row=2, column=pf_column, value=f"{meter['meter_name']} - PF")
+            pf_header = sheet.cell(row=2, column=pf_column, value=f"{meter['meter_name']} - PF usage")
             pf_header.border = cell_border
             pf_header.alignment = centered
             pf_header.font = Font(bold=True)
@@ -3610,7 +3636,7 @@ def _build_excel_bytes_multi(
         if include_pf_column:
             pf_column = current_column
             sheet.column_dimensions[get_column_letter(pf_column)].width = 12.0
-            pf_header = sheet.cell(row=2, column=pf_column, value=f"{meter['meter_name']} - PF")
+            pf_header = sheet.cell(row=2, column=pf_column, value=f"{meter['meter_name']} - PF usage")
             pf_header.border = cell_border
             pf_header.alignment = centered
             pf_header.font = Font(bold=True)
@@ -3994,21 +4020,12 @@ def build_export_payload(filters: dict[str, Any], format_name: str) -> dict[str,
         )
 
     if format_name == "xlsx":
-        if len(meters) == 1:
-            file_bytes = _build_excel_bytes(
-                meters[0]["meter_name"],
-                meter_rows[0][1],
-                parameter_keys,
-                normalized["start"],
-                normalized["end"],
-            )
-        else:
-            file_bytes = _build_excel_bytes_multi(
-                meter_rows,
-                parameter_keys,
-                normalized["start"],
-                normalized["end"],
-            )
+        file_bytes = _build_excel_bytes_multi(
+            meter_rows,
+            parameter_keys,
+            normalized["start"],
+            normalized["end"],
+        )
         filename = f"{file_stem}.xlsx"
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     elif format_name == "docx":
