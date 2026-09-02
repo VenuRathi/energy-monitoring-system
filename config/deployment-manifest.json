@@ -1,0 +1,50 @@
+{
+  "manifestVersion": 1,
+  "productName": "Plant Energy Monitor",
+  "releaseChannel": "pilot",
+  "supportedPlatform": "Windows",
+  "applicationRootModes": {
+    "releaseBundle": "C:\\EnergyMonitoring\\energy-monitoring-system",
+    "installer": "C:\\ProgramData\\Plant Energy Monitor"
+  },
+  "runtimeDirectoriesRelativeToApplicationRoot": [
+    "data",
+    "logs",
+    "backups",
+    "deployment-reports"
+  ],
+  "machineSpecificFiles": [
+    ".env",
+    "config\\meter_config.json"
+  ],
+  "protectedDuringUpgrade": [
+    ".env",
+    "config\\meter_config.json",
+    "data",
+    "logs",
+    "backups",
+    "deployment-reports",
+    "pilot-evidence"
+  ],
+  "requiredServices": [
+    "PostgreSQL"
+  ],
+  "scheduledTasks": {
+    "backend": "EnergyMonitoringBackend",
+    "backup": "EnergyMonitoringDailyBackup"
+  },
+  "releaseContentsExclude": [
+    ".git",
+    ".venv",
+    "node_modules",
+    "frontend\\.vite",
+    "__pycache__",
+    ".pytest_cache",
+    "logs",
+    "data",
+    "backups",
+    "deployment-reports",
+    "pilot-evidence",
+    "docs\\archive"
+  ]
+}

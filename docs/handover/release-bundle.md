@@ -21,6 +21,7 @@ The release bundle script creates:
 - pilot evidence capture script and evidence log template
 - a top-level `START_HERE.txt`
 - a top-level `RELEASE_INFO.txt` with source commit metadata
+- a non-sensitive per-PC inventory script for repeatable rollout checks
 - a `.zip` archive for transfer
 
 It does not include:
@@ -116,8 +117,13 @@ Use this when:
 5. Run `powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1`
 6. Verify PostgreSQL and COM port setup
 7. Run `powershell -ExecutionPolicy Bypass -File .\scripts\post_install_check.ps1`
-8. Launch the app with `run_app.bat` or run the backend manually once
-9. Register Task Scheduler startup
+8. Run `powershell -ExecutionPolicy Bypass -File .\scripts\collect_pc_inventory.ps1`
+9. Launch the app with `run_app.bat` or run the backend manually once
+10. Register Task Scheduler startup
+
+The inventory report records paths, service/task presence, Python availability,
+and the release commit without copying `.env`, credentials, database contents, or
+logs. Keep the report with the deployment record for each PC.
 
 ## Why this exists even before an installer
 

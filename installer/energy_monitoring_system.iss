@@ -39,12 +39,15 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Files]
-Source: "{#SourceRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\*"; DestDir: "{app}"; Excludes: "config\meter_config.json"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\config\meter_config.json"; DestDir: "{app}\config"; Flags: ignoreversion onlyifdoesntexist
 
 [Dirs]
 Name: "{app}\logs"
 Name: "{app}\backups"
 Name: "{app}\release"
+Name: "{app}\data"
+Name: "{app}\deployment-reports"
 
 [Icons]
 Name: "{group}\Launch Plant Energy Monitor"; Filename: "{app}\{#MyAppExeName}"

@@ -72,6 +72,12 @@ If using the Inno Setup package instead of a copied repo/release bundle, the def
 C:\ProgramData\Plant Energy Monitor
 ```
 
+The deployment contract is recorded in `config\deployment-manifest.json`.
+For every PC, keep the application files under one of the two locations above;
+keep `.env`, `data\`, `logs\`, `backups\`, and `deployment-reports\` local to
+that application root. Never replace those machine-specific/runtime items by
+copying a development checkout over an active installation.
+
 ## 4. Create the virtual environment
 
 ```powershell
@@ -79,6 +85,17 @@ cd C:\EnergyMonitoring\energy-monitoring-system
 powershell -ExecutionPolicy Bypass -File .\scripts\first_run_setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_python_env.ps1
 ```
+
+After the release files are in place, capture a non-sensitive inventory:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\collect_pc_inventory.ps1
+```
+
+Store the generated JSON report with the PC's deployment record. It records the
+release commit, required paths, PostgreSQL service presence, scheduled-task
+presence, and Python availability; it does not include `.env` values, database
+contents, or log contents.
 
 If `.venv` already exists but is broken:
 
