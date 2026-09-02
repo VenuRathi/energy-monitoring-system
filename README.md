@@ -5,7 +5,7 @@ Local-first IIoT energy monitoring platform for Schneider PM5000 / EM6400-class 
 [![CI](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml/badge.svg)](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20Plant%20PC-blue.svg)](#deployment-model)
-[![Status](https://img.shields.io/badge/status-pilot--ready%20with%20conditions-orange.svg)](docs/production-readiness-signoff.md)
+[![Status](https://img.shields.io/badge/status-pilot--ready%20with%20conditions-orange.svg)](docs/handover/production-readiness-signoff.md)
 
 ## Overview
 
@@ -53,7 +53,7 @@ Validated capabilities include:
 - backup and scheduled-task scripts
 - professional deployment and operations handover docs
 
-Remaining production conditions are tracked in [docs/production-readiness-signoff.md](docs/production-readiness-signoff.md).
+Remaining production conditions are tracked in [docs/handover/production-readiness-signoff.md](docs/handover/production-readiness-signoff.md).
 
 ## Architecture
 
@@ -85,7 +85,7 @@ Operator UI
   dashboard, meters, reports, help, status views
 ```
 
-Mermaid architecture reference: [docs/architecture.md](docs/architecture.md)
+Mermaid architecture reference: [docs/reference/architecture.md](docs/reference/architecture.md)
 
 ## Feature Highlights
 
@@ -173,7 +173,7 @@ npm run typecheck
 npm run dev
 ```
 
-For full setup instructions, use [docs/local-setup.md](docs/local-setup.md).
+For full setup instructions, use [docs/developer/local-setup.md](docs/developer/local-setup.md).
 
 ## Deployment Model
 
@@ -186,7 +186,7 @@ The intended plant deployment is local:
 - meters connected through USB-to-RS485 COM ports
 - access limited to the approved plant LAN
 
-Primary deployment guide: [docs/production-deployment-checklist.md](docs/production-deployment-checklist.md)
+Primary deployment guide: [docs/handover/production-deployment-checklist.md](docs/handover/production-deployment-checklist.md)
 
 ## Health Check
 
@@ -208,32 +208,32 @@ A healthy pilot run should show:
 
 Start here:
 
-- [Production handover index](docs/production-handover-index.md)
-- [Production deployment checklist](docs/production-deployment-checklist.md)
-- [24/7 operations SOP](docs/operations-sop-24x7.md)
-- [Backup and restore SOP](docs/backup-restore-sop.md)
-- [Incident response guide](docs/incident-response-guide.md)
-- [Production readiness signoff](docs/production-readiness-signoff.md)
+- [Production handover index](docs/handover/production-handover-index.md)
+- [Production deployment checklist](docs/handover/production-deployment-checklist.md)
+- [24/7 operations SOP](docs/handover/operations-sop-24x7.md)
+- [Backup and restore SOP](docs/handover/backup-restore-sop.md)
+- [Incident response guide](docs/handover/incident-response-guide.md)
+- [Production readiness signoff](docs/handover/production-readiness-signoff.md)
 
 Developer references:
 
-- [Developer guide](docs/developer-guide.md)
-- [Codebase map](docs/codebase-map.md)
-- [Debugging guide](docs/debugging-guide.md)
-- [Change guide](docs/change-guide.md)
-- [Maintenance playbook](docs/maintenance-playbook.md)
+- [Developer guide](docs/developer/developer-guide.md)
+- [Codebase map](docs/developer/codebase-map.md)
+- [Debugging guide](docs/developer/debugging-guide.md)
+- [Change guide](docs/developer/change-guide.md)
+- [Maintenance playbook](docs/archive/maintenance-playbook.md)
 - [Repository cleanup plan](docs/repository-cleanup-plan.md)
-- [OpenAPI starter contract](docs/openapi.yaml)
+- [OpenAPI starter contract](docs/reference/openapi.yaml)
 
 Setup and operations:
 
-- [Environment variables](docs/environment-variables.md)
-- [Meter configuration](docs/meter-configuration.md)
-- [Task Scheduler setup](docs/task-scheduler-setup.md)
-- [Plant PC deployment](docs/plant-pc-deployment.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Release bundle workflow](docs/release-bundle.md)
-- [Windows installer workflow](docs/windows-installer-workflow.md)
+- [Environment variables](docs/reference/environment-variables.md)
+- [Meter configuration](docs/reference/meter-configuration.md)
+- [Task Scheduler setup](docs/handover/task-scheduler-setup.md)
+- [Plant PC deployment](docs/handover/plant-pc-deployment.md)
+- [Troubleshooting](docs/handover/troubleshooting.md)
+- [Release bundle workflow](docs/handover/release-bundle.md)
+- [Windows installer workflow](docs/handover/windows-installer-workflow.md)
 
 ## API Snapshot
 
@@ -251,7 +251,7 @@ Common endpoints:
 - `POST /api/reports/word`
 - `GET /api/email/health`
 
-Full starter contract: [docs/openapi.yaml](docs/openapi.yaml)
+Full starter contract: [docs/reference/openapi.yaml](docs/reference/openapi.yaml)
 
 ## Testing
 
@@ -281,7 +281,7 @@ Important notes:
 - Restrict port `5000` to approved plant LAN clients.
 - Review [SECURITY.md](SECURITY.md) before broader rollout.
 
-Known limitations and future production conditions: [docs/known-limitations.md](docs/known-limitations.md)
+Known limitations and future production conditions: [docs/archive/known-limitations.md](docs/archive/known-limitations.md)
 
 ## Roadmap
 

@@ -36,10 +36,10 @@ Use this before calling the system production-ready. It lists completed hardenin
 
 ## Supporting References
 
-- [Environment variables](environment-variables.md)
+- [Environment variables](../reference/environment-variables.md)
 - [Task Scheduler setup](task-scheduler-setup.md)
 - [Plant PC deployment guide](plant-pc-deployment.md)
-- [Backup and maintenance](backup-and-maintenance.md)
-- [Pilot validation runbook](pilot-validation-runbook.md)
-- [Data model](data-model.md)
+- [Backup and maintenance archive](../archive/backup-and-maintenance.md)
+- [Pilot validation runbook archive](../archive/pilot-validation-runbook.md)
+- [Data model](../reference/data-model.md)
 - [Troubleshooting](troubleshooting.md)

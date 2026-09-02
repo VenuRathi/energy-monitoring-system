@@ -10,8 +10,8 @@ It separates:
 
 Supporting docs:
 
-- Honest engineering gap review: [docs/engineering-gap-review.md](docs/engineering-gap-review.md)
-- Final 45-day plan: [docs/final-45-day-plan.md](docs/final-45-day-plan.md)
+- Honest engineering gap review: [docs/archive/engineering-gap-review.md](docs/archive/engineering-gap-review.md)
+- Repository baseline: [docs/repository-baseline-2026-09-02.md](docs/repository-baseline-2026-09-02.md)
 
 ## Immediate priority: plant pilot readiness
 

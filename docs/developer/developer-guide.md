@@ -111,20 +111,20 @@ Recommended 24/7 run approach today:
 
 Core docs:
 
-- [architecture.md](architecture.md)
-- [data-model.md](data-model.md)
+- [architecture.md](../reference/architecture.md)
+- [data-model.md](../reference/data-model.md)
 - [local-setup.md](local-setup.md)
-- [environment-variables.md](environment-variables.md)
-- [meter-configuration.md](meter-configuration.md)
-- [operations-runbook.md](operations-runbook.md)
-- [plant-pc-deployment.md](plant-pc-deployment.md)
+- [environment-variables.md](../reference/environment-variables.md)
+- [meter-configuration.md](../reference/meter-configuration.md)
+- [24/7 operations SOP](../handover/operations-sop-24x7.md)
+- [plant-pc-deployment.md](../handover/plant-pc-deployment.md)
 
 Developer-handover docs:
 
 - [codebase-map.md](codebase-map.md)
 - [debugging-guide.md](debugging-guide.md)
 - [change-guide.md](change-guide.md)
-- [maintenance-playbook.md](maintenance-playbook.md)
+- [maintenance playbook](../archive/maintenance-playbook.md)
 
 ## Environment/config model
 

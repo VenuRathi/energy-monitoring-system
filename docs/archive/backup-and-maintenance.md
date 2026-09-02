@@ -46,7 +46,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\backup_postgres.ps1 -Retentio
 - Daily backup of PostgreSQL database
 - Weekly copy of the project `.env`
 - Weekly copy of `config/` and any deployment scripts/docs
-- occasional release snapshot using [release-bundle.md](release-bundle.md)
+- occasional release snapshot using [release-bundle.md](../handover/release-bundle.md)
 
 ## Database size check
 
