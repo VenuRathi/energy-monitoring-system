@@ -19,7 +19,8 @@ class ReadingSpoolTests(unittest.TestCase):
     def make_spool(self) -> ReadingSpool:
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        return ReadingSpool(Path(directory.name) / "spool.sqlite3", retention_days=30)
+        # Keep fixture timestamps from expiring as the calendar advances.
+        return ReadingSpool(Path(directory.name) / "spool.sqlite3", retention_days=365)
 
     @staticmethod
     def reading_timestamp(second: int) -> datetime:
