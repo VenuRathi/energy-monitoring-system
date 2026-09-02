@@ -173,6 +173,93 @@ class ReportsHardeningTests(unittest.TestCase):
             '=IF(OR(NOT(ISNUMBER(D4)),NOT(ISNUMBER(F4)), F4=0),"",D4/F4)',
         )
 
+    def test_scheduled_report_starts_from_previous_month_last_day(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        meter = {"meter_id": "MTR-001", "meter_name": "Screen Printing", "location": "Old Spin On Line"}
+        rows = [
+            {
+                "timestamp": datetime(2026, 8, 31, 8, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 100.0,
+            },
+            {
+                "timestamp": datetime(2026, 9, 1, 8, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 103.0,
+            },
+            {
+                "timestamp": datetime(2026, 9, 2, 8, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 108.0,
+            },
+        ]
+
+        with (
+            patch("app.api.service._require_known_meters", return_value=[meter]),
+            patch("app.api.service._open_connection") as open_connection,
+            patch("app.api.service._fetch_report_source_rows", return_value=rows),
+        ):
+            open_connection.return_value.__enter__.return_value = object()
+            export = api_service.build_scheduled_report_payload(
+                meter_ids=["MTR-001"],
+                parameter_keys=["active_energy_received_out_of_load"],
+                reading_time_text="08:00",
+                start=datetime(2026, 9, 2, 0, 0, tzinfo=plant_timezone),
+                end=datetime(2026, 9, 2, 8, 2, tzinfo=plant_timezone),
+                interval_hours=None,
+                window_mode="previous_day",
+            )
+
+        sheet = load_workbook(BytesIO(export["bytes"]), data_only=True).active
+
+        self.assertEqual(export["rows"], 3)
+        self.assertEqual(sheet.max_row, 5)
+        self.assertEqual(sheet.cell(row=3, column=1).value.strftime("%d/%m/%Y"), "31/08/2026")
+        self.assertEqual(sheet.cell(row=4, column=1).value.strftime("%d/%m/%Y"), "01/09/2026")
+        self.assertEqual(sheet.cell(row=5, column=1).value.strftime("%d/%m/%Y"), "02/09/2026")
+        self.assertEqual(sheet.cell(row=4, column=4).value, 3.0)
+        self.assertEqual(sheet.cell(row=5, column=4).value, 5.0)
+
+    def test_scheduled_report_rolls_cycle_on_first_day_of_month(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        meter = {"meter_id": "MTR-001", "meter_name": "Screen Printing", "location": "Old Spin On Line"}
+        rows = [
+            {
+                "timestamp": datetime(2026, 9, 30, 8, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 200.0,
+            },
+            {
+                "timestamp": datetime(2026, 10, 1, 8, 0, tzinfo=plant_timezone),
+                "timestamp_source": "meter_rejected",
+                "active_energy_received_out_of_load": 204.0,
+            },
+        ]
+
+        with (
+            patch("app.api.service._require_known_meters", return_value=[meter]),
+            patch("app.api.service._open_connection") as open_connection,
+            patch("app.api.service._fetch_report_source_rows", return_value=rows),
+        ):
+            open_connection.return_value.__enter__.return_value = object()
+            export = api_service.build_scheduled_report_payload(
+                meter_ids=["MTR-001"],
+                parameter_keys=["active_energy_received_out_of_load"],
+                reading_time_text="08:00",
+                start=datetime(2026, 10, 1, 0, 0, tzinfo=plant_timezone),
+                end=datetime(2026, 10, 1, 8, 2, tzinfo=plant_timezone),
+                interval_hours=None,
+                window_mode="previous_day",
+            )
+
+        sheet = load_workbook(BytesIO(export["bytes"]), data_only=True).active
+
+        self.assertEqual(export["rows"], 2)
+        self.assertEqual(sheet.max_row, 4)
+        self.assertEqual(sheet.cell(row=3, column=1).value.strftime("%d/%m/%Y"), "30/09/2026")
+        self.assertEqual(sheet.cell(row=4, column=1).value.strftime("%d/%m/%Y"), "01/10/2026")
+        self.assertEqual(sheet.cell(row=4, column=4).value, 4.0)
+
     def test_report_interval_rejects_non_positive_values(self) -> None:
         base_filters = {
             "meterIds": ["MTR-001"],

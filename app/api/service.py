@@ -1252,6 +1252,14 @@ def _scheduled_report_email_body(
     )
 
 
+def _scheduled_month_cycle_start(end: datetime, reading_time_text: str) -> datetime:
+    app_timezone = _app_timezone()
+    end_local = end.astimezone(app_timezone)
+    month_start = date(end_local.year, end_local.month, 1)
+    previous_month_last_day = month_start - timedelta(days=1)
+    return datetime.combine(previous_month_last_day, _parse_time_text(reading_time_text), tzinfo=app_timezone)
+
+
 def _next_schedule_delivery_at(schedule: dict[str, Any], now: datetime | None = None) -> datetime:
     app_timezone = _app_timezone()
     local_now = (now or datetime.now(timezone.utc)).astimezone(app_timezone)
@@ -2985,9 +2993,9 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                 report_end_local = local_now
                 report_day = report_start_local.date()
             else:
-                report_day = local_now.date() - timedelta(days=1)
-                report_start_local = datetime.combine(report_day, time.min, tzinfo=ZoneInfo(settings.app_timezone))
-                report_end_local = datetime.combine(report_day, time.max, tzinfo=ZoneInfo(settings.app_timezone))
+                report_day = local_now.date()
+                report_start_local = _scheduled_month_cycle_start(local_now, record_time_text)
+                report_end_local = local_now
             export = build_scheduled_report_payload(
                 meter_ids=schedule_meter_ids,
                 parameter_keys=schedule["parameter_keys"],
@@ -3911,7 +3919,7 @@ def build_scheduled_report_payload(
     if not selected_parameter_keys:
         selected_parameter_keys = [key for key in get_parameter_map() if get_parameter_map()[key]["common"]][:4]
 
-    report_start = start - timedelta(days=1) if window_mode == "previous_day" else start
+    report_start = _scheduled_month_cycle_start(end, reading_time_text) if window_mode == "previous_day" else start
     range_start, range_end = _daily_report_range(report_start, end)
     with _open_connection() as connection:
         meter_rows = []
@@ -3943,7 +3951,7 @@ def build_scheduled_report_payload(
 
                 energy_keys = [key for key in selected_parameter_keys if _supports_consumption_column(key)]
                 annotated_rows = _annotate_daily_energy_deltas(meter["meter_id"], merged_rows, energy_keys)
-                visible_start = start.astimezone(_app_timezone()).date()
+                visible_start = report_start.astimezone(_app_timezone()).date()
                 snapshot_rows = [
                     row
                     for row in annotated_rows
