@@ -144,7 +144,8 @@ function Wait-ScheduledTaskStopped {
     while ((Get-Date) -lt $deadline) {
         $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
         if (-not $task -or [string]$task.State -ne "Running") {
-            Write-StopLog "SCHEDULED TASK CONFIRMED STOPPED: $Name state=$($task.State)."
+            $taskState = if ($null -eq $task) { "NotFound" } else { [string]$task.State }
+            Write-StopLog "SCHEDULED TASK CONFIRMED STOPPED: $Name state=$taskState."
             return
         }
         Start-Sleep -Milliseconds 250
