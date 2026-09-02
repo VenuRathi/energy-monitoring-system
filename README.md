@@ -225,6 +225,7 @@ Developer references:
 - [Pilot evidence log](docs/handover/pilot-evidence-log.md)
 - [Repository cleanup plan](docs/repository-cleanup-plan.md)
 - [OpenAPI starter contract](docs/reference/openapi.yaml)
+- [Documentation index](docs/README.md)
 
 Setup and operations:
 

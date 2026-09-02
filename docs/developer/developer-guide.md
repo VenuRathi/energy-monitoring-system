@@ -89,6 +89,16 @@ Python diagnostics:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
+Repository hygiene check:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\validate_repository.py
+```
+
+This verifies that generated/local files are not tracked, documentation links
+resolve, the deployment manifest protects runtime data, and removed document paths
+have not returned.
+
 ## Deployment model
 
 Current intended deployment:
