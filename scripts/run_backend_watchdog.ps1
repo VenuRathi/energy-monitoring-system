@@ -70,20 +70,24 @@ function Test-BackendHealth {
             return $false
         }
 
-        $pollIntervalSeconds = 180
-        $reportedPollInterval = 0
-        if ([int]::TryParse([string]$status.polling.pollIntervalSeconds, [ref]$reportedPollInterval) -and $reportedPollInterval -gt 0) {
-            $pollIntervalSeconds = $reportedPollInterval
-        }
-        $silenceLimitSeconds = if ($MaxPollingSilenceSeconds -gt 0) {
-            [Math]::Max(60, $MaxPollingSilenceSeconds)
-        } else {
-            # Allow one configured polling interval plus bounded startup/DB tolerance.
-            [Math]::Max(420, $pollIntervalSeconds + 120)
-        }
         $silenceSeconds = ([datetimeoffset]::UtcNow - $lastCycleEnd.ToUniversalTime()).TotalSeconds
-        if ($silenceSeconds -gt $silenceLimitSeconds) {
-            Write-WatchdogLog "HEALTH WARNING: polling heartbeat is $([Math]::Round($silenceSeconds)) second(s) old (limit=$silenceLimitSeconds, poll_interval=$pollIntervalSeconds)."
+        $pollingSilenceLimitSeconds = 420
+        $configuredPollIntervalSeconds = 0
+        try {
+            $configuredPollIntervalSeconds = [int]$status.polling.pollIntervalSeconds
+        }
+        catch {
+            $configuredPollIntervalSeconds = 0
+        }
+        if ($MaxPollingSilenceSeconds -gt 0) {
+            $pollingSilenceLimitSeconds = [Math]::Max(60, $MaxPollingSilenceSeconds)
+        }
+        elseif ($configuredPollIntervalSeconds -gt 0) {
+            $pollingSilenceLimitSeconds = [Math]::Max(60, $configuredPollIntervalSeconds + 120)
+        }
+
+        if ($silenceSeconds -gt $pollingSilenceLimitSeconds) {
+            Write-WatchdogLog "HEALTH WARNING: polling heartbeat is $([Math]::Round($silenceSeconds)) second(s) old (threshold=$pollingSilenceLimitSeconds, poll_interval=$configuredPollIntervalSeconds)."
             return $false
         }
 
