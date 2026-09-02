@@ -1,7 +1,7 @@
 import os
 import smtplib
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -28,7 +28,7 @@ class SettingsAndModelsTests(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "CORS_ALLOWED_ORIGINS": "http://127.0.0.1:5173, http://localhost:5173",
+                "API_ALLOWED_ORIGINS": "http://127.0.0.1:5173, http://localhost:5173",
                 "API_DEBUG": "false",
             },
             clear=False,
@@ -47,6 +47,14 @@ class SettingsAndModelsTests(unittest.TestCase):
             settings = load_settings()
 
         self.assertEqual(settings.poll_interval_seconds, 180)
+
+    def test_meter_freshness_uses_live_saved_polling_interval(self) -> None:
+        recent_update = datetime.now(timezone.utc) - timedelta(seconds=500)
+        meter = {"enabled": True, "last_update": recent_update}
+
+        with patch.object(api_service, "get_runtime_poll_interval_seconds", return_value=900):
+            self.assertEqual(api_service._effective_meter_communication_status(meter), "online")
+            self.assertFalse(api_service._meter_stale_warning(meter))
 
     def test_polling_settings_api_validation_and_save(self) -> None:
         class FakeRuntimeSettingsRepository:
@@ -473,7 +481,7 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.addCleanup(lambda: setattr(api_server.SETTINGS, "api_key_enabled", original_enabled))
         self.addCleanup(lambda: setattr(api_server.SETTINGS, "api_key", original_key))
 
-        with patch("app.api.server.ensure_schema"):
+        with patch("app.api.server.ensure_schema"), patch.object(api_server.SETTINGS, "api_key_enabled", False):
             app = api_server.create_app()
         app.testing = True
 
@@ -652,7 +660,7 @@ class SettingsAndModelsTests(unittest.TestCase):
             app = api_server.create_app()
         app.testing = True
 
-        with patch(
+        with patch.object(api_server.SETTINGS, "api_key_enabled", False), patch(
             "app.api.server.send_report_email",
             side_effect=smtplib.SMTPAuthenticationError(535, b"BadCredentials"),
         ):

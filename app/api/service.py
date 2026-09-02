@@ -243,7 +243,11 @@ def _coerce_aware_datetime(value: Any) -> datetime | None:
 
 
 def _stale_threshold_seconds() -> int:
-    poll_interval_seconds = max(get_runtime_settings().poll_interval_seconds, 1)
+    settings = get_runtime_settings()
+    poll_interval_seconds = max(
+        get_runtime_poll_interval_seconds(settings.poll_interval_seconds),
+        1,
+    )
     return max(poll_interval_seconds * 2, 300)
 
 
@@ -1260,6 +1264,11 @@ def _scheduled_month_cycle_start(end: datetime, reading_time_text: str) -> datet
     return datetime.combine(previous_month_last_day, _parse_time_text(reading_time_text), tzinfo=app_timezone)
 
 
+def _scheduled_daily_report_start(report_end_date: date, app_timezone: Any) -> datetime:
+    previous_month_last_day = report_end_date.replace(day=1) - timedelta(days=1)
+    return datetime.combine(previous_month_last_day, time.min, tzinfo=app_timezone)
+
+
 def _next_schedule_delivery_at(schedule: dict[str, Any], now: datetime | None = None) -> datetime:
     app_timezone = _app_timezone()
     local_now = (now or datetime.now(timezone.utc)).astimezone(app_timezone)
@@ -1496,7 +1505,8 @@ def _meter_status(enabled: bool, last_update: Any) -> str:
         return "offline"
 
     age_seconds = (datetime.now(timezone.utc) - last_update.astimezone(timezone.utc)).total_seconds()
-    interval = max(get_runtime_settings().poll_interval_seconds, 1)
+    settings = get_runtime_settings()
+    interval = max(get_runtime_poll_interval_seconds(settings.poll_interval_seconds), 1)
     if age_seconds <= interval * 2:
         return "online"
     if age_seconds <= interval * 4:
@@ -2983,7 +2993,11 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
             record_time_text = schedule.get("record_time") or schedule["send_time"]
             send_time_text = schedule["send_time"]
             window_mode = schedule.get("window_mode") or "previous_day"
-            if window_mode == "start_to_current":
+            interval_hours = float(schedule["interval_hours"]) if schedule.get("interval_hours") is not None else None
+            if interval_hours is None:
+                report_start_local = _scheduled_daily_report_start(local_now.date(), ZoneInfo(settings.app_timezone))
+                report_end_local = local_now
+            elif window_mode == "start_to_current":
                 schedule_start_date = schedule.get("schedule_start_date") or local_now.date()
                 report_start_local = datetime.combine(
                     schedule_start_date,
@@ -3002,7 +3016,7 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                 reading_time_text=record_time_text,
                 start=report_start_local,
                 end=report_end_local,
-                interval_hours=float(schedule["interval_hours"]) if schedule.get("interval_hours") is not None else None,
+                interval_hours=interval_hours,
                 window_mode=window_mode,
             )
             if export["rows"] <= 0:

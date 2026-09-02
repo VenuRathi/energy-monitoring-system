@@ -3,6 +3,7 @@ import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
 
@@ -14,6 +15,66 @@ from config.meter_loader import load_meter_config
 
 
 class EnergyMeteringTests(unittest.TestCase):
+    def _capture_scheduled_daily_window(self, now: datetime, schedule_start_date: str) -> dict:
+        schedule = {
+            "id": 1,
+            "meter_id": "MTR-001",
+            "meter_ids": ["MTR-001"],
+            "parameter_keys": ["active_energy_received_out_of_load"],
+            "recipient_emails": ["operator@example.com"],
+            "send_time": "08:00",
+            "record_time": "08:00",
+            "schedule_start_date": schedule_start_date,
+            "window_mode": "start_to_current",
+            "interval_hours": None,
+        }
+
+        class FakeReportScheduleRepository:
+            def __init__(self, settings=None) -> None:
+                pass
+
+            def list_due_schedules(self, today, current_time_text):
+                return [schedule]
+
+            def mark_sent(self, *args):
+                pass
+
+            def mark_failed(self, *args):
+                raise AssertionError(f"scheduled report unexpectedly failed: {args}")
+
+        captured = {}
+        export = {
+            "rows": 1,
+            "bytes": b"report",
+            "filename": "report.xlsx",
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+
+        with patch.object(service, "get_runtime_settings", return_value=SimpleNamespace(app_timezone="Asia/Calcutta")), patch.object(
+            service, "_effective_email_settings", return_value={}
+        ), patch.object(service, "ReportScheduleRepository", return_value=FakeReportScheduleRepository()), patch.object(
+            service, "_safe_meters", return_value=[{"meter_id": "MTR-001", "meter_name": "Screen Printing"}]
+        ), patch.object(
+            service, "build_scheduled_report_payload", side_effect=lambda **kwargs: captured.update(kwargs) or export
+        ), patch.object(service, "_send_email_with_attachment"):
+            result = service.process_due_report_schedules(now=now)
+
+        self.assertEqual(result, [{"scheduleId": 1, "status": "sent"}])
+        return captured
+
+    def test_scheduled_daily_report_continues_from_previous_month_end(self) -> None:
+        now = datetime(2026, 9, 2, 3, 0, tzinfo=timezone.utc)
+        captured = self._capture_scheduled_daily_window(now, "2026-08-15")
+        self.assertEqual(captured["start"], datetime(2026, 8, 31, 0, 0, tzinfo=ZoneInfo("Asia/Calcutta")))
+        self.assertEqual(captured["end"], now.astimezone(ZoneInfo("Asia/Calcutta")))
+        self.assertEqual(captured["reading_time_text"], "08:00")
+
+    def test_scheduled_daily_report_rolls_over_on_first_day_of_month(self) -> None:
+        now = datetime(2026, 10, 1, 3, 0, tzinfo=timezone.utc)
+        captured = self._capture_scheduled_daily_window(now, "2026-09-15")
+        self.assertEqual(captured["start"], datetime(2026, 9, 30, 0, 0, tzinfo=ZoneInfo("Asia/Calcutta")))
+        self.assertEqual(captured["end"], now.astimezone(ZoneInfo("Asia/Calcutta")))
+
     def test_report_uses_collector_timestamp_when_meter_timestamp_is_rejected(self) -> None:
         collector_timestamp = datetime(2026, 8, 21, 14, 6, tzinfo=timezone.utc)
         stale_meter_timestamp = datetime(2026, 6, 24, 21, 37, tzinfo=timezone.utc)
