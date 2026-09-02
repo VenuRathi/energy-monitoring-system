@@ -75,6 +75,34 @@ class EnergyMeteringTests(unittest.TestCase):
         self.assertEqual(captured["start"], datetime(2026, 9, 30, 0, 0, tzinfo=ZoneInfo("Asia/Calcutta")))
         self.assertEqual(captured["end"], now.astimezone(ZoneInfo("Asia/Calcutta")))
 
+    def test_pm5000_keeps_measurements_when_optional_datetime_read_fails(self) -> None:
+        class FakeModbusClient:
+            def __init__(self) -> None:
+                self.registers_read = []
+
+            def read_holding_registers(self, register, count, **kwargs):
+                self.registers_read.append(register)
+                if register == 1845:
+                    return None
+                return [0] * count
+
+        client = FakeModbusClient()
+        collector = PM5000Collector(
+            modbus_client=client,
+            parameters=[
+                {"name": "Present Date & Time", "register": 1845, "type": "datetime4"},
+                {"name": "Voltage L-N Average", "register": 3036, "type": "float32"},
+            ],
+            slave_id=1,
+            meter_id="MTR-001",
+        )
+
+        readings = collector.read_all()
+
+        self.assertEqual(client.registers_read, [1845, 3036])
+        self.assertIsNone(readings["Present Date & Time"])
+        self.assertEqual(readings["Voltage L-N Average"], 0.0)
+
     def test_report_uses_collector_timestamp_when_meter_timestamp_is_rejected(self) -> None:
         collector_timestamp = datetime(2026, 8, 21, 14, 6, tzinfo=timezone.utc)
         stale_meter_timestamp = datetime(2026, 6, 24, 21, 37, tzinfo=timezone.utc)

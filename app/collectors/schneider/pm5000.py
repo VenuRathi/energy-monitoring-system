@@ -146,6 +146,7 @@ class PM5000Collector(BaseMeter):
 
     def _prefetch_register_blocks(self) -> dict[str, object]:
         blocks: list[tuple[int, list[int]]] = []
+        failed_optional_blocks: list[tuple[int, int]] = []
         for register, count in self._build_read_plan():
             regs = self.modbus_client.read_holding_registers(
                 register,
@@ -155,15 +156,32 @@ class PM5000Collector(BaseMeter):
                 meter_id=self.meter_id,
             )
             if regs is None:
+                if self._is_optional_datetime_block(register, count):
+                    failed_optional_blocks.append((register, register + count))
+                    continue
                 return {
                     "blocks": blocks,
+                    "failed_optional_blocks": failed_optional_blocks,
                     "communication_failed": True,
                 }
             blocks.append((register, regs))
         return {
             "blocks": blocks,
+            "failed_optional_blocks": failed_optional_blocks,
             "communication_failed": False,
         }
+
+    def _is_optional_datetime_block(self, register: int, count: int) -> bool:
+        block_end = register + count
+        block_parameters = []
+        for parameter in self.parameters:
+            parameter_register = int(parameter["register"])
+            parameter_end = parameter_register + self._word_count_for_type(str(parameter["type"]).lower())
+            if register <= parameter_register and parameter_end <= block_end:
+                block_parameters.append(parameter)
+        return bool(block_parameters) and all(
+            str(parameter["type"]).lower() == "datetime4" for parameter in block_parameters
+        )
 
     def _get_prefetched_registers(
         self,
@@ -182,6 +200,12 @@ class PM5000Collector(BaseMeter):
             if block_start <= register and register + count <= block_end:
                 offset = register - block_start
                 return regs[offset : offset + count]
+
+        failed_optional_blocks = register_state.get("failed_optional_blocks")
+        if isinstance(failed_optional_blocks, list):
+            for block_start, block_end in failed_optional_blocks:
+                if block_start <= register and register + count <= block_end:
+                    return None
         return None
 
     def _read_registers(
@@ -194,6 +218,13 @@ class PM5000Collector(BaseMeter):
         if prefetched is not None:
             return prefetched
         if register_state and register_state.get("communication_failed"):
+            return None
+
+        failed_optional_blocks = register_state.get("failed_optional_blocks") if register_state else None
+        if isinstance(failed_optional_blocks, list) and any(
+            block_start <= register and register + count <= block_end
+            for block_start, block_end in failed_optional_blocks
+        ):
             return None
 
         return self.modbus_client.read_holding_registers(
