@@ -68,9 +68,9 @@ $checks = @(
     @{ Label = "post_install_check.ps1"; Path = (Join-Path $BundleRoot "scripts\post_install_check.ps1") },
     @{ Label = "collect_pilot_evidence.ps1"; Path = (Join-Path $BundleRoot "scripts\collect_pilot_evidence.ps1") },
     @{ Label = "install_user_startup_backend.ps1"; Path = (Join-Path $BundleRoot "scripts\install_user_startup_backend.ps1") },
-    @{ Label = "plant-pc-deployment.md"; Path = (Join-Path $BundleRoot "docs\plant-pc-deployment.md") },
-    @{ Label = "release-bundle.md"; Path = (Join-Path $BundleRoot "docs\release-bundle.md") },
-    @{ Label = "pilot-evidence-log.md"; Path = (Join-Path $BundleRoot "docs\pilot-evidence-log.md") }
+    @{ Label = "plant-pc-deployment.md"; Path = (Join-Path $BundleRoot "docs\handover\plant-pc-deployment.md") },
+    @{ Label = "release-bundle.md"; Path = (Join-Path $BundleRoot "docs\handover\release-bundle.md") },
+    @{ Label = "pilot-evidence-log.md"; Path = (Join-Path $BundleRoot "docs\handover\pilot-evidence-log.md") }
 )
 
 $allOk = $true

@@ -89,12 +89,15 @@ This verifies that the latest bundle still contains the expected:
 - `.env.example`
 - `app/`
 - `config/`
-- `docs/`
+- `docs/README.md`
+- `docs/developer/`
+- `docs/handover/`
+- `docs/reference/`
 - `scripts/`
 - `utils/`
 - `frontend/dist/`
 
-The bundle also includes `scripts\collect_pilot_evidence.ps1` and `docs\pilot-evidence-log.md` so the plant-PC validation results can be captured after deployment.
+The bundle also includes `scripts\collect_pilot_evidence.ps1` and `docs\handover\pilot-evidence-log.md` so the plant-PC validation results can be captured after deployment.
 
 ## Recommended use
 

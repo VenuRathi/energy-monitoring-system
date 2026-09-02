@@ -14,7 +14,7 @@ This is the recommended 24/7 Windows run method for the pilot if you do not want
 
 Use the Task Scheduler watchdog:
 
-- [scripts/run_backend_watchdog.ps1](../scripts/run_backend_watchdog.ps1)
+- [scripts/run_backend_watchdog.ps1](../../scripts/run_backend_watchdog.ps1)
 
 The watchdog starts the project virtual-environment Python process, records
 lifecycle events, and restarts it after a non-zero exit. While the process is

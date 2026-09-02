@@ -46,7 +46,10 @@ $itemsToCopy = @(
     ".env.example",
     "app",
     "config",
-    "docs",
+    "docs\README.md",
+    "docs\developer",
+    "docs\handover",
+    "docs\reference",
     "scripts",
     "utils",
     "frontend\dist"
@@ -83,7 +86,7 @@ Contents:
 - energy-monitoring-system\  -> application files
 
 Recommended first steps on a new PC:
-1. Read energy-monitoring-system\docs\plant-pc-deployment.md
+1. Read energy-monitoring-system\docs\handover\plant-pc-deployment.md
 2. Copy energy-monitoring-system\.env.example to .env and fill real values
 3. Create .venv and run: pip install -r requirements.txt
 4. Run energy-monitoring-system\scripts\post_install_check.ps1

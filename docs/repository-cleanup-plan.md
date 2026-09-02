@@ -57,8 +57,14 @@ Archived project artifacts included:
 4. Before removing a doc, search for references in `README.md`, `docs/`, `scripts/`, and `deployment/`.
 5. After cleanup, run `git status --short` and verify that only intentional source/doc changes remain.
 
-## Recommended Next Pass
+## Phase 2 outcome
 
-- Decide whether to keep or archive orphaned planning/demo docs such as `engineering-gap-review.md`, `boss-demo-script.md`, `pilot-checklist.md`, `pilot-validation-results.md`, and `postgresql-verification.md`.
-- If they are useful only for final submission history, move them into an archive folder outside the repo or a clearly named `docs/archive/` folder.
-- If they are still useful for handover, link them from `README.md` or `docs/production-handover-index.md`.
+- Duplicate deployment, operations, maintenance, pilot-checklist, demo, and
+  transitional documents were removed from the active repository in Phase 2.
+- `pilot-validation-runbook.md` and `pilot-evidence-log.md` remain active under
+  `docs/handover/` because they support real field validation and release handoff.
+- `pilot-validation-results.md` and `engineering-gap-review.md` remain under
+  `docs/archive/` as historical records.
+- Release-bundle and installer references were updated to the organized paths.
+- Removed files remain recoverable through Git history; they were not deleted from
+  repository history.

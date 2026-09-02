@@ -221,7 +221,8 @@ Developer references:
 - [Codebase map](docs/developer/codebase-map.md)
 - [Debugging guide](docs/developer/debugging-guide.md)
 - [Change guide](docs/developer/change-guide.md)
-- [Maintenance playbook](docs/archive/maintenance-playbook.md)
+- [Pilot validation runbook](docs/handover/pilot-validation-runbook.md)
+- [Pilot evidence log](docs/handover/pilot-evidence-log.md)
 - [Repository cleanup plan](docs/repository-cleanup-plan.md)
 - [OpenAPI starter contract](docs/reference/openapi.yaml)
 
@@ -281,7 +282,7 @@ Important notes:
 - Restrict port `5000` to approved plant LAN clients.
 - Review [SECURITY.md](SECURITY.md) before broader rollout.
 
-Known limitations and future production conditions: [docs/archive/known-limitations.md](docs/archive/known-limitations.md)
+Known limitations and future production conditions are tracked in [production readiness signoff](docs/handover/production-readiness-signoff.md).
 
 ## Roadmap
 

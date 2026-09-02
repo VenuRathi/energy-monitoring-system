@@ -89,7 +89,7 @@ If `ISCC.exe` is not on PATH, the helper script can also use:
 
 ## Installer source file
 
-- [installer/energy_monitoring_system.iss](../installer/energy_monitoring_system.iss)
+- [installer/energy_monitoring_system.iss](../../installer/energy_monitoring_system.iss)
 
 ## Compile command
 

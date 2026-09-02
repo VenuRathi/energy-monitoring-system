@@ -49,7 +49,7 @@ Name: "{app}\release"
 [Icons]
 Name: "{group}\Launch Plant Energy Monitor"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Plant Energy Monitor Folder"; Filename: "{app}"
-Name: "{group}\Plant PC Deployment Guide"; Filename: "{app}\docs\plant-pc-deployment.md"
+Name: "{group}\Plant PC Deployment Guide"; Filename: "{app}\docs\handover\plant-pc-deployment.md"
 Name: "{group}\First-Run Setup"; Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\first_run_setup.ps1"""
 Name: "{group}\Python Environment Bootstrap"; Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\bootstrap_python_env.ps1"""
 Name: "{group}\Register Backend Startup"; Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\install_task_scheduler_backend.ps1"""
@@ -58,4 +58,4 @@ Name: "{commondesktop}\Plant Energy Monitor"; Filename: "{app}\{#MyAppExeName}";
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\first_run_setup.ps1"""; Description: "Run first-run setup helper"; Flags: postinstall skipifsilent unchecked
-Filename: "{app}\docs\plant-pc-deployment.md"; Description: "Open deployment guide after install"; Flags: postinstall shellexec skipifsilent unchecked
+Filename: "{app}\docs\handover\plant-pc-deployment.md"; Description: "Open deployment guide after install"; Flags: postinstall shellexec skipifsilent unchecked

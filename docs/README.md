@@ -23,10 +23,9 @@ configuration, PostgreSQL verification, and the OpenAPI contract.
 
 ## Archive
 
-Historical, pilot-specific, demo-specific, transitional, or superseded material.
-Archived documents are retained for traceability but are not the primary operating
-instructions. Current procedures should be updated in `handover/`, `developer/`,
-or `reference/`.
+Historical records retained for traceability. The archive currently contains only
+the engineering gap review and dated pilot validation results. Current procedures
+belong in `handover/`, `developer/`, or `reference/`.
 
 ## Repository records
 

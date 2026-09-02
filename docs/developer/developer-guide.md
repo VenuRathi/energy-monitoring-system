@@ -124,7 +124,8 @@ Developer-handover docs:
 - [codebase-map.md](codebase-map.md)
 - [debugging-guide.md](debugging-guide.md)
 - [change-guide.md](change-guide.md)
-- [maintenance playbook](../archive/maintenance-playbook.md)
+- Use the [24/7 operations SOP](../handover/operations-sop-24x7.md) for current
+  maintenance checks and escalation guidance.
 
 ## Environment/config model
 
