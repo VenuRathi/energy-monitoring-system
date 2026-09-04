@@ -6,6 +6,7 @@ import math
 import re
 import smtplib
 import zipfile
+from decimal import Decimal
 from datetime import date, datetime, time, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import parseaddr
@@ -46,7 +47,7 @@ from utils.coercion import coerce_bool
 METER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 VALID_PARITY = {"N", "E", "O"}
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-REPORT_EMAIL_SUBJECT = "OSP Screen Printing ems"
+REPORT_EMAIL_SUBJECT = "Energy Monitoring System"
 REPORT_EMAIL_BODY_LEAD = "Please find the Excel sheet attached below."
 TIME_TEXT_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 SCHEDULE_EMAIL_DELAY_MINUTES = 0
@@ -751,6 +752,7 @@ def _get_demo_dashboard_data(meter_id: str, trend_parameter_key: str) -> dict[st
         selected_meter = _build_all_selected_meter(meters, aggregate_row)
         metrics = []
         latest_readings = []
+        all_parameter_readings = []
         trend_series = []
         active_alerts = _demo_active_alerts(None)
     else:
@@ -758,6 +760,7 @@ def _get_demo_dashboard_data(meter_id: str, trend_parameter_key: str) -> dict[st
         selected_row = latest_rows_by_meter.get(selected_meter["meter_id"])
         metrics = _metrics_from_latest_row(selected_row, catalog)
         latest_readings = _latest_readings_from_row(selected_row, catalog)
+        all_parameter_readings = _all_parameter_readings_from_row(selected_row, catalog)
         trend_series = _demo_trend_series_for_meter(selected_meter["meter_id"], trend_parameter["key"])
         active_alerts = _demo_active_alerts(selected_meter["meter_id"])
 
@@ -767,6 +770,7 @@ def _get_demo_dashboard_data(meter_id: str, trend_parameter_key: str) -> dict[st
         "summary": _meter_summary(meters),
         "metrics": metrics,
         "latestReadings": latest_readings,
+        "allParameterReadings": all_parameter_readings,
         "meterEnergySummaries": meter_energy_summaries,
         "parameterCatalog": catalog,
         "trendParameter": trend_parameter,
@@ -1313,9 +1317,10 @@ def _report_row_timestamp(row: dict[str, Any]) -> datetime | None:
 
 def calculate_daily_energy_delta(current_value: Any, previous_value: Any) -> tuple[float | None, str | None]:
     """Calculate usage from cumulative readings, rejecting resets and invalid values."""
-    if not isinstance(current_value, (int, float)) or isinstance(current_value, bool) or not math.isfinite(float(current_value)):
+    numeric_types = (int, float, Decimal)
+    if not isinstance(current_value, numeric_types) or isinstance(current_value, bool) or not math.isfinite(float(current_value)):
         return None, "INVALID CURRENT CUMULATIVE READING"
-    if not isinstance(previous_value, (int, float)) or isinstance(previous_value, bool) or not math.isfinite(float(previous_value)):
+    if not isinstance(previous_value, numeric_types) or isinstance(previous_value, bool) or not math.isfinite(float(previous_value)):
         return None, "NO PREVIOUS DAY READING"
 
     current = float(current_value)
@@ -1758,6 +1763,25 @@ def _latest_readings_from_row(latest_row: dict[str, Any] | None, catalog: list[d
     return rows
 
 
+def _all_parameter_readings_from_row(latest_row: dict[str, Any] | None, catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if latest_row is None:
+        return []
+
+    return [
+        {
+            "parameterKey": parameter["key"],
+            "label": parameter["label"],
+            "value": latest_row.get(parameter["key"]) if latest_row.get(parameter["key"]) is not None else "n/a",
+            "unit": parameter["unit"],
+            "timestamp": _serialize_timestamp(latest_row.get("timestamp")),
+            "date": _reading_date_text(latest_row),
+            "time": _reading_time_text(latest_row),
+            "timestampSource": latest_row.get("timestamp_source", "collector_fallback"),
+        }
+        for parameter in catalog
+    ]
+
+
 def _meter_energy_summaries(
     meters: list[dict[str, Any]],
     latest_rows: dict[str, dict[str, Any]],
@@ -2132,6 +2156,7 @@ def get_dashboard_data(
             "summary": _meter_summary([]),
             "metrics": [],
             "latestReadings": [],
+            "allParameterReadings": [],
             "meterEnergySummaries": [],
             "parameterCatalog": catalog,
             "trendParameter": trend_parameter,
@@ -2149,11 +2174,13 @@ def get_dashboard_data(
         selected_meter = _build_all_selected_meter(meters, aggregate_row)
         metrics = []
         latest_readings = []
+        all_parameter_readings = []
         trend_series = []
     else:
         selected_latest_row = latest_rows_by_meter.get(selected_meter["meter_id"])
         metrics = _metrics_from_latest_row(selected_latest_row, catalog)
         latest_readings = _latest_readings_from_row(selected_latest_row, catalog)
+        all_parameter_readings = _all_parameter_readings_from_row(selected_latest_row, catalog)
         trend_series = get_trend_series(selected_meter["meter_id"], trend_parameter["key"], hours=trend_hours)
 
     active_alerts = list_active_alerts(None if meter_id == "ALL" else selected_meter["meter_id"])
@@ -2164,6 +2191,7 @@ def get_dashboard_data(
         "summary": _meter_summary(meters),
         "metrics": metrics,
         "latestReadings": latest_readings,
+        "allParameterReadings": all_parameter_readings,
         "meterEnergySummaries": meter_energy_summaries,
         "parameterCatalog": catalog,
         "trendParameter": trend_parameter,

@@ -206,9 +206,9 @@ export function ReportSchedulePanel({
                 <small className="field-help">Records begin on this date and continue through the send time.</small>
               </label>
               <label className="editor__field">
-                <span>Record time</span>
+                <span>Reading close time</span>
                 <input type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} />
-                <small className="field-help">First record time; with a 1 hour interval the next records are 09:00, 10:00, and so on.</small>
+                <small className="field-help">The reading window closes at this time; with a 1 hour interval, earlier snapshots are selected at 09:00, 10:00, and so on.</small>
               </label>
               <label className="editor__field">
                 <span>Send time</span>
@@ -306,7 +306,7 @@ export function ReportSchedulePanel({
               <th>Starts</th>
               <th>Interval</th>
               <th>Recipients</th>
-              <th>Record time</th>
+              <th>Reading close time</th>
               <th>Email time</th>
               <th>Last sent</th>
               <th>Status</th>

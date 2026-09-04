@@ -268,7 +268,7 @@ export function DashboardPage({ selectedMeterId, onSelectMeter, onConfigureMeter
               </div>
               <ParameterExplorer
                 parameters={data.parameterCatalog ?? []}
-                latestReadings={data.latestReadings ?? []}
+                latestReadings={data.allParameterReadings ?? data.latestReadings ?? []}
                 selectedKey={trendParameterKey}
                 onSelect={(parameterKey) => setTrendParameterKey(parameterKey)}
               />

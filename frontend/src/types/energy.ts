@@ -123,6 +123,7 @@ export type DashboardData = {
   };
   metrics: MetricCard[];
   latestReadings: LatestReadingRow[];
+  allParameterReadings: LatestReadingRow[];
   meterEnergySummaries: MeterEnergySummary[];
   parameterCatalog: ParameterMeta[];
   trendParameter: ParameterMeta;

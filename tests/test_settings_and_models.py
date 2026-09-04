@@ -646,7 +646,7 @@ class SettingsAndModelsTests(unittest.TestCase):
             result = api_service.send_report_email(payload)
 
         self.assertTrue(result["sent"])
-        self.assertEqual(captured_email["subject"], "OSP Screen Printing ems")
+        self.assertEqual(captured_email["subject"], "Energy Monitoring System")
         self.assertTrue(captured_email["body"].startswith("Please find the Excel sheet attached below."))
         self.assertEqual(captured_email["attachment_bytes"], b"xlsx-bytes")
         self.assertEqual(captured_email["filename"], "screen_printing.xlsx")

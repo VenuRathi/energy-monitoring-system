@@ -1,6 +1,7 @@
 import io
 import unittest
 from datetime import datetime, timezone
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -255,6 +256,11 @@ class EnergyMeteringTests(unittest.TestCase):
         reactive_delta, reactive_status = service.calculate_daily_energy_delta(-15872.699, -15872.702)
         self.assertAlmostEqual(reactive_delta, 0.003, places=9)
         self.assertIsNone(reactive_status)
+
+    def test_daily_delta_accepts_postgresql_decimal_values(self) -> None:
+        delta, status = service.calculate_daily_energy_delta(Decimal("1250.50"), Decimal("1000.25"))
+        self.assertEqual(delta, 250.25)
+        self.assertIsNone(status)
 
     def test_reading_persistence_keeps_cumulative_values(self) -> None:
         parameters = [
