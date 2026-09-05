@@ -3033,9 +3033,7 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                     tzinfo=ZoneInfo(settings.app_timezone),
                 )
                 report_end_local = local_now
-                report_day = report_start_local.date()
             else:
-                report_day = local_now.date()
                 report_start_local = _scheduled_month_cycle_start(local_now, record_time_text)
                 report_end_local = local_now
             export = build_scheduled_report_payload(
@@ -4001,7 +3999,7 @@ def build_scheduled_report_payload(
                 ]
             meter_rows.append((meter, snapshot_rows))
 
-    timestamp = datetime.now(timezone.utc)
+    timestamp = end.astimezone(_app_timezone())
     meter_label = meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)}_meters"
     filename = _daily_report_filename(meter_label, timestamp)
     if interval_hours is not None:
