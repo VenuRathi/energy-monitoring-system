@@ -21,6 +21,7 @@ The release bundle script creates:
 - pilot evidence capture script and evidence log template
 - a top-level `START_HERE.txt`
 - a top-level `RELEASE_INFO.txt` with source commit metadata
+- an application-level `version.json` for installed-version checks
 - a non-sensitive per-PC inventory script for repeatable rollout checks
 - a `.zip` archive for transfer
 
@@ -78,6 +79,7 @@ This verifies that the latest bundle still contains the expected:
 - deployment docs
 - top-level `START_HERE.txt`
 - top-level `RELEASE_INFO.txt`
+- application-level `version.json`
 - matching `.zip` archive
 
 ## What goes into the bundle
@@ -97,6 +99,7 @@ This verifies that the latest bundle still contains the expected:
 - `scripts/`
 - `utils/`
 - `frontend/dist/`
+- generated `version.json` containing the source commit and protected local paths
 
 The bundle also includes `scripts\collect_pilot_evidence.ps1` and `docs\handover\pilot-evidence-log.md` so the plant-PC validation results can be captured after deployment.
 
@@ -134,3 +137,12 @@ This gives you:
 - a bridge toward a future Inno Setup installer
 
 It is the simplest professional step before full installer packaging.
+
+## Runtime storage boundary
+
+The release bundle excludes developer environments, caches, logs, data, backups,
+and deployment reports. The current application still resolves its runtime paths
+relative to its application root for compatibility with existing plant PCs. A
+future migration to a separate `ProgramData` runtime root must be implemented and
+field-tested as a separate upgrade project; this bundle does not silently move or
+delete existing plant data.

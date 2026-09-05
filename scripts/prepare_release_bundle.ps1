@@ -110,6 +110,17 @@ Project root: $ProjectRoot
 Application folder: $bundleAppRoot
 "@ | Set-Content -Path $releaseInfoPath -Encoding UTF8
 
+$versionPath = Join-Path $bundleAppRoot "version.json"
+@{
+    product = "Plant Energy Monitor"
+    releaseChannel = "pilot"
+    sourceCommit = $sourceCommit
+    bundleName = "${BundleName}_${timestamp}"
+    bundleCreatedAt = $bundleCreatedAt
+    runtimeDirectories = @("data", "logs", "backups", "deployment-reports")
+    machineSpecificFiles = @(".env", "config\meter_config.json")
+} | ConvertTo-Json -Depth 3 | Set-Content -Path $versionPath -Encoding UTF8
+
 $zipPath = Join-Path $OutputRoot "${BundleName}_${timestamp}.zip"
 if (Test-Path $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force

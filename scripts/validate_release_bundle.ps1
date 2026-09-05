@@ -55,6 +55,7 @@ $checks = @(
     @{ Label = "run_app.bat"; Path = (Join-Path $BundleRoot "run_app.bat") },
     @{ Label = "requirements.txt"; Path = (Join-Path $BundleRoot "requirements.txt") },
     @{ Label = "README.md"; Path = (Join-Path $BundleRoot "README.md") },
+    @{ Label = "version.json"; Path = (Join-Path $BundleRoot "version.json") },
     @{ Label = "LICENSE"; Path = (Join-Path $BundleRoot "LICENSE") },
     @{ Label = ".env.example"; Path = (Join-Path $BundleRoot ".env.example") },
     @{ Label = "deployment-manifest.json"; Path = (Join-Path $BundleRoot "config\deployment-manifest.json") },
