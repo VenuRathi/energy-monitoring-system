@@ -54,6 +54,8 @@ TIME_TEXT_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 SCHEDULE_EMAIL_DELAY_MINUTES = 0
 MAX_EXPORT_RANGE_DAYS = 31
 MAX_EXPORT_ROWS = 50000
+# Keep native Excel charts responsive without truncating the report itself.
+MAX_EXCEL_CHART_POINTS = 1000
 
 
 COMMON_PARAMETER_KEYS = {
@@ -3708,6 +3710,19 @@ def _build_scheduled_excel_bytes(
     return output.getvalue()
 
 
+def _sample_chart_timestamps(timestamps: list[datetime]) -> list[datetime]:
+    """Return evenly-spaced timestamps for chart rendering, preserving both ends."""
+    if len(timestamps) <= MAX_EXCEL_CHART_POINTS:
+        return timestamps
+
+    last_index = len(timestamps) - 1
+    indices = {
+        round(point * last_index / (MAX_EXCEL_CHART_POINTS - 1))
+        for point in range(MAX_EXCEL_CHART_POINTS)
+    }
+    return [timestamps[index] for index in sorted(indices)]
+
+
 def _add_excel_graphs(
     workbook: Workbook,
     meter_rows: list[tuple[dict[str, Any], list[dict[str, Any]]]],
@@ -3725,13 +3740,14 @@ def _add_excel_graphs(
                 value=f"{meter['meter_name']} - {_parameter_display_label(parameter_key)}",
             )
 
-    timestamps = sorted({
+    all_timestamps = sorted({
         timestamp
         for _, rows in meter_rows
         for row in rows
         for timestamp in [_report_row_timestamp(row)]
         if timestamp is not None
     })
+    timestamps = _sample_chart_timestamps(all_timestamps)
     timestamp_rows = {timestamp: row_index for row_index, timestamp in enumerate(timestamps, start=2)}
     for timestamp, row_index in timestamp_rows.items():
         graph_data.cell(row=row_index, column=1, value=timestamp.astimezone(_app_timezone()).replace(tzinfo=None))

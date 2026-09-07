@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import zipfile
 from types import SimpleNamespace
@@ -150,6 +150,20 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertEqual(len(workbook["Readings"]._charts), 1)
         self.assertEqual(workbook["Readings"]._charts[0].x_axis.title.tx.rich.p[0].r[0].t, "Date & Time")
         self.assertEqual(workbook["Readings"]._charts[0].y_axis.title.tx.rich.p[0].r[0].t, "Active Power Total (kW)")
+
+    def test_excel_chart_sampling_preserves_first_last_and_point_limit(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        timestamps = [
+            datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone) + timedelta(minutes=index)
+            for index in range(api_service.MAX_EXCEL_CHART_POINTS + 25)
+        ]
+
+        sampled = api_service._sample_chart_timestamps(timestamps)
+
+        self.assertEqual(len(sampled), api_service.MAX_EXCEL_CHART_POINTS)
+        self.assertEqual(sampled[0], timestamps[0])
+        self.assertEqual(sampled[-1], timestamps[-1])
+        self.assertEqual(sampled, sorted(sampled))
 
     def test_hourly_scheduled_layout_has_line_title_and_usage_columns(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")
