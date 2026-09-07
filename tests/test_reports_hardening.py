@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime, timezone
 from io import BytesIO
+import zipfile
 from types import SimpleNamespace
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -227,7 +228,8 @@ class ReportsHardeningTests(unittest.TestCase):
             open_connection.return_value.__enter__.return_value = object()
             export = api_service.build_export_payload(filters, "xlsx")
 
-        sheet = load_workbook(BytesIO(export["bytes"]), data_only=False).active
+        workbook = load_workbook(BytesIO(export["bytes"]), data_only=False)
+        sheet = workbook.active
         self.assertIn("usage", str(sheet.cell(row=2, column=4).value).lower())
         self.assertIn("usage", str(sheet.cell(row=2, column=6).value).lower())
         self.assertEqual(sheet.cell(row=2, column=7).value, "Screen Printing - PF usage")
@@ -235,6 +237,23 @@ class ReportsHardeningTests(unittest.TestCase):
             sheet.cell(row=4, column=7).value,
             '=IF(OR(NOT(ISNUMBER(D4)),NOT(ISNUMBER(F4)), F4=0),"",D4/F4)',
         )
+        self.assertEqual(len(sheet._charts), 2)
+        self.assertTrue(workbook["Graph Data"].max_row >= 3)
+
+    def test_word_report_contains_table_grid(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        report = api_service._build_docx_bytes(
+            "Screen Printing",
+            [{"timestamp": start, "active_power_total": 1.0}],
+            ["active_power_total"],
+            start,
+            start,
+        )
+
+        with zipfile.ZipFile(BytesIO(report)) as archive:
+            document_xml = archive.read("word/document.xml")
+        self.assertIn(b"<w:tblGrid>", document_xml)
 
     def test_scheduled_report_starts_from_previous_month_last_day(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")

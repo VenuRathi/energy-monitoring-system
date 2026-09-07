@@ -19,6 +19,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Removed timestamp-only rows from report output while preserving valid zero values.
 - Restored plain-text attachment-only email formatting for report delivery.
 - Improved Excel formula recalculation behavior for usage columns.
+- Fixed on-demand Excel exports so native charts are included consistently.
+- Added required Word table-grid XML for compatibility with standard DOCX readers.
 
 ## [0.1.0] - 2026-07-03
 

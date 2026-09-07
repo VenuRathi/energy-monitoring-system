@@ -3997,6 +3997,11 @@ def _docx_paragraph(text: str, bold: bool = False) -> str:
     return f"<w:p><w:r><w:t>{escape(text)}</w:t></w:r></w:p>"
 
 
+def _docx_table_grid(column_count: int) -> str:
+    grid_columns = "".join("<w:gridCol w:w='2400'/>" for _ in range(column_count))
+    return f"<w:tblGrid>{grid_columns}</w:tblGrid>"
+
+
 def _build_docx_bytes(meter_name: str, rows: list[dict[str, Any]], parameter_keys: list[str], start: datetime, end: datetime) -> bytes:
     headers = _report_headers(parameter_keys)
     table_rows = []
@@ -4032,6 +4037,7 @@ def _build_docx_bytes(meter_name: str, rows: list[dict[str, Any]], parameter_key
         "<w:insideH w:val='single' w:sz='4' w:space='0' w:color='D9D9D9'/>"
         "<w:insideV w:val='single' w:sz='4' w:space='0' w:color='D9D9D9'/>"
         "</w:tblBorders></w:tblPr>"
+        + _docx_table_grid(len(headers))
         + "".join(table_rows)
         + "</w:tbl>"
     )
@@ -4106,6 +4112,7 @@ def _build_docx_table_xml(rows: list[dict[str, Any]], parameter_keys: list[str])
         "<w:insideH w:val='single' w:sz='4' w:space='0' w:color='D9D9D9'/>"
         "<w:insideV w:val='single' w:sz='4' w:space='0' w:color='D9D9D9'/>"
         "</w:tblBorders></w:tblPr>"
+        + _docx_table_grid(len(headers))
         + "".join(table_rows)
         + "</w:tbl>"
     )
