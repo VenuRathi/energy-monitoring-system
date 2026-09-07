@@ -195,6 +195,70 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertEqual(sampled[-1], timestamps[-1])
         self.assertEqual(sampled, sorted(sampled))
 
+    def test_scheduled_snapshot_prefers_latest_reading_before_target_then_earliest_after(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        report_day = datetime(2026, 8, 21, 0, 0, tzinfo=plant_timezone)
+        target = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        rows = [
+            {"timestamp": target - timedelta(minutes=15), "active_power_total": 1.0},
+            {"timestamp": target - timedelta(minutes=2), "active_power_total": 2.0},
+            {"timestamp": target + timedelta(minutes=3), "active_power_total": 3.0},
+        ]
+
+        selected = api_service._select_daily_snapshot_rows(rows, report_day, target, "08:00")
+        later_only = api_service._select_daily_snapshot_rows(rows[-1:], report_day, target, "08:00")
+
+        self.assertEqual([row["timestamp"] for row in selected], [target - timedelta(minutes=2)])
+        self.assertEqual([row["timestamp"] for row in later_only], [target + timedelta(minutes=3)])
+
+    def test_interval_selection_ignores_pre_target_readings_and_keeps_first_later_reading(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        rows = [
+            {"timestamp": start - timedelta(minutes=2), "active_power_total": 1.0},
+            {"timestamp": start + timedelta(minutes=3), "active_power_total": 2.0},
+            {"timestamp": start + timedelta(minutes=58), "active_power_total": 3.0},
+            {"timestamp": start + timedelta(hours=1, minutes=4), "active_power_total": 4.0},
+        ]
+
+        selected = api_service._select_interval_rows(
+            rows,
+            start=start,
+            end=rows[-1]["timestamp"],
+            interval_hours=1,
+        )
+
+        self.assertEqual(
+            [row["timestamp"] for row in selected],
+            [start + timedelta(minutes=3), start + timedelta(hours=1, minutes=4)],
+        )
+
+    def test_multi_meter_excel_graph_data_preserves_zero_values_and_meter_series(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        end = start + timedelta(hours=1)
+        meter_one = {"meter_id": "MTR-001", "meter_name": "Screen Printing", "location": "OSP"}
+        meter_two = {"meter_id": "MTR-002", "meter_name": "TC Oven", "location": "OSP"}
+        workbook_bytes = api_service._build_excel_bytes_multi(
+            [
+                (meter_one, [{"timestamp": start, "active_power_total": 0.0}, {"timestamp": end, "active_power_total": 1.0}]),
+                (meter_two, [{"timestamp": start, "active_power_total": 5.0}, {"timestamp": end, "active_power_total": 6.0}]),
+            ],
+            ["active_power_total"],
+            start,
+            end,
+        )
+
+        workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
+        graph_data = workbook["Graph Data"]
+        chart = workbook.active._charts[0]
+
+        self.assertEqual(graph_data.cell(row=1, column=2).value, "Screen Printing - Active Power Total (kW)")
+        self.assertEqual(graph_data.cell(row=1, column=3).value, "TC Oven - Active Power Total (kW)")
+        self.assertEqual(graph_data.cell(row=2, column=2).value, 0.0)
+        self.assertEqual(graph_data.cell(row=2, column=3).value, 5.0)
+        self.assertEqual(len(chart.series), 2)
+
     def test_hourly_scheduled_layout_has_line_title_and_usage_columns(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")
         rows = [

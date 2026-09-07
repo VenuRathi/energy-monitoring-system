@@ -16,6 +16,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Excel chart downsampling that keeps large report workbooks responsive while preserving the complete report data.
 - Plain-text report-email metadata that identifies the actual report window, selected parameters, valid reading count, and attached workbook.
 - Reports-page delivery previews that show the effective scheduled window, Excel-only chart behavior, shared email/report scope, and no-data handling.
+- Regression coverage for scheduled before/after snapshot selection, interval targets, and multi-meter Excel chart series with valid zero values.
 
 ### Fixed
 
