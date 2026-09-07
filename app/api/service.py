@@ -16,6 +16,7 @@ from xml.sax.saxutils import escape
 from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook
+from openpyxl.chart import LineChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from psycopg import Connection, sql
@@ -2974,7 +2975,6 @@ def _send_email_with_attachment(
     message["To"] = ", ".join(recipient_emails)
     message["Subject"] = subject
     message.set_content(body)
-
     maintype, subtype = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
     message.add_attachment(attachment_bytes, maintype=maintype, subtype=subtype, filename=filename)
 
@@ -3190,6 +3190,37 @@ def _select_interval_rows(
     return selected_rows
 
 
+def _row_has_selected_reading(row: dict[str, Any], parameter_keys: Iterable[str]) -> bool:
+    """Return whether a row contains at least one usable selected measurement.
+
+    Timestamp-only rows are not report readings.  We deliberately test for
+    ``None`` instead of truthiness so a genuine zero measurement is retained.
+    """
+    return any(row.get(_canonical_parameter_key(key)) is not None for key in parameter_keys)
+
+
+def _prepare_report_rows(
+    rows: list[dict[str, Any]],
+    *,
+    parameter_keys: Iterable[str],
+    start: datetime,
+    end: datetime,
+    interval_hours: float | None,
+) -> list[dict[str, Any]]:
+    """Apply the common row rules used by every non-daily report path."""
+    selected_rows = _select_interval_rows(
+        rows,
+        start=start,
+        end=end,
+        interval_hours=interval_hours,
+    )
+    return [
+        row
+        for row in selected_rows
+        if _report_row_timestamp(row) is not None and _row_has_selected_reading(row, parameter_keys)
+    ]
+
+
 def _fetch_report_rows(connection: Connection, meter_id: str, parameter_keys: list[str], start: datetime, end: datetime) -> list[dict[str, Any]]:
     catalog_map = get_parameter_map()
     selected_keys = _report_fetch_parameter_keys(parameter_keys, catalog_map)
@@ -3390,6 +3421,121 @@ def _daily_report_filename(meter_name: str, timestamp: datetime) -> str:
     return f"{_report_file_stem('daily_meter_readings', meter_name, timestamp)}.xlsx"
 
 
+def _normalize_report_parameter_keys(parameter_keys: Iterable[str]) -> list[str]:
+    catalog = get_parameter_map()
+    normalized = []
+    for key in parameter_keys:
+        canonical_key = _canonical_parameter_key(key)
+        if canonical_key in catalog and canonical_key not in normalized:
+            normalized.append(canonical_key)
+    if not normalized:
+        normalized = [key for key in catalog if catalog[key]["common"]][:4]
+    return normalized
+
+
+def _build_report_dataset(
+    *,
+    meter_ids: list[str],
+    parameter_keys: list[str],
+    start: datetime,
+    end: datetime,
+    interval_hours: float | None,
+    scheduled: bool = False,
+    reading_time_text: str | None = None,
+    window_mode: str = "previous_day",
+) -> dict[str, Any]:
+    """Build the canonical, presentation-independent report dataset."""
+    meters = _require_known_meters(meter_ids)
+    selected_parameter_keys = _normalize_report_parameter_keys(parameter_keys)
+    meter_rows: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
+
+    with _open_connection() as connection:
+        for meter in meters:
+            if scheduled:
+                report_start = (
+                    _scheduled_month_cycle_start(end, reading_time_text or "00:00")
+                    if window_mode == "previous_day"
+                    else start
+                )
+                range_start, range_end = _daily_report_range(report_start, end)
+                source_rows = _fetch_report_source_rows(
+                    connection,
+                    meter["meter_id"],
+                    selected_parameter_keys,
+                    range_start,
+                    range_end,
+                )
+                if interval_hours is not None:
+                    rows = _prepare_report_rows(
+                        source_rows,
+                        parameter_keys=selected_parameter_keys,
+                        start=start,
+                        end=end,
+                        interval_hours=interval_hours,
+                    )
+                else:
+                    target_rows = _select_daily_snapshot_rows(
+                        source_rows,
+                        report_start,
+                        end,
+                        reading_time_text or "00:00",
+                    )
+                    latest_energy_rows = _select_latest_daily_snapshot_rows(source_rows, report_start, end)
+                    latest_by_day = {
+                        _report_row_timestamp(row).astimezone(_app_timezone()).date(): row
+                        for row in latest_energy_rows
+                        if _report_row_timestamp(row) is not None
+                    }
+                    merged_rows: list[dict[str, Any]] = []
+                    for target_row in target_rows:
+                        target_timestamp = _report_row_timestamp(target_row)
+                        if target_timestamp is None:
+                            continue
+                        target_date = target_timestamp.astimezone(_app_timezone()).date()
+                        latest_row = latest_by_day.get(target_date)
+                        merged_row = dict(target_row)
+                        if latest_row is not None:
+                            for energy_key in ENERGY_PARAMETER_KEYS:
+                                if energy_key in selected_parameter_keys:
+                                    merged_row[energy_key] = latest_row.get(energy_key)
+                        merged_rows.append(merged_row)
+
+                    energy_keys = [key for key in selected_parameter_keys if _supports_consumption_column(key)]
+                    rows = [
+                        row
+                        for row in _annotate_daily_energy_deltas(meter["meter_id"], merged_rows, energy_keys)
+                        if _report_row_timestamp(row) is not None
+                        and _report_row_timestamp(row).astimezone(_app_timezone()).date() >= report_start.astimezone(_app_timezone()).date()
+                        and _row_has_selected_reading(row, selected_parameter_keys)
+                    ]
+            else:
+                source_rows = _fetch_report_rows(
+                    connection,
+                    meter["meter_id"],
+                    selected_parameter_keys,
+                    start,
+                    end,
+                )
+                rows = _prepare_report_rows(
+                    source_rows,
+                    parameter_keys=selected_parameter_keys,
+                    start=start,
+                    end=end,
+                    interval_hours=interval_hours,
+                )
+            meter_rows.append((meter, rows))
+
+    return {
+        "meters": meters,
+        "meter_rows": meter_rows,
+        "parameter_keys": selected_parameter_keys,
+        "start": start,
+        "end": end,
+        "interval_hours": interval_hours,
+        "rows": sum(len(rows) for _, rows in meter_rows),
+    }
+
+
 def _daily_report_meter_header(meter_name: str, parameter_key: str) -> str:
     label = _parameter_display_label(parameter_key)
     return f"{meter_name} - {label}"
@@ -3401,6 +3547,8 @@ def _build_scheduled_excel_bytes(
     reading_time_text: str,
 ) -> bytes:
     workbook = Workbook()
+    workbook.calculation.fullCalcOnLoad = True
+    workbook.calculation.forceFullCalc = True
     sheet = workbook.active
     sheet.title = "Sheet1"
 
@@ -3560,8 +3708,76 @@ def _build_scheduled_excel_bytes(
     return output.getvalue()
 
 
+def _add_excel_graphs(
+    workbook: Workbook,
+    meter_rows: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+    parameter_keys: list[str],
+) -> None:
+    """Add editable Excel line charts backed by a transparent data sheet."""
+    graph_data = workbook.create_sheet("Graph Data")
+    graph_data.cell(row=1, column=1, value="Date & Time")
+    for meter_index, (meter, _) in enumerate(meter_rows):
+        for parameter_index, parameter_key in enumerate(parameter_keys):
+            column = 2 + meter_index * len(parameter_keys) + parameter_index
+            graph_data.cell(
+                row=1,
+                column=column,
+                value=f"{meter['meter_name']} - {_parameter_display_label(parameter_key)}",
+            )
+
+    timestamps = sorted({
+        timestamp
+        for _, rows in meter_rows
+        for row in rows
+        for timestamp in [_report_row_timestamp(row)]
+        if timestamp is not None
+    })
+    timestamp_rows = {timestamp: row_index for row_index, timestamp in enumerate(timestamps, start=2)}
+    for timestamp, row_index in timestamp_rows.items():
+        graph_data.cell(row=row_index, column=1, value=timestamp.astimezone(_app_timezone()).replace(tzinfo=None))
+        graph_data.cell(row=row_index, column=1).number_format = "dd/mm/yyyy hh:mm:ss"
+
+    graphs_sheet = workbook.worksheets[0]
+    chart_row = max(graphs_sheet.max_row + 3, 10)
+    for parameter_index, parameter_key in enumerate(parameter_keys):
+        chart = LineChart()
+        chart.title = f"{_parameter_display_label(parameter_key)} trend"
+        chart.style = 13
+        chart.height = 7.5
+        chart.width = 16.0
+        chart.y_axis.title = _parameter_display_label(parameter_key)
+        chart.x_axis.title = "Date & Time"
+        chart.x_axis.number_format = "dd/mm/yyyy hh:mm"
+        chart.x_axis.tickLblPos = "low"
+        has_series = False
+        for meter_index, (meter, rows) in enumerate(meter_rows):
+            column = 2 + meter_index * len(parameter_keys) + parameter_index
+            meter_has_series = False
+            for row in rows:
+                timestamp = _report_row_timestamp(row)
+                if timestamp is None:
+                    continue
+                data_row = timestamp_rows[timestamp]
+                graph_data.cell(row=data_row, column=column, value=row.get(parameter_key))
+                if row.get(parameter_key) is not None:
+                    meter_has_series = True
+            if meter_has_series:
+                has_series = True
+                data = Reference(graph_data, min_col=column, min_row=1, max_row=max(1, len(timestamps) + 1))
+                chart.add_data(data, titles_from_data=True)
+        if has_series:
+            categories = Reference(graph_data, min_col=1, min_row=2, max_row=max(2, len(timestamps) + 1))
+            chart.set_categories(categories)
+            graphs_sheet.add_chart(chart, f"A{chart_row}")
+            chart_row += 16
+
+    graph_data.freeze_panes = "A2"
+
+
 def _build_excel_bytes(meter_name: str, rows: list[dict[str, Any]], parameter_keys: list[str], start: datetime, end: datetime) -> bytes:
     workbook = Workbook()
+    workbook.calculation.fullCalcOnLoad = True
+    workbook.calculation.forceFullCalc = True
     sheet = workbook.active
     sheet.title = "Readings"
 
@@ -3585,6 +3801,7 @@ def _build_excel_bytes(meter_name: str, rows: list[dict[str, Any]], parameter_ke
         for column_index, key in enumerate(parameter_keys, start=3):
             sheet.cell(row=row_index, column=column_index, value=row.get(key))
 
+    _add_excel_graphs(workbook, [({"meter_id": meter_name, "meter_name": meter_name}, rows)], parameter_keys)
     sheet.freeze_panes = "A6"
     sheet.auto_filter.ref = sheet.dimensions
 
@@ -3613,6 +3830,8 @@ def _build_excel_bytes_multi(
     end: datetime,
 ) -> bytes:
     workbook = Workbook()
+    workbook.calculation.fullCalcOnLoad = True
+    workbook.calculation.forceFullCalc = True
     sheet = workbook.active
     sheet.title = "Sheet1"
 
@@ -3760,6 +3979,7 @@ def _build_excel_bytes_multi(
                 sheet.cell(row=row_index, column=current_column).fill = spacer_fill
                 current_column += 1
 
+    _add_excel_graphs(workbook, meter_rows, parameter_keys)
     sheet.freeze_panes = "C3"
 
     output = io.BytesIO()
@@ -3950,54 +4170,19 @@ def build_scheduled_report_payload(
     interval_hours: float | None = None,
     window_mode: str = "previous_day",
 ) -> dict[str, Any]:
-    meters = _require_known_meters(meter_ids)
-    selected_parameter_keys = [
-        _canonical_parameter_key(key)
-        for key in parameter_keys
-        if _canonical_parameter_key(key) in get_parameter_map()
-    ]
-    if not selected_parameter_keys:
-        selected_parameter_keys = [key for key in get_parameter_map() if get_parameter_map()[key]["common"]][:4]
-
-    report_start = _scheduled_month_cycle_start(end, reading_time_text) if window_mode == "previous_day" else start
-    range_start, range_end = _daily_report_range(report_start, end)
-    with _open_connection() as connection:
-        meter_rows = []
-        for meter in meters:
-            source_rows = _fetch_report_source_rows(connection, meter["meter_id"], selected_parameter_keys, range_start, range_end)
-            if interval_hours is not None:
-                snapshot_rows = _select_interval_rows(source_rows, start=start, end=end, interval_hours=interval_hours)
-            else:
-                target_rows = _select_daily_snapshot_rows(source_rows, report_start, end, reading_time_text)
-                latest_energy_rows = _select_latest_daily_snapshot_rows(source_rows, report_start, end)
-                latest_by_day = {
-                    _report_row_timestamp(row).astimezone(_app_timezone()).date(): row
-                    for row in latest_energy_rows
-                    if _report_row_timestamp(row) is not None
-                }
-                merged_rows: list[dict[str, Any]] = []
-                for target_row in target_rows:
-                    target_timestamp = _report_row_timestamp(target_row)
-                    if target_timestamp is None:
-                        continue
-                    target_date = target_timestamp.astimezone(_app_timezone()).date()
-                    latest_row = latest_by_day.get(target_date)
-                    merged_row = dict(target_row)
-                    if latest_row is not None:
-                        for parameter_key in ENERGY_PARAMETER_KEYS:
-                            if parameter_key in selected_parameter_keys:
-                                merged_row[parameter_key] = latest_row.get(parameter_key)
-                    merged_rows.append(merged_row)
-
-                energy_keys = [key for key in selected_parameter_keys if _supports_consumption_column(key)]
-                annotated_rows = _annotate_daily_energy_deltas(meter["meter_id"], merged_rows, energy_keys)
-                visible_start = report_start.astimezone(_app_timezone()).date()
-                snapshot_rows = [
-                    row
-                    for row in annotated_rows
-                    if (_report_row_timestamp(row) is not None and _report_row_timestamp(row).astimezone(_app_timezone()).date() >= visible_start)
-                ]
-            meter_rows.append((meter, snapshot_rows))
+    dataset = _build_report_dataset(
+        meter_ids=meter_ids,
+        parameter_keys=parameter_keys,
+        start=start,
+        end=end,
+        interval_hours=interval_hours,
+        scheduled=True,
+        reading_time_text=reading_time_text,
+        window_mode=window_mode,
+    )
+    meters = dataset["meters"]
+    selected_parameter_keys = dataset["parameter_keys"]
+    meter_rows = dataset["meter_rows"]
 
     timestamp = end.astimezone(_app_timezone())
     meter_label = meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)}_meters"
@@ -4014,48 +4199,23 @@ def build_scheduled_report_payload(
         "meter_name": meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)} meters",
         "generated_at": timestamp.isoformat(),
         "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "meter_rows": meter_rows,
+        "parameter_keys": selected_parameter_keys,
     }
 
 
 def build_export_payload(filters: dict[str, Any], format_name: str) -> dict[str, Any]:
     normalized = _normalize_filters(filters)
-    meters = _require_known_meters(normalized["meter_ids"])
-
-    with _open_connection() as connection:
-        meter_rows = [
-            (
-                meter,
-                _fetch_report_rows(
-                    connection,
-                    meter["meter_id"],
-                    normalized["parameter_keys"],
-                    normalized["start"],
-                    normalized["end"],
-                ),
-            )
-            for meter in meters
-        ]
-
-    meter_rows = [
-        (
-            meter,
-            _select_interval_rows(
-                rows,
-                start=normalized["start"],
-                end=normalized["end"],
-                interval_hours=normalized["interval_hours"],
-            ),
-        )
-        for meter, rows in meter_rows
-    ]
-
-    parameter_keys = [
-        _canonical_parameter_key(key)
-        for key in normalized["parameter_keys"]
-        if _canonical_parameter_key(key) in get_parameter_map()
-    ]
-    if not parameter_keys:
-        parameter_keys = [key for key in get_parameter_map() if get_parameter_map()[key]["common"]][:4]
+    dataset = _build_report_dataset(
+        meter_ids=normalized["meter_ids"],
+        parameter_keys=normalized["parameter_keys"],
+        start=normalized["start"],
+        end=normalized["end"],
+        interval_hours=normalized["interval_hours"],
+    )
+    meters = dataset["meters"]
+    meter_rows = dataset["meter_rows"]
+    parameter_keys = dataset["parameter_keys"]
 
     timestamp = datetime.now(timezone.utc)
     meter_summary = meters[0]["meter_name"] if len(meters) == 1 else f"{len(meters)} meters"
@@ -4093,4 +4253,6 @@ def build_export_payload(filters: dict[str, Any], format_name: str) -> dict[str,
         "meter_name": meter_summary,
         "generated_at": timestamp.isoformat(),
         "mime_type": mime_type,
+        "meter_rows": meter_rows,
+        "parameter_keys": parameter_keys,
     }

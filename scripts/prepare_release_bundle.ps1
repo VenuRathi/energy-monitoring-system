@@ -10,7 +10,12 @@ function Resolve-GitCommit {
     try {
         $commit = git -C $RootPath rev-parse --short HEAD 2>$null
         if ($LASTEXITCODE -eq 0 -and $commit) {
-            return ($commit | Select-Object -First 1).Trim()
+            $commitText = ($commit | Select-Object -First 1).Trim()
+            $dirty = git -C $RootPath status --porcelain 2>$null
+            if ($LASTEXITCODE -eq 0 -and $dirty) {
+                return "$commitText-dirty"
+            }
+            return $commitText
         }
     }
     catch {

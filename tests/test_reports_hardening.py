@@ -11,6 +11,65 @@ from app.api import service as api_service
 
 
 class ReportsHardeningTests(unittest.TestCase):
+    def test_report_email_remains_plain_text_with_attachment_only(self) -> None:
+        captured = {}
+
+        class FakeSmtpClient:
+            def __init__(self, host, port, timeout=None):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return None
+
+            def starttls(self):
+                pass
+
+            def send_message(self, message):
+                captured["message"] = message
+
+        with patch("app.api.service.smtplib.SMTP", FakeSmtpClient):
+            api_service._send_email_with_attachment(
+                recipient_emails=["operator@example.com"],
+                subject="Report",
+                body="Please find the Excel sheet attached below.",
+                attachment_bytes=b"report",
+                filename="report.xlsx",
+                mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                email_settings={
+                    "smtp_host": "smtp.example.com",
+                    "smtp_port": 587,
+                    "smtp_from_email": "alerts@example.com",
+                    "smtp_use_tls": True,
+                    "smtp_use_ssl": False,
+                },
+            )
+
+        message = captured["message"]
+        self.assertEqual(message.get_body(preferencelist=("html",)), None)
+        self.assertEqual(message.get_body(preferencelist=("plain",)).get_content().strip(), "Please find the Excel sheet attached below.")
+
+    def test_report_preparation_removes_timestamp_only_rows_but_keeps_zero(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
+        rows = [
+            {"timestamp": start, "active_power_total": None},
+            {"timestamp": datetime(2026, 8, 21, 9, 0, tzinfo=plant_timezone), "active_power_total": 0.0},
+        ]
+
+        prepared = api_service._prepare_report_rows(
+            rows,
+            parameter_keys=["active_power_total"],
+            start=start,
+            end=rows[-1]["timestamp"],
+            interval_hours=None,
+        )
+
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(prepared[0]["active_power_total"], 0.0)
+
     def test_naive_report_timestamp_uses_configured_application_timezone(self) -> None:
         settings = SimpleNamespace(app_timezone="Asia/Kolkata")
 
@@ -80,12 +139,16 @@ class ReportsHardeningTests(unittest.TestCase):
             first_timestamp,
             second_timestamp,
         )
-        sheet = load_workbook(BytesIO(workbook_bytes), data_only=True).active
+        workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
+        sheet = workbook["Readings"]
 
         self.assertEqual(sheet.max_row, 7)
         self.assertEqual(sheet.cell(row=6, column=1).value, "21/08/2026")
         self.assertEqual(sheet.cell(row=6, column=2).value, "14:06:47")
         self.assertEqual(sheet.cell(row=7, column=2).value, "15:06:47")
+        self.assertEqual(len(workbook["Readings"]._charts), 1)
+        self.assertEqual(workbook["Readings"]._charts[0].x_axis.title.tx.rich.p[0].r[0].t, "Date & Time")
+        self.assertEqual(workbook["Readings"]._charts[0].y_axis.title.tx.rich.p[0].r[0].t, "Active Power Total (kW)")
 
     def test_hourly_scheduled_layout_has_line_title_and_usage_columns(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")
