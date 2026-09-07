@@ -1242,6 +1242,36 @@ def _scheduled_report_email_subject(meter_names: list[str], delivery_time: datet
     return f"EMS - OSP - {meter_scope} - {date_text}"
 
 
+def _report_interval_text(interval_hours: Any) -> str:
+    if interval_hours is None:
+        return "All readings"
+    return f"Every {float(interval_hours):.1f} hour(s)"
+
+
+def _report_window_text(report_start: datetime, report_end: datetime) -> str:
+    timezone_value = _app_timezone()
+    return (
+        f"{report_start.astimezone(timezone_value).strftime('%d/%m/%Y %H:%M')} to "
+        f"{report_end.astimezone(timezone_value).strftime('%d/%m/%Y %H:%M')}"
+    )
+
+
+def _report_parameter_text(parameter_keys: Iterable[str]) -> str:
+    return ", ".join(_parameter_display_label(key) for key in parameter_keys)
+
+
+def _report_attachment_row_count(meter_rows: Iterable[tuple[dict[str, Any], list[dict[str, Any]]]]) -> int:
+    """Count timestamp rows visible in a multi-meter report attachment."""
+    timestamps = {
+        timestamp
+        for _, rows in meter_rows
+        for row in rows
+        for timestamp in [_report_row_timestamp(row)]
+        if timestamp is not None
+    }
+    return len(timestamps)
+
+
 def _scheduled_report_email_body(
     *,
     meter_names: list[str],
@@ -1250,16 +1280,43 @@ def _scheduled_report_email_body(
     send_time_text: str,
     report_start: datetime,
     report_end: datetime,
+    parameter_keys: Iterable[str],
+    row_count: int,
+    filename: str,
 ) -> str:
-    interval_text = "All readings" if interval_hours is None else f"{float(interval_hours):.1f}"
     return (
         f"{REPORT_EMAIL_BODY_LEAD}\n\n"
         f"Automated meter readings report.\n\n"
         f"Meters: {', '.join(meter_names)}\n"
         f"Record start time: {record_time_text}\n"
-        f"Reading interval: {interval_text}\n"
+        f"Reading interval: {_report_interval_text(interval_hours)}\n"
         f"Email delivery time: {send_time_text}\n"
-        f"Included range: {report_start.strftime('%d/%m/%Y %H:%M')} to {report_end.strftime('%d/%m/%Y %H:%M')}"
+        f"Included range: {_report_window_text(report_start, report_end)}\n"
+        f"Parameters: {_report_parameter_text(parameter_keys)}\n"
+        f"Valid report rows included: {row_count}\n"
+        f"Attachment: {filename}"
+    )
+
+
+def _on_demand_report_email_body(
+    *,
+    meter_names: list[str],
+    report_start: datetime,
+    report_end: datetime,
+    interval_hours: Any,
+    parameter_keys: Iterable[str],
+    row_count: int,
+    filename: str,
+) -> str:
+    return (
+        f"{REPORT_EMAIL_BODY_LEAD}\n\n"
+        "Energy report\n\n"
+        f"Meters: {', '.join(meter_names)}\n"
+        f"Included range: {_report_window_text(report_start, report_end)}\n"
+        f"Reading interval: {_report_interval_text(interval_hours)}\n"
+        f"Parameters: {_report_parameter_text(parameter_keys)}\n"
+        f"Valid report rows included: {row_count}\n"
+        f"Attachment: {filename}"
     )
 
 
@@ -3052,6 +3109,7 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                     "No readings were found for the scheduled report window; email was not sent."
                 )
             meter_names = [meter_map[meter_id]["meter_name"] for meter_id in schedule_meter_ids]
+            attachment_row_count = _report_attachment_row_count(export.get("meter_rows", [])) or export["rows"]
             _send_email_with_attachment(
                 recipient_emails=schedule["recipient_emails"],
                 subject=_scheduled_report_email_subject(meter_names, local_now),
@@ -3062,6 +3120,9 @@ def process_due_report_schedules(now: datetime | None = None) -> list[dict[str, 
                     send_time_text=send_time_text,
                     report_start=report_start_local,
                     report_end=report_end_local,
+                    parameter_keys=export.get("parameter_keys", schedule["parameter_keys"]),
+                    row_count=attachment_row_count,
+                    filename=export["filename"],
                 ),
                 attachment_bytes=export["bytes"],
                 filename=export["filename"],
@@ -3089,16 +3150,20 @@ def send_report_email(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(
             "No readings were found for the selected date and time range. Adjust the report range before using Send now."
         )
+    meter_names = [meter["meter_name"] for meter, _ in export.get("meter_rows", [])] or [export["meter_name"]]
     meter_summary = export["meter_name"]
+    attachment_row_count = _report_attachment_row_count(export.get("meter_rows", [])) or export["rows"]
     _send_email_with_attachment(
         recipient_emails=recipient_emails,
         subject=REPORT_EMAIL_SUBJECT,
-        body=(
-            f"{REPORT_EMAIL_BODY_LEAD}\n\n"
-            f"Energy report for {meter_summary}.\n\n"
-            f"Start: {normalized['start'].astimezone(_app_timezone()).strftime('%d/%m/%Y %H:%M')}\n"
-            f"End: {normalized['end'].astimezone(_app_timezone()).strftime('%d/%m/%Y %H:%M')}\n"
-            f"Report type: On-demand export"
+        body=_on_demand_report_email_body(
+            meter_names=meter_names,
+            report_start=normalized["start"],
+            report_end=normalized["end"],
+            interval_hours=normalized["interval_hours"],
+            parameter_keys=export.get("parameter_keys", normalized["parameter_keys"]),
+            row_count=attachment_row_count,
+            filename=export["filename"],
         ),
         attachment_bytes=export["bytes"],
         filename=export["filename"],

@@ -14,6 +14,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Canonical report dataset preparation shared by normal and scheduled exports.
 - Native Excel line charts with Date & Time X-axis and unit-labeled Y-axis.
 - Excel chart downsampling that keeps large report workbooks responsive while preserving the complete report data.
+- Plain-text report-email metadata that identifies the actual report window, selected parameters, valid reading count, and attached workbook.
 
 ### Fixed
 

@@ -110,6 +110,9 @@ class ReportsHardeningTests(unittest.TestCase):
             send_time_text="08:02",
             report_start=report_start,
             report_end=delivery_time,
+            parameter_keys=["active_power_total"],
+            row_count=24,
+            filename="scheduled_report.xlsx",
         )
 
         self.assertEqual(subject, "EMS - OSP - Screen Printing - 25/8/26")
@@ -119,9 +122,36 @@ class ReportsHardeningTests(unittest.TestCase):
             "Automated meter readings report.\n\n"
             "Meters: Screen Printing\n"
             "Record start time: 08:00\n"
-            "Reading interval: 24.0\n"
+            "Reading interval: Every 24.0 hour(s)\n"
             "Email delivery time: 08:02\n"
-            "Included range: 24/08/2026 08:00 to 25/08/2026 09:11",
+            "Included range: 24/08/2026 08:00 to 25/08/2026 09:11\n"
+            "Parameters: Active Power Total (kW)\n"
+            "Valid report rows included: 24\n"
+            "Attachment: scheduled_report.xlsx",
+        )
+
+    def test_on_demand_email_body_uses_resolved_window_and_attachment_metadata(self) -> None:
+        plant_timezone = ZoneInfo("Asia/Calcutta")
+        body = api_service._on_demand_report_email_body(
+            meter_names=["Screen Printing", "TC Oven Meter"],
+            report_start=datetime(2026, 8, 24, 8, 0, tzinfo=plant_timezone),
+            report_end=datetime(2026, 8, 24, 9, 30, tzinfo=plant_timezone),
+            interval_hours=None,
+            parameter_keys=["active_power_total", "active_energy_received_out_of_load"],
+            row_count=19,
+            filename="energy_report.xlsx",
+        )
+
+        self.assertEqual(
+            body,
+            "Please find the Excel sheet attached below.\n\n"
+            "Energy report\n\n"
+            "Meters: Screen Printing, TC Oven Meter\n"
+            "Included range: 24/08/2026 08:00 to 24/08/2026 09:30\n"
+            "Reading interval: All readings\n"
+            "Parameters: Active Power Total (kW), Active Energy (kWh)\n"
+            "Valid report rows included: 19\n"
+            "Attachment: energy_report.xlsx",
         )
 
     def test_interval_report_keeps_multiple_rows_and_collector_timestamps(self) -> None:

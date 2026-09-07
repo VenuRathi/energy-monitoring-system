@@ -648,6 +648,10 @@ class SettingsAndModelsTests(unittest.TestCase):
         self.assertTrue(result["sent"])
         self.assertEqual(captured_email["subject"], "Energy Monitoring System")
         self.assertTrue(captured_email["body"].startswith("Please find the Excel sheet attached below."))
+        self.assertIn("Included range: 01/08/2026 00:00 to 01/08/2026 01:00", captured_email["body"])
+        self.assertIn("Parameters: Active Power Total (kW)", captured_email["body"])
+        self.assertIn("Valid report rows included: 1", captured_email["body"])
+        self.assertIn("Attachment: screen_printing.xlsx", captured_email["body"])
         self.assertEqual(captured_email["attachment_bytes"], b"xlsx-bytes")
         self.assertEqual(captured_email["filename"], "screen_printing.xlsx")
         self.assertEqual(
