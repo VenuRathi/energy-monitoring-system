@@ -403,6 +403,9 @@ class ReportsHardeningTests(unittest.TestCase):
         sheet = load_workbook(BytesIO(export["bytes"]), data_only=True).active
 
         self.assertEqual(export["rows"], 3)
+        self.assertIn("Graph Data", load_workbook(BytesIO(export["bytes"]), data_only=True).sheetnames)
+        self.assertEqual(len(load_workbook(BytesIO(export["bytes"]), data_only=True).active._charts), 1)
+        self.assertEqual(sheet.cell(row=1, column=2).value, "Target Time")
         self.assertEqual(sheet.max_row, 5)
         self.assertEqual(sheet.cell(row=3, column=1).value.strftime("%d/%m/%Y"), "31/08/2026")
         self.assertEqual(sheet.cell(row=4, column=1).value.strftime("%d/%m/%Y"), "01/09/2026")

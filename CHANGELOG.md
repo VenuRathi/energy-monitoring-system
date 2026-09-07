@@ -17,6 +17,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Plain-text report-email metadata that identifies the actual report window, selected parameters, valid reading count, and attached workbook.
 - Reports-page delivery previews that show the effective scheduled window, Excel-only chart behavior, shared email/report scope, and no-data handling.
 - Regression coverage for scheduled before/after snapshot selection, interval targets, and multi-meter Excel chart series with valid zero values.
+- Reusable Phase 9 report QA runner for deterministic Excel and Word evidence generation.
 
 ### Fixed
 
@@ -25,6 +26,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Improved Excel formula recalculation behavior for usage columns.
 - Fixed on-demand Excel exports so native charts are included consistently.
 - Added required Word table-grid XML for compatibility with standard DOCX readers.
+- Added native Excel charts and Graph Data to scheduled daily-snapshot reports, matching other Excel report paths.
+- Clarified scheduled snapshot tables by labeling the configured column as Target Time while charts retain actual reading timestamps.
 
 ## [0.1.0] - 2026-07-03
 

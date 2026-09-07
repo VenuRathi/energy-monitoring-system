@@ -3648,7 +3648,7 @@ def _build_scheduled_excel_bytes(
 
     ordered_days = sorted(day_map.keys())
 
-    for column_index, (label, width) in enumerate((("Date", 12.0), ("Time", 10.0)), start=1):
+    for column_index, (label, width) in enumerate((("Date", 12.0), ("Target Time", 12.0)), start=1):
         sheet.column_dimensions[get_column_letter(column_index)].width = width
         sheet.merge_cells(start_row=1, start_column=column_index, end_row=2, end_column=column_index)
         cell = sheet.cell(row=1, column=column_index, value=label)
@@ -3768,6 +3768,7 @@ def _build_scheduled_excel_bytes(
                 sheet.cell(row=row_index, column=current_column).fill = spacer_fill
                 current_column += 1
 
+    _add_excel_graphs(workbook, meter_rows, parameter_keys)
     sheet.freeze_panes = "C3"
 
     output = io.BytesIO()
