@@ -1,8 +1,13 @@
 param(
     [string]$ProjectRoot = (Resolve-Path "$PSScriptRoot\..").Path,
     [string]$OutputRoot = "",
-    [string]$BundleName = "energy-monitoring-system-pilot"
+    [string]$BundleName = "energy-monitoring-system-pilot",
+    [string]$ReleaseVersion = "0.2.2"
 )
+
+if ($ReleaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+    throw "ReleaseVersion must use semantic-version format (for example 0.2.2 or 0.2.2-pilot)."
+}
 
 function Resolve-GitCommit {
     param([string]$RootPath)
@@ -86,6 +91,7 @@ Energy Monitoring System - Pilot Release Bundle
 
 Bundle created: $bundleCreatedAt
 Source commit: $sourceCommit
+Release version: $ReleaseVersion
 
 Contents:
 - energy-monitoring-system\  -> application files
@@ -110,6 +116,7 @@ Energy Monitoring System - Release Metadata
 
 Bundle created: $bundleCreatedAt
 Bundle name: ${BundleName}_${timestamp}
+Release version: $ReleaseVersion
 Source commit: $sourceCommit
 Project root: $ProjectRoot
 Application folder: $bundleAppRoot
@@ -118,6 +125,7 @@ Application folder: $bundleAppRoot
 $versionPath = Join-Path $bundleAppRoot "version.json"
 @{
     product = "Plant Energy Monitor"
+    releaseVersion = $ReleaseVersion
     releaseChannel = "pilot"
     sourceCommit = $sourceCommit
     bundleName = "${BundleName}_${timestamp}"

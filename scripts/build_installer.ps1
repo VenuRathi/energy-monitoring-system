@@ -128,10 +128,29 @@ if (-not (Test-Path $installerScript)) {
 }
 
 $iscc = Resolve-IsccPath -ExplicitPath $IsccPath
+$versionPath = Join-Path $BundleRoot "version.json"
+$releaseVersion = "0.1.0-pilot"
+if (Test-Path -LiteralPath $versionPath) {
+    try {
+        $bundleVersion = Get-Content -LiteralPath $versionPath -Raw | ConvertFrom-Json
+        if ($bundleVersion.releaseVersion) {
+            $releaseVersion = [string]$bundleVersion.releaseVersion
+        }
+    }
+    catch {
+        throw "Could not read releaseVersion from bundle metadata: $versionPath. $($_.Exception.Message)"
+    }
+}
+
+if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+    throw "Bundle releaseVersion is not valid for the installer: $releaseVersion"
+}
+
 Write-Host "Using Inno Setup compiler: $iscc"
 Write-Host "Using release bundle: $BundleRoot"
+Write-Host "Release version: $releaseVersion"
 
-$arguments = @("/DSourceRoot=$BundleRoot")
+$arguments = @("/DSourceRoot=$BundleRoot", "/DReleaseVersion=$releaseVersion")
 if ($OutputDir) {
     $arguments += "/O$OutputDir"
 }

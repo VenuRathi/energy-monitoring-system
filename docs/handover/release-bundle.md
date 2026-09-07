@@ -23,6 +23,7 @@ The release bundle script creates:
 - a top-level `RELEASE_INFO.txt` with source commit metadata
 - an application-level `version.json` for installed-version checks
 - a non-sensitive per-PC inventory script for repeatable rollout checks
+- a release-version value carried through to the Windows installer
 - a `.zip` archive for transfer
 
 It does not include:
@@ -61,6 +62,10 @@ Default output:
 
 - folder: `release\energy-monitoring-system-pilot_YYYY-MM-DD_HHMMSS\`
 - zip: `release\energy-monitoring-system-pilot_YYYY-MM-DD_HHMMSS.zip`
+
+The current report release uses version `0.2.2`. A different semantic version
+can be supplied deliberately with `-ReleaseVersion`; that value is written to
+`version.json` and used by `build_installer.ps1`.
 
 ## Validate the bundle
 
@@ -123,6 +128,11 @@ Use this when:
 8. Run `powershell -ExecutionPolicy Bypass -File .\scripts\collect_pc_inventory.ps1`
 9. Launch the app with `run_app.bat` or run the backend manually once
 10. Register Task Scheduler startup
+
+For an existing Git-based plant checkout, use
+[existing-pc-upgrade.md](existing-pc-upgrade.md). It protects the PC-specific
+runtime state and uses a controlled restart so an old backend process cannot
+continue serving stale code.
 
 The inventory report records paths, service/task presence, Python availability,
 and the release commit without copying `.env`, credentials, database contents, or

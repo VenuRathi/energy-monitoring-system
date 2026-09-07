@@ -6,6 +6,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-07
+
 ### Added
 
 - Repository hardening files (`SECURITY.md`, `.env.example`, CI, Dependabot).

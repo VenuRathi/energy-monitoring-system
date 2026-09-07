@@ -21,6 +21,7 @@ The Inno Setup script:
 - installs the prepared application folder
 - installs it to a writable machine location under `C:\ProgramData\Plant Energy Monitor`
 - creates app directories like `logs\`, `backups\`, and `release\`
+- carries the release version from the validated bundle into the installer
 - creates Start Menu entries
 - can create a desktop shortcut
 - adds first-run and post-install helper shortcuts

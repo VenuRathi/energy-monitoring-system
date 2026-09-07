@@ -10,8 +10,12 @@
   #error SourceRoot must point to the prepared application folder created by prepare_release_bundle.ps1
 #endif
 
+#ifndef ReleaseVersion
+  #define ReleaseVersion "0.1.0-pilot"
+#endif
+
 #define MyAppName "Plant Energy Monitor"
-#define MyAppVersion "0.1.0-pilot"
+#define MyAppVersion ReleaseVersion
 #define MyAppPublisher "Energy Monitoring System Project"
 #define MyAppExeName "run_app.bat"
 
