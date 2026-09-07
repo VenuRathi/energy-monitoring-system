@@ -203,12 +203,20 @@ export function ReportSchedulePanel({
               <label className="editor__field">
                 <span>Record from date</span>
                 <input type="date" value={scheduleStartDate} onChange={(event) => setScheduleStartDate(event.target.value)} />
-                <small className="field-help">Records begin on this date and continue through the send time.</small>
+                <small className="field-help">
+                  {filters.intervalHours === null
+                    ? "All readings uses one daily snapshot at the report start time; the current cycle begins on the previous month's final day."
+                    : "Interval reports begin on this date at the report start time and continue through each scheduled delivery."}
+                </small>
               </label>
               <label className="editor__field">
                 <span>Report start time</span>
                 <input type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} />
-                <small className="field-help">The report begins on the selected start date at this time and continues through each scheduled delivery.</small>
+                <small className="field-help">
+                  {filters.intervalHours === null
+                    ? "For each day, the report uses the latest valid reading at or before this time, or the earliest later reading when none exists before it."
+                    : "The first interval target begins at this time. Readings before the target are not included in an interval report."}
+                </small>
               </label>
               <label className="editor__field">
                 <span>Send time</span>
@@ -262,7 +270,11 @@ export function ReportSchedulePanel({
         </span>
         {deliveryMode === "scheduled" ? (
           <span>
-            <strong>Effective report window:</strong> starts {scheduleStartDate} {recordTime} and ends when the delivery run is processed after {getDeliveryTime(sendTime)}
+            {filters.intervalHours === null ? (
+              <><strong>Daily snapshot window:</strong> one reading per day nearest to {recordTime}; the cycle begins on the previous month's final day and ends when the delivery run is processed after {getDeliveryTime(sendTime)}</>
+            ) : (
+              <><strong>Effective interval window:</strong> starts {scheduleStartDate} {recordTime} and ends when the delivery run is processed after {getDeliveryTime(sendTime)}</>
+            )}
           </span>
         ) : (
           <span>
