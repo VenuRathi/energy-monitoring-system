@@ -206,9 +206,9 @@ export function ReportSchedulePanel({
                 <small className="field-help">Records begin on this date and continue through the send time.</small>
               </label>
               <label className="editor__field">
-                <span>Reading close time</span>
+                <span>Report start time</span>
                 <input type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} />
-                <small className="field-help">The reading window closes at this time; with a 1 hour interval, earlier snapshots are selected at 09:00, 10:00, and so on.</small>
+                <small className="field-help">The report begins on the selected start date at this time and continues through each scheduled delivery.</small>
               </label>
               <label className="editor__field">
                 <span>Send time</span>
@@ -262,7 +262,7 @@ export function ReportSchedulePanel({
         </span>
         {deliveryMode === "scheduled" ? (
           <span>
-            <strong>Range:</strong> {scheduleStartDate} {recordTime} through {sendTime}
+            <strong>Effective report window:</strong> starts {scheduleStartDate} {recordTime} and ends when the delivery run is processed after {getDeliveryTime(sendTime)}
           </span>
         ) : (
           <span>
@@ -274,7 +274,7 @@ export function ReportSchedulePanel({
         </span>
         {deliveryMode === "scheduled" ? (
           <span>
-            <strong>Timing:</strong> records start at {recordTime} · email at {getDeliveryTime(sendTime)}
+            <strong>Delivery:</strong> one email per scheduled run using the same report format as Send now
           </span>
         ) : (
           <span>
@@ -286,6 +286,12 @@ export function ReportSchedulePanel({
             <strong>Delivery:</strong> one-time email
           </span>
         ) : null}
+        <span>
+          <strong>Excel charts:</strong> one line chart per selected parameter
+        </span>
+        <span>
+          <strong>No data:</strong> no attachment or email is sent when no valid readings match the report window
+        </span>
       </div>
 
       {showSchedules ? <div className="section-heading report-table-heading">
@@ -306,7 +312,7 @@ export function ReportSchedulePanel({
               <th>Starts</th>
               <th>Interval</th>
               <th>Recipients</th>
-              <th>Reading close time</th>
+              <th>Report start time</th>
               <th>Email time</th>
               <th>Last sent</th>
               <th>Status</th>

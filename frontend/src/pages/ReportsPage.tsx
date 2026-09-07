@@ -139,6 +139,16 @@ export function ReportsPage({ selectedMeterId, onSelectMeter }: ReportsPageProps
               : "Choose at least one meter and one parameter before continuing."}
         </p>
       </div>
+      <div className="report-workflow__delivery-note">
+        <p>
+          <strong>Excel charts:</strong> The Excel attachment includes one editable line chart for each selected parameter. Word reports do not include charts.
+        </p>
+        {workflowMode !== "report" ? (
+          <p>
+            <strong>Email delivery:</strong> The email uses this same meter, parameter, interval, and resolved report window. If no valid readings are found, no attachment is sent.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 

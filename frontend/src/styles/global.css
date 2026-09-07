@@ -3632,6 +3632,25 @@ body {
   line-height: 1.4;
 }
 
+.report-workflow__delivery-note {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-left: 2px solid rgba(63, 125, 243, 0.45);
+  background: #f7f9fd;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.report-workflow__delivery-note p {
+  margin: 0;
+}
+
+.report-workflow__delivery-note strong {
+  color: var(--text);
+}
+
 .email-readiness-warning {
   display: grid;
   gap: 3px;
