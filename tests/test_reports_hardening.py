@@ -7,6 +7,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
+from openpyxl.chart.axis import DateAxis
 
 from app.api import service as api_service
 
@@ -178,6 +179,7 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertEqual(sheet.cell(row=6, column=2).value, "14:06:47")
         self.assertEqual(sheet.cell(row=7, column=2).value, "15:06:47")
         self.assertEqual(len(workbook["Readings"]._charts), 1)
+        self.assertIsInstance(workbook["Readings"]._charts[0].x_axis, DateAxis)
         self.assertEqual(workbook["Readings"]._charts[0].x_axis.title.tx.rich.p[0].r[0].t, "Date & Time")
         self.assertEqual(workbook["Readings"]._charts[0].y_axis.title.tx.rich.p[0].r[0].t, "Active Power Total (kW)")
 
@@ -301,10 +303,10 @@ class ReportsHardeningTests(unittest.TestCase):
         self.assertIn("C4-C3", sheet.cell(row=4, column=4).value)
         self.assertIn("E4-E3", sheet.cell(row=4, column=6).value)
         self.assertIn("G4-G3", sheet.cell(row=4, column=8).value)
-        self.assertEqual(sheet.cell(row=2, column=10).value, "Screen Printing - PF usage")
-        self.assertIn("D4/H4", sheet.cell(row=4, column=10).value)
+        self.assertNotIn("PF usage", [cell.value for cell in sheet[2]])
+        self.assertIsNone(sheet.cell(row=4, column=10).value)
 
-    def test_single_meter_export_includes_usage_and_usage_based_pf(self) -> None:
+    def test_single_meter_export_includes_usage_without_pf_usage_column(self) -> None:
         plant_timezone = ZoneInfo("Asia/Calcutta")
         start = datetime(2026, 8, 21, 8, 0, tzinfo=plant_timezone)
         end = datetime(2026, 8, 21, 9, 0, tzinfo=plant_timezone)
@@ -340,11 +342,8 @@ class ReportsHardeningTests(unittest.TestCase):
         sheet = workbook.active
         self.assertIn("usage", str(sheet.cell(row=2, column=4).value).lower())
         self.assertIn("usage", str(sheet.cell(row=2, column=6).value).lower())
-        self.assertEqual(sheet.cell(row=2, column=7).value, "Screen Printing - PF usage")
-        self.assertEqual(
-            sheet.cell(row=4, column=7).value,
-            '=IF(OR(NOT(ISNUMBER(D4)),NOT(ISNUMBER(F4)), F4=0),"",D4/F4)',
-        )
+        self.assertNotIn("PF usage", [cell.value for cell in sheet[2]])
+        self.assertIsNone(sheet.cell(row=4, column=7).value)
         self.assertEqual(len(sheet._charts), 2)
         self.assertTrue(workbook["Graph Data"].max_row >= 3)
 

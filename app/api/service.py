@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook
 from openpyxl.chart import LineChart, Reference
+from openpyxl.chart.axis import DateAxis
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from psycopg import Connection, sql
@@ -3366,14 +3367,6 @@ def _derived_column_header(parameter_key: str, base_label: str) -> str | None:
     return None
 
 
-def _supports_pf_column(parameter_keys: Iterable[str]) -> bool:
-    selected_keys = set(parameter_keys)
-    return {
-        "active_energy_received_out_of_load",
-        "apparent_energy_received",
-    }.issubset(selected_keys)
-
-
 def _daily_consumption_formula(row_index: int, raw_column: int, first_data_row: int) -> str | None:
     if row_index <= first_data_row:
         return None
@@ -3384,18 +3377,6 @@ def _daily_consumption_formula(row_index: int, raw_column: int, first_data_row: 
         f'NOT(ISNUMBER({column_letter}{row_index})),NOT(ISNUMBER({column_letter}{previous_row}))),"",'
         f'IF({column_letter}{row_index}<{column_letter}{previous_row},"RESET/INVALID",'
         f"{column_letter}{row_index}-{column_letter}{previous_row}))"
-    )
-
-
-def _pf_formula(row_index: int, kwh_consumption_column: int | None, kvah_consumption_column: int | None) -> str | None:
-    if kwh_consumption_column is None or kvah_consumption_column is None:
-        return None
-    kwh_column_letter = get_column_letter(kwh_consumption_column)
-    kvah_column_letter = get_column_letter(kvah_consumption_column)
-    return (
-        f'=IF(OR(NOT(ISNUMBER({kwh_column_letter}{row_index})),NOT(ISNUMBER({kvah_column_letter}{row_index})), '
-        f"{kvah_column_letter}{row_index}=0),\"\","
-        f"{kwh_column_letter}{row_index}/{kvah_column_letter}{row_index})"
     )
 
 
@@ -3635,8 +3616,6 @@ def _build_scheduled_excel_bytes(
     ]
     spacer_fill = PatternFill(fill_type="solid", fgColor="F3F4F6")
     first_data_row = 3
-    include_pf_column = _supports_pf_column(parameter_keys)
-
     day_map: dict[date, dict[str, dict[str, Any]]] = {}
     for meter, rows in meter_rows:
         for row in rows:
@@ -3686,16 +3665,6 @@ def _build_scheduled_excel_bytes(
                 diff_header.fill = meter_fill
                 current_column += 1
 
-        if include_pf_column:
-            pf_column = current_column
-            sheet.column_dimensions[get_column_letter(pf_column)].width = 12.0
-            pf_header = sheet.cell(row=2, column=pf_column, value=f"{meter['meter_name']} - PF usage")
-            pf_header.border = cell_border
-            pf_header.alignment = centered
-            pf_header.font = Font(bold=True)
-            pf_header.fill = meter_fill
-            current_column += 1
-
         section_end = current_column - 1
         sheet.merge_cells(start_row=1, start_column=section_start, end_row=1, end_column=section_end)
         meter_cell = sheet.cell(row=1, column=section_start, value=meter.get("location") or meter["meter_name"])
@@ -3728,8 +3697,6 @@ def _build_scheduled_excel_bytes(
         for meter_index, (meter, _) in enumerate(meter_rows):
             meter_fill = meter_fills[meter_index % len(meter_fills)]
             meter_day_row = day_map.get(row_date, {}).get(meter["meter_id"])
-            kwh_consumption_column: int | None = None
-            kvah_consumption_column: int | None = None
             for key in parameter_keys:
                 derived_kind = _derived_column_kind(key)
                 raw_column = current_column
@@ -3749,20 +3716,7 @@ def _build_scheduled_excel_bytes(
                     diff_cell.border = cell_border
                     diff_cell.alignment = centered
                     diff_cell.fill = meter_fill
-                    if key == "active_energy_received_out_of_load":
-                        kwh_consumption_column = current_column
-                    elif key == "apparent_energy_received":
-                        kvah_consumption_column = current_column
                     current_column += 1
-
-            if include_pf_column:
-                pf_formula = _pf_formula(row_index, kwh_consumption_column, kvah_consumption_column)
-                pf_cell = sheet.cell(row=row_index, column=current_column, value=pf_formula)
-                pf_cell.border = cell_border
-                pf_cell.alignment = centered
-                pf_cell.fill = meter_fill
-                pf_cell.number_format = "0.000"
-                current_column += 1
 
             if meter_index < len(meter_rows) - 1:
                 sheet.cell(row=row_index, column=current_column).fill = spacer_fill
@@ -3823,6 +3777,7 @@ def _add_excel_graphs(
     chart_row = max(graphs_sheet.max_row + 3, 10)
     for parameter_index, parameter_key in enumerate(parameter_keys):
         chart = LineChart()
+        chart.x_axis = DateAxis()
         chart.title = f"{_parameter_display_label(parameter_key)} trend"
         chart.style = 13
         chart.height = 7.5
@@ -3932,8 +3887,6 @@ def _build_excel_bytes_multi(
     ]
     spacer_fill = PatternFill(fill_type="solid", fgColor="F3F4F6")
     first_data_row = 3
-    include_pf_column = _supports_pf_column(parameter_keys)
-
     timestamp_map: dict[datetime, dict[str, dict[str, Any]]] = {}
     for meter, rows in meter_rows:
         for row in rows:
@@ -3982,16 +3935,6 @@ def _build_excel_bytes_multi(
                 diff_header.fill = meter_fill
                 current_column += 1
 
-        if include_pf_column:
-            pf_column = current_column
-            sheet.column_dimensions[get_column_letter(pf_column)].width = 12.0
-            pf_header = sheet.cell(row=2, column=pf_column, value=f"{meter['meter_name']} - PF usage")
-            pf_header.border = cell_border
-            pf_header.alignment = centered
-            pf_header.font = Font(bold=True)
-            pf_header.fill = meter_fill
-            current_column += 1
-
         section_end = current_column - 1
         sheet.merge_cells(start_row=1, start_column=section_start, end_row=1, end_column=section_end)
         meter_cell = sheet.cell(row=1, column=section_start, value=meter.get("location") or meter["meter_name"])
@@ -4024,8 +3967,6 @@ def _build_excel_bytes_multi(
         for meter_index, (meter, _) in enumerate(meter_rows):
             meter_fill = meter_fills[meter_index % len(meter_fills)]
             meter_row = timestamp_map.get(row_timestamp, {}).get(meter["meter_id"])
-            kwh_consumption_column: int | None = None
-            kvah_consumption_column: int | None = None
             for key in parameter_keys:
                 derived_kind = _derived_column_kind(key)
                 raw_column = current_column
@@ -4042,20 +3983,7 @@ def _build_excel_bytes_multi(
                     diff_cell.border = cell_border
                     diff_cell.alignment = centered
                     diff_cell.fill = meter_fill
-                    if key == "active_energy_received_out_of_load":
-                        kwh_consumption_column = current_column
-                    elif key == "apparent_energy_received":
-                        kvah_consumption_column = current_column
                     current_column += 1
-
-            if include_pf_column:
-                pf_formula = _pf_formula(row_index, kwh_consumption_column, kvah_consumption_column)
-                pf_cell = sheet.cell(row=row_index, column=current_column, value=pf_formula)
-                pf_cell.border = cell_border
-                pf_cell.alignment = centered
-                pf_cell.fill = meter_fill
-                pf_cell.number_format = "0.000"
-                current_column += 1
 
             if meter_index < len(meter_rows) - 1:
                 sheet.cell(row=row_index, column=current_column).fill = spacer_fill
