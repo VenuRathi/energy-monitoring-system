@@ -9,7 +9,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ### Changed
 
 - Refreshed the GitHub README with the production deployment story, key capabilities, and clear documentation entry points.
-- Added repository-native architecture and screenshot placeholder graphics, with a guide for preparing showcase images.
+- Added a repository-native architecture graphic for the README.
 
 ## [0.2.2] - 2026-09-07
 

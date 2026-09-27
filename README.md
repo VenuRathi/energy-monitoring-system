@@ -31,12 +31,6 @@ Electrical data is most useful when operators can see what is happening across t
 - **Local-first operation** — collect and store data on the site network using a Windows host and PostgreSQL.
 - **Support for day-to-day operations** — use built-in health checks, backup tooling, and operator documentation.
 
-## Product preview
-
-The preview below is a placeholder board. Replace it with the real, anonymized application screenshots described in the [visual asset guide](docs/SHOWCASE_ASSETS.md).
-
-![Placeholder board for the energy dashboard, meter health view, and report preview. Replace each panel with a real anonymized product screenshot.](docs/assets/product-preview-placeholder.svg)
-
 ## How it works
 
 ![System architecture: Modbus meters connect through the local collector and database-backed API to the React dashboard and reporting workflows.](docs/assets/architecture.svg)
