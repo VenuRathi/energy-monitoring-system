@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="690" viewBox="0 0 1440 690" role="img" aria-labelledby="title desc">
+  <title id="title">Energy Monitoring System architecture</title>
+  <desc id="desc">Industrial Modbus RTU meters connect over RS485 to a Python collector. Readings persist in PostgreSQL and a local SQLite spool, while a Flask API serves a React dashboard, reports, email workflows, and health information.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081526"/>
+      <stop offset="1" stop-color="#10243a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020817" flood-opacity=".3"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0L10 5 0 10z" fill="#56c8da"/>
+    </marker>
+    <style>
+      .title { font: 700 31px 'Segoe UI',Arial,sans-serif; fill: #f2f7fc }
+      .subtitle { font: 400 15px 'Segoe UI',Arial,sans-serif; fill: #a9bacd }
+      .label { font: 700 12px 'Segoe UI',Arial,sans-serif; letter-spacing: 1.8px; fill: #8ea5bc }
+      .card-title { font: 650 18px 'Segoe UI',Arial,sans-serif; fill: #f4f8fc }
+      .body { font: 400 14px 'Segoe UI',Arial,sans-serif; fill: #b9c9d9 }
+      .small { font: 400 12px 'Segoe UI',Arial,sans-serif; fill: #91a7bd }
+      .icon { font: 700 12px 'Segoe UI',Arial,sans-serif; fill: #071522 }
+    </style>
+  </defs>
+  <rect width="1440" height="690" rx="26" fill="url(#bg)"/>
+  <circle cx="1280" cy="40" r="220" fill="#1d4b69" opacity=".13"/>
+  <circle cx="120" cy="660" r="260" fill="#0e7490" opacity=".08"/>
+  <text x="64" y="66" class="label">SYSTEM OVERVIEW</text>
+  <text x="64" y="111" class="title">From the meter bus to the operator dashboard</text>
+  <text x="64" y="140" class="subtitle">Local acquisition, durable storage, clear status, and reporting in one supervised plant system.</text>
+
+  <text x="64" y="205" class="label">FIELD DEVICES</text>
+  <text x="377" y="205" class="label">ACQUISITION</text>
+  <text x="689" y="205" class="label">LOCAL SERVICES</text>
+  <text x="1030" y="205" class="label">OPERATOR TOOLS</text>
+
+  <g filter="url(#shadow)">
+    <rect x="64" y="232" width="240" height="142" rx="18" fill="#142b42" stroke="#294760"/>
+    <rect x="64" y="232" width="5" height="142" rx="2.5" fill="#38bdf8"/>
+    <circle cx="98" cy="269" r="15" fill="url(#accent)"/><text x="90" y="273" class="icon">01</text>
+    <text x="124" y="275" class="card-title">Energy meters</text>
+    <text x="88" y="316" class="body">Schneider PM5000 / EM6400</text>
+    <text x="88" y="343" class="small">Voltage · current · power · energy</text>
+
+    <rect x="64" y="402" width="240" height="102" rx="18" fill="#142b42" stroke="#294760"/>
+    <text x="88" y="439" class="card-title">RS485 · Modbus RTU</text>
+    <text x="88" y="469" class="small">Serial bus and USB-to-RS485 adapter</text>
+
+    <rect x="377" y="278" width="250" height="180" rx="18" fill="#142b42" stroke="#294760"/>
+    <rect x="377" y="278" width="5" height="180" rx="2.5" fill="#38bdf8"/>
+    <circle cx="411" cy="315" r="15" fill="url(#accent)"/><text x="403" y="319" class="icon">02</text>
+    <text x="437" y="321" class="card-title">Python collector</text>
+    <text x="401" y="365" class="body">Meter driver and decoding</text>
+    <text x="401" y="391" class="body">Polling, retries, data checks</text>
+    <text x="401" y="428" class="small">pymodbus · pyserial</text>
+
+    <rect x="689" y="232" width="280" height="142" rx="18" fill="#142b42" stroke="#294760"/>
+    <rect x="689" y="232" width="5" height="142" rx="2.5" fill="#34d399"/>
+    <circle cx="723" cy="269" r="15" fill="url(#accent)"/><text x="715" y="273" class="icon">03</text>
+    <text x="749" y="275" class="card-title">PostgreSQL</text>
+    <text x="713" y="316" class="body">Readings and application records</text>
+    <text x="713" y="343" class="small">Historical data · reports · schedules</text>
+
+    <rect x="689" y="402" width="280" height="102" rx="18" fill="#142b42" stroke="#294760"/>
+    <text x="713" y="439" class="card-title">Local SQLite spool</text>
+    <text x="713" y="469" class="small">Bounded queue during DB outages</text>
+
+    <rect x="1030" y="232" width="346" height="142" rx="18" fill="#142b42" stroke="#294760"/>
+    <rect x="1030" y="232" width="5" height="142" rx="2.5" fill="#34d399"/>
+    <circle cx="1064" cy="269" r="15" fill="url(#accent)"/><text x="1056" y="273" class="icon">04</text>
+    <text x="1090" y="275" class="card-title">Flask API</text>
+    <text x="1054" y="316" class="body">Dashboard data · health · meter state</text>
+    <text x="1054" y="343" class="small">Reports · scheduled workflows · email</text>
+
+    <rect x="1030" y="402" width="346" height="102" rx="18" fill="#142b42" stroke="#294760"/>
+    <text x="1054" y="439" class="card-title">React operator interface</text>
+    <text x="1054" y="469" class="small">Meters · trends · data freshness · exports</text>
+  </g>
+
+  <path d="M184 374v22" fill="none" stroke="#56c8da" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M304 306h55q18 0 18 18v40" fill="none" stroke="#56c8da" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M627 368h38q18 0 18-18" fill="none" stroke="#56c8da" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M627 390h38q18 0 18 18" fill="none" stroke="#56c8da" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M969 302h43q18 0 18 18" fill="none" stroke="#56c8da" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M1203 374v22" fill="none" stroke="#56c8da" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="64" y="564" width="1312" height="70" rx="16" fill="#0d1c2d" stroke="#223b52"/>
+  <circle cx="96" cy="599" r="6" fill="#34d399"/>
+  <text x="116" y="594" class="body">Deployment model</text>
+  <text x="116" y="616" class="small">Windows plant PC or local server · PostgreSQL · controlled plant LAN · site-specific meter setup</text>
+  <text x="1328" y="603" text-anchor="end" class="small">ENERGY MONITORING SYSTEM</text>
+</svg>

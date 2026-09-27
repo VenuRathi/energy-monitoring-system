@@ -6,6 +6,11 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ## [Unreleased]
 
+### Changed
+
+- Refreshed the GitHub README around the system overview, honest pilot status, and role-based documentation entry points.
+- Added a repository-native architecture overview graphic for the README.
+
 ## [0.2.2] - 2026-09-07
 
 ### Added
