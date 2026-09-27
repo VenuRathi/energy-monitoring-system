@@ -8,8 +8,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ### Changed
 
-- Refreshed the GitHub README around the system overview, honest pilot status, and role-based documentation entry points.
-- Added a repository-native architecture overview graphic for the README.
+- Refreshed the GitHub README with the production deployment story, key capabilities, and clear documentation entry points.
+- Added repository-native architecture and screenshot placeholder graphics, with a guide for preparing showcase images.
 
 ## [0.2.2] - 2026-09-07
 

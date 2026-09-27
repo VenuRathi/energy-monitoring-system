@@ -31,7 +31,7 @@
   <circle cx="120" cy="660" r="260" fill="#0e7490" opacity=".08"/>
   <text x="64" y="66" class="label">SYSTEM OVERVIEW</text>
   <text x="64" y="111" class="title">From the meter bus to the operator dashboard</text>
-  <text x="64" y="140" class="subtitle">Local acquisition, durable storage, clear status, and reporting in one supervised plant system.</text>
+  <text x="64" y="140" class="subtitle">Local acquisition, durable storage, clear status, and reporting for continuous production operations.</text>
 
   <text x="64" y="205" class="label">FIELD DEVICES</text>
   <text x="377" y="205" class="label">ACQUISITION</text>
@@ -91,6 +91,6 @@
   <rect x="64" y="564" width="1312" height="70" rx="16" fill="#0d1c2d" stroke="#223b52"/>
   <circle cx="96" cy="599" r="6" fill="#34d399"/>
   <text x="116" y="594" class="body">Deployment model</text>
-  <text x="116" y="616" class="small">Windows plant PC or local server · PostgreSQL · controlled plant LAN · site-specific meter setup</text>
+  <text x="116" y="616" class="small">Windows host · local PostgreSQL · industrial network · configured production lines</text>
   <text x="1328" y="603" text-anchor="end" class="small">ENERGY MONITORING SYSTEM</text>
 </svg>

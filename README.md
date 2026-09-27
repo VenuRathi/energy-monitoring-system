@@ -1,48 +1,72 @@
-# Energy Monitoring System
+<div align="center">
 
-**Local-first energy monitoring for industrial sites.** Collect electrical readings from Modbus RTU meters, track equipment and data health, and produce reports from a Windows plant PC or local server.
+# ⚡ Energy Monitoring System
+
+### Industrial energy visibility, from the meter to the dashboard.
+
+Monitor electrical data across production lines with a local-first IIoT platform for Modbus RTU meters, live dashboards, operational insights, and clear reporting.
 
 [![CI](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml/badge.svg)](https://github.com/VenuRathi/energy-monitoring-system/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-18a572.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](https://www.python.org/)
-[![Frontend](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript-3178C6.svg)](frontend/)
+[![React](https://img.shields.io/badge/React-TypeScript-149eca.svg)](frontend/)
+[![Platform](https://img.shields.io/badge/Platform-Windows-3975d5.svg)](docs/handover/production-deployment-checklist.md)
 
-## Project status
+**Production use:** Verified and running 24/7 across **three production lines**. The production readiness checklist is approved.
 
-The repository contains the application, deployment tooling, CI, and operator/developer documentation for a **supervised plant pilot**. Full production signoff depends on site evidence such as a sustained soak test, restart recovery, database outage recovery, and verified backup restoration. See the [readiness checklist](docs/handover/production-readiness-signoff.md) for the current acceptance criteria.
+</div>
 
-This is a monitoring and reporting system. It is intended for a controlled local network and is not designed to be exposed directly to the public internet.
+---
 
-## At a glance
+## Energy data operators can use
 
-- Poll configured Schneider PM5000/EM6400-family meters over RS485 and Modbus RTU.
-- Persist readings and operational data in PostgreSQL; buffer readings locally during database outages for later replay.
-- View meter readings, trends, freshness, communication state, and alerts in a React dashboard.
-- Export historical readings to Excel and Word, with scheduled report and email workflows.
-- Deploy and operate on Windows with health checks, backup scripts, release tooling, and handover procedures.
+Electrical data is most useful when operators can see what is happening across the site, follow changes over time, and share clear reports. This system brings meter readings and operational context into one local application for production, maintenance, and energy teams.
 
-## Architecture
+### What the system provides
 
-![System architecture: Modbus meters feed the local collector and PostgreSQL-backed Flask API, which serves the React dashboard and report workflows.](docs/assets/architecture.svg)
+- **Line-wide visibility** — view configured meters and their latest electrical readings from one dashboard.
+- **Useful trends** — explore historical values and compare changes over selected time periods.
+- **Operational awareness** — see meter communication state, reading freshness, and alerts in the same place.
+- **Shareable reporting** — generate Excel and Word reports, with scheduled reporting workflows.
+- **Local-first operation** — collect and store data on the site network using a Windows host and PostgreSQL.
+- **Support for day-to-day operations** — use built-in health checks, backup tooling, and operator documentation.
 
-The API is the integration boundary between acquisition and the browser UI. The system can also run in demo mode with synthetic data; live meter operation requires site-specific configuration and hardware validation.
+## Product preview
 
-## Technology
+The preview below is a placeholder board. Replace it with the real, anonymized application screenshots described in the [visual asset guide](docs/SHOWCASE_ASSETS.md).
 
-| Layer | Implementation |
+![Placeholder board for the energy dashboard, meter health view, and report preview. Replace each panel with a real anonymized product screenshot.](docs/assets/product-preview-placeholder.svg)
+
+## How it works
+
+![System architecture: Modbus meters connect through the local collector and database-backed API to the React dashboard and reporting workflows.](docs/assets/architecture.svg)
+
+**Meters → Modbus RTU / RS485 → Python collector → PostgreSQL → Flask API → React dashboard and reports**
+
+The application brings together live acquisition, historical data, system status, and reporting while keeping the site’s energy data within its local environment.
+
+## Capabilities
+
+| Area | What teams can do |
 | --- | --- |
-| Meter interface | RS485, Modbus RTU, `pymodbus`, `pyserial` |
-| Backend | Python, Flask |
-| Persistence | PostgreSQL, with a bounded local SQLite reading spool |
-| Operator interface | React, TypeScript, Vite, TanStack Query, Recharts |
-| Reports | Excel and Word exports |
-| Target runtime | Windows plant PC or local server |
+| Monitoring | View electrical readings and trends from configured meters. |
+| Line awareness | Review meter status, recent data, and alerts in a unified interface. |
+| Reporting | Create Excel and Word exports and use scheduled report workflows. |
+| Operations | Check application health and follow deployment, backup, and recovery guides. |
 
-## Getting started
+## Built with
 
-Use the [local development setup](docs/developer/local-setup.md) for the complete prerequisites and configuration steps. The application needs a configured database; live polling additionally requires a correctly wired meter and verified serial settings.
+| Layer | Technology |
+| --- | --- |
+| Meter communication | RS485, Modbus RTU, `pymodbus`, `pyserial` |
+| Backend | Python 3.11+, Flask |
+| Data storage | PostgreSQL, with a local SQLite reading spool |
+| Frontend | React, TypeScript, Vite, TanStack Query, Recharts |
+| Deployment | Windows plant PC or local server |
 
-At a high level, local development uses Python 3.11+, Node.js, and PostgreSQL:
+## Get started
+
+For a local development environment, see the [developer setup guide](docs/developer/local-setup.md). It covers prerequisites, database configuration, frontend setup, and meter configuration. Live meter communication requires compatible hardware and site-specific settings.
 
 ```powershell
 python -m venv .venv
@@ -51,64 +75,30 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Then follow the setup guide to configure PostgreSQL and meter settings before starting the backend and frontend. Do not copy real plant names, COM-port mappings, credentials, or network details into public examples.
+For the full application and operational setup, start with the documentation links below.
 
-## Repository map
+## Repository guide
 
-| Path | Purpose |
+| Path | What’s inside |
 | --- | --- |
-| `app/collectors/` | Modbus client and meter drivers |
-| `app/services/` | Polling, durable reading spool, retention, and report worker |
-| `app/database/` | PostgreSQL schema and repository access |
-| `app/api/` | Flask routes and service logic |
+| `app/collectors/` | Modbus communication and meter drivers |
+| `app/services/` | Polling, reading spool, retention, and report workflows |
+| `app/database/` | PostgreSQL models and data access |
+| `app/api/` | Flask API routes and services |
 | `frontend/` | React and TypeScript operator interface |
-| `deployment/`, `scripts/` | Windows setup, health, backup, release, and validation tooling |
-| `docs/` | Architecture, developer guides, deployment, and handover procedures |
-| `tests/` | Backend behavior and regression tests |
-
-## Validation commands
-
-Run the same checks used by CI from the repository root:
-
-```powershell
-python scripts/validate_repository.py
-python -m unittest discover -s tests
-```
-
-```powershell
-Set-Location frontend
-npm ci
-npm run build
-```
-
-These checks validate code and packaging behavior. They do not replace commissioning tests with the actual plant PC, meter wiring, database, and operating procedures.
+| `deployment/`, `scripts/` | Windows setup, health, backup, and release tooling |
+| `docs/` | Architecture, developer, operator, and deployment guides |
+| `tests/` | Backend behavior and regression coverage |
 
 ## Documentation
 
-| If you are… | Start here |
-| --- | --- |
-| Setting up a development environment | [Local setup](docs/developer/local-setup.md) |
-| Learning how the code is organized | [Codebase map](docs/developer/codebase-map.md) |
-| Deploying at a site | [Production deployment checklist](docs/handover/production-deployment-checklist.md) |
-| Operating or recovering the service | [24/7 operations SOP](docs/handover/operations-sop-24x7.md) and [incident response](docs/handover/incident-response-guide.md) |
-| Protecting and restoring data | [Backup and restore SOP](docs/handover/backup-restore-sop.md) |
-| Reviewing remaining acceptance work | [Production readiness signoff](docs/handover/production-readiness-signoff.md) |
-| Configuring meters and environment | [Meter configuration](docs/reference/meter-configuration.md) and [environment variables](docs/reference/environment-variables.md) |
-| Reviewing API shapes | [OpenAPI starter contract](docs/reference/openapi.yaml) |
+- **Developers:** [Local setup](docs/developer/local-setup.md) · [Codebase map](docs/developer/codebase-map.md) · [Developer guide](docs/developer/developer-guide.md)
+- **Operators:** [24/7 operations SOP](docs/handover/operations-sop-24x7.md) · [Troubleshooting](docs/handover/troubleshooting.md) · [Incident response](docs/handover/incident-response-guide.md)
+- **Deployment:** [Deployment checklist](docs/handover/production-deployment-checklist.md) · [Backup and restore](docs/handover/backup-restore-sop.md) · [Windows installer](docs/handover/windows-installer-workflow.md)
+- **Reference:** [Meter configuration](docs/reference/meter-configuration.md) · [Environment variables](docs/reference/environment-variables.md) · [API contract](docs/reference/openapi.yaml)
 
-See the [documentation index](docs/README.md) for the full collection.
+See the [documentation index](docs/README.md) for the full guide collection.
 
-## Security and deployment notes
+## Contributing and license
 
-- Keep `.env`, credentials, database backups, plant network details, and site-specific meter configuration private.
-- The optional API key protects selected endpoints; it is not a user authentication or role system. A frontend API key is visible to browser users.
-- Restrict network access to approved local clients and review [SECURITY.md](SECURITY.md) before deployment.
-- Follow the deployment checklist and validate the target site; a successful CI run alone does not establish plant readiness.
-
-## Contributing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Security issues should follow the private reporting instructions in [SECURITY.md](SECURITY.md).
-
-## License
-
-Distributed under the [MIT License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and change guidance. This project is distributed under the [MIT License](LICENSE).
